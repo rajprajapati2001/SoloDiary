@@ -1,0 +1,262 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SoloDiary</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              digital: ['DigitalDismay', 'Courier New', 'monospace'],
+            }
+          }
+        }
+      }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <style>
+      @font-face {
+        font-family: 'DigitalDismay';
+        src: url('./fonts/digitaldismay.otf') format('opentype');
+        font-weight: normal;
+        font-style: normal;
+      }
+      body {
+        font-family: 'Inter', sans-serif;
+        min-height: 100vh;
+      }
+      .font-mono {
+        font-family: 'JetBrains Mono', monospace;
+      }
+      .font-digital {
+        font-family: 'DigitalDismay', 'Courier New', monospace;
+        letter-spacing: 0.1em;
+      }
+
+      /* ===== 24-Hour Sky Gradients ===== */
+      .sky-00 { background: linear-gradient(to bottom, #020111, #1b1f3b) !important; color: white !important; } /* 12 AM */
+      .sky-01 { background: linear-gradient(to bottom, #03031a, #242a52) !important; color: white !important; }
+      .sky-02 { background: linear-gradient(to bottom, #05051f, #2f3564) !important; color: white !important; }
+      .sky-03 { background: linear-gradient(to bottom, #0a0d2e, #3f4b78) !important; color: white !important; }
+      .sky-04 { background: linear-gradient(to bottom, #1b1e3a, #5f7fa6) !important; color: white !important; } /* pre-dawn */
+      .sky-05 { background: linear-gradient(to bottom, #2c3e6e, #9db7d5) !important; color: white !important; }
+      .sky-06 { background: linear-gradient(to bottom, #ffb56b, #6a82fb) !important; color: #1e293b !important; } /* sunrise */
+      .sky-07 { background: linear-gradient(to bottom, #ffcc88, #b7dcff) !important; color: #1e293b !important; }
+      .sky-08 { background: linear-gradient(to bottom, #87ceeb, #e6f7ff) !important; color: #1e293b !important; } /* morning */
+      .sky-09 { background: linear-gradient(to bottom, #6ec6ff, #f0fbff) !important; color: #1e293b !important; }
+      .sky-10 { background: linear-gradient(to bottom, #59b7ff, #e0f4ff) !important; color: #1e293b !important; }
+      .sky-11 { background: linear-gradient(to bottom, #4aaeff, #d9f0ff) !important; color: #1e293b !important; }
+      .sky-12 { background: linear-gradient(to bottom, #3fa9ff, #bde4ff) !important; color: #1e293b !important; } /* noon */
+      .sky-13 { background: linear-gradient(to bottom, #48b0ff, #d4f1ff) !important; color: #1e293b !important; }
+      .sky-14 { background: linear-gradient(to bottom, #55b8ff, #e2f6ff) !important; color: #1e293b !important; } /* afternoon */
+      .sky-15 { background: linear-gradient(to bottom, #66c2ff, #f0fbff) !important; color: #1e293b !important; }
+      .sky-16 { background: linear-gradient(to bottom, #7acbff, #ffffff) !important; color: #1e293b !important; }
+      .sky-17 { background: linear-gradient(to bottom, #ffb46b, #ffd699) !important; color: #1e293b !important; } /* golden hour */
+      .sky-18 { background: linear-gradient(to bottom, #ff9966, #ffcc70) !important; color: white !important; } /* sunset */
+      .sky-19 { background: linear-gradient(to bottom, #ff7043, #3a3a6a) !important; color: white !important; }
+      .sky-20 { background: linear-gradient(to bottom, #ff512f, #1b2735) !important; color: white !important; } /* dusk */
+      .sky-21 { background: linear-gradient(to bottom, #2c3e50, #0f1724) !important; color: white !important; }
+      .sky-22 { background: linear-gradient(to bottom, #16222a, #0b1320) !important; color: white !important; } /* late night */
+      .sky-23 { background: linear-gradient(to bottom, #0f2027, #2c5364) !important; color: white !important; }
+
+      #root { min-height: 100vh; }
+
+      @media print {
+        body { background: white !important; color: black !important; }
+        .no-print { display: none !important; }
+        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+      }
+
+.footer-container {
+  padding: 20px 10px;
+  background-color: #f8f9fa; /* Light clean background */
+  border-top: 1px solid #eaeaea;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.footer-top {
+  width: 100%;
+  max-width: 1000px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.footer-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.footer-brand h3 {
+  margin: 0;
+  font-size: 1.2rem;
+  color: #333;
+}
+
+.footer-brand p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #666;
+}
+
+.footer-logo {
+  width: 40px;
+  height: 40px;
+}
+
+.social-pill {
+  display: flex;
+  background-color: #ffffff8f;
+  padding: 8px 15px;
+  border-radius: 25px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.social-icon {
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.social-icon:active {
+  transform: scale(0.9); /* Feedback for touch screens */
+}
+
+.footer-bottom {
+  font-size: 0.75rem;
+  color: #888;
+  text-align: center;
+}
+
+/* Mobile adjustments */
+@media (max-width: 600px) {
+  .footer-top {
+    flex-direction: column;
+    text-align: center;
+  }
+  .footer-brand {
+    flex-direction: column;
+  }
+}
+
+/*Nav bar */
+@layer utilities {
+  .shadow-glow-white {
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+  }
+  .shadow-glow-black {
+    box-shadow: 0 0 8px rgba(0, 0, 0, 0.8);
+  }
+  .shadow-glow-blue {
+    box-shadow: 0 0 8px rgba(59, 130, 246, 0.8);
+  }
+  .shadow-glow-green {
+    box-shadow: 0 0 8px rgba(34, 197, 94, 0.8);
+  }
+  .shadow-glow-pink {
+    box-shadow: 0 0 8px rgba(236, 72, 153, 0.8);
+  }
+  .filter.drop-shadow-glow-white {
+    filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.8));
+  }
+  .filter.drop-shadow-glow-black {
+    filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.8));
+  }
+  .filter.drop-shadow-glow-blue {
+    filter: drop-shadow(0 0 4px rgba(59, 130, 246, 0.8));
+  }
+  .filter.drop-shadow-glow-green {
+    filter: drop-shadow(0 0 4px rgba(34, 197, 94, 0.8));
+  }
+  .filter.drop-shadow-glow-pink {
+    filter: drop-shadow(0 0 4px rgba(236, 72, 153, 0.8));
+  }
+}
+
+
+
+      /* When Desktop Mode is ON */
+.desktop-view-active {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: white;
+  z-index: 9999;
+  overflow: auto;
+
+  /* Enables native touch gestures for zooming */
+  touch-action: manipulation; 
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling for iOS/Android */
+}
+
+.desktop-view-active #printable-report {
+  width: 1024px !important; /* Force Desktop Width */
+  min-width: 1024px;
+  transform: scale(0.35); /* Shrinks it to fit mobile screen (adjust as needed) */
+  transform-origin: top left;
+}
+
+/* Close Button Styling for Android */
+.close-desktop-btn {
+  position: fixed;
+  top: 15px;
+  right: 15px;
+  background: red;
+  color: white;
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  margin: 5px;
+  font-size: 30px;
+  border: none;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+}
+
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "lucide-react": "https://esm.sh/lucide-react@^0.473.0",
+    "react": "https://esm.sh/react@19.0.0",
+    "react-dom": "https://esm.sh/react-dom@19.0.0",
+    "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
+    "qrcode.react": "https://esm.sh/qrcode.react@3.1.0",
+    "idb": "https://esm.sh/idb@8.0.1",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "react/": "https://esm.sh/react@^19.2.4/"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+<link rel="icon" href="/assets/icons/solodiary_mine_icon_32x32.png" type="image/x-icon">
+</head>
+  <body class="transition-colors duration-500 bg-gray-50 dark:bg-slate-950">
+    <div id="root"></div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>

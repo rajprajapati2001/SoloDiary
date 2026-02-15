@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">SoloDiary</string>
+    <string name="title_activity_main">SoloDiary</string>
+    <string name="package_name">raj.solodiary.reactjs</string>
+    <string name="custom_url_scheme">raj.solodiary.reactjs</string>
+</resources>
