@@ -95,3 +95,17 @@ Step 	Command	What it does
 2. Stage	git add .	Prepares all changes for the update.
 3. Save	git commit -m "..."	Saves the snapshot locally.
 4. Upload	git push	Sends everything to GitHub.
+
+
+PS C:\Users\Raj\Reactjs_Projects\SoloDiary> git remote add origin https://github.com/rajprajapati2001/SoloDiary.git
+
+PS C:\Users\Raj\Reactjs_Projects\SoloDiary> git status
+
+PS C:\Users\Raj\Reactjs_Projects\SoloDiary> git add .
+PS C:\Users\Raj\Reactjs_Projects\SoloDiary> git commit -m "solodiary"
+
+PS C:\Users\Raj\Reactjs_Projects\SoloDiary> git push
+
+PS C:\Users\Raj\Reactjs_Projects\SoloDiary> git status
+
+nothing to commit, working tree clean
