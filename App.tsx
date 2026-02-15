@@ -7,6 +7,7 @@ import ActivitiesView from './components/ActivitiesView';
 import DiaryView from './components/DiaryView';
 import StatsView from './components/StatsView';
 import Footer from './components/Footer';
+import NoInternet from './components/NoInternet';
 import { ActivityEntry, Goal, ActivityTemplate, Page } from './types';
 import { getDB } from './db';
 import { INITIAL_ACTIVITIES } from './constants';
@@ -194,6 +195,25 @@ const App: React.FC = () => {
       setTemplates(p => p.filter(i => i.id !== t));
     }
   };
+
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  if (!isOnline) {
+    return <NoInternet onRetry={() => window.location.reload()} />;
+  }
 
   const NavItem = ({ icon: Icon, label, id }: { icon: any, label: string, id: Page }) => {
     const isActive = currentPage === id;

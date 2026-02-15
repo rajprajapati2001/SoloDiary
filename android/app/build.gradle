@@ -3,6 +3,7 @@ apply plugin: 'com.android.application'
 android {
     namespace = "raj.solodiary.reactjs"
     compileSdk = rootProject.ext.compileSdkVersion
+    
     defaultConfig {
         applicationId "raj.solodiary.reactjs"
         minSdkVersion rootProject.ext.minSdkVersion
@@ -11,14 +12,31 @@ android {
         versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
-             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
-             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+
+    // 1. ADDED SIGNING CONFIGURATION
+    signingConfigs {
+        release {
+            storeFile file('AndroidSoul_keystore_file.jks')
+            storePassword 'xxx_raj_apk_xxx'
+            keyAlias 'Soulkey'
+            keyPassword 'xxx_raj_apk_xxx'
+            
+            // Optional: Enables modern signature schemes for Play Store compatibility
+            v1SigningEnabled true
+            v2SigningEnabled true
+        }
+    }
+
     buildTypes {
         release {
-            minifyEnabled false
+            // 2. LINKED THE SIGNING CONFIG
+            signingConfig signingConfigs.release
+            
+            // Professional touch: Set to 'true' if you want to shrink app size
+            minifyEnabled false 
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }

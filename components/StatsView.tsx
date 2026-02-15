@@ -597,6 +597,7 @@ const handlePrintReport = async () => {
   // Detect mobile
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
   const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  window.print();
   
 if (isMobile) {
   const userChoice = confirm(
@@ -742,9 +743,9 @@ const openExternalLink = async () => {
 };
 const openAndroidLink = async () => {
   try {
-    await Browser.open({ url: 'https://solodiary.com' });
+    await Browser.open({ url: 'https://github.com/rajprajapati2001/SoloDiary/raw/refs/heads/main/solodiary.apk' });
   } catch (error) {
-    window.open('https://solodiary.com', '_system');
+    window.open('https://github.com/rajprajapati2001/SoloDiary/raw/refs/heads/main/solodiary.apk', '_system');
     console.error("Browser plugin error:", error);
   }
 };
@@ -1103,7 +1104,7 @@ const [showLabels, setShowLabels] = useState(true);
     </div>
 
     {/* Right Side: Controls Wrapper */}
-    <div className="flex flex-row flex-wrap md:flex-nowrap items-center justify-center gap-2 md:gap-4 w-full md:w-auto">
+    <div className="flex flex-row flex-nowrap items-center justify-center gap-2 md:gap-4 w-full md:w-auto">
       
       {/* Selection Group: With subtle background tray */}
       <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/50 p-1 rounded-xl border border-slate-100 dark:border-slate-800">
@@ -1139,19 +1140,19 @@ const [showLabels, setShowLabels] = useState(true);
         </button>
 
         <button 
-          onClick={handleImageReport} 
-          className="group flex items-center justify-center gap-2 bg-green-600 text-white p-2.5 md:px-4 md:py-2 rounded-xl font-bold shadow-lg shadow-green-500/10 hover:bg-green-700 hover:-translate-y-0.5 transition-all active:scale-95 text-[10px] uppercase tracking-tighter"
-        >
-          <ImageDown size={16} className="group-hover:rotate-12 transition-transform"/> 
-          <span className="hidden md:inline">PNG</span>
-        </button>
-
-        <button 
           onClick={handleWebReport} 
-          className="group flex items-center justify-center gap-2 bg-pink-600 text-white p-2.5 md:px-4 md:py-2 rounded-xl font-bold border border-slate-200 dark:border-slate-700 shadow-sm hover:bg-pink-700 hover:-translate-y-0.5 transition-all active:scale-95 text-[10px] uppercase tracking-tighter"
+          className="group flex items-center justify-center gap-2 bg-green-600 text-white p-2.5 md:px-4 md:py-2 rounded-xl font-bold border border-slate-200 dark:border-slate-700 shadow-sm hover:bg-green-700 hover:-translate-y-0.5 transition-all active:scale-95 text-[10px] uppercase tracking-tighter"
         >
           <FileCode2 size={16} className="group-hover:rotate-12 transition-transform"/> 
           <span className="hidden md:inline">HTML</span>
+        </button>
+
+        <button 
+          onClick={handleImageReport} 
+          className="group flex items-center justify-center gap-2 bg-pink-600 text-white p-2.5 md:px-4 md:py-2 rounded-xl font-bold shadow-lg shadow-pink-500/10 hover:bg-prink-700 hover:-translate-y-0.5 transition-all active:scale-95 text-[10px] uppercase tracking-tighter"
+        >
+          <ImageDown size={16} className="group-hover:rotate-12 transition-transform"/> 
+          <span className="hidden md:inline">PNG</span>
         </button>
       </div>
     </div>
@@ -1194,12 +1195,13 @@ const [showLabels, setShowLabels] = useState(true);
         <div className="flex justify-between items-start border-b-[3px] border-slate-950 pb-4 mb-6">
           <div className="flex items-center gap-2 p-2 bg-white rounded-lg shadow-sm border border-slate-200">
             <div className="w-12 h-12 bg-slate-950 flex items-center justify-center rounded-full shadow-lg border-2 border-slate-200 overflow-hidden">
-              <img
-                src={`https://api.dicebear.com/7.x/initials/svg?seed=${userName}`}
-                alt="Logo"
-                className="w-full h-full object-cover"
-              />
-            </div>
+  <img
+    src={`https://api.dicebear.com/7.x/initials/svg?seed=${userName}`}
+    alt="Logo"
+    crossOrigin="anonymous" 
+    className="w-full h-full object-cover"
+  />
+</div>
 
             <div className="text-left space-y-0.5">
               <p className="text-[8px] font-black uppercase tracking-[0.1em] text-slate-900">
@@ -1232,9 +1234,14 @@ const [showLabels, setShowLabels] = useState(true);
               <p className="text-[7px] font-black text-slate-400 uppercase tracking-[0.2em]">Where your stories stay yours</p>
             </div>
             {/* Round Logo */}
-            <div className="w-[55px] h-[55px] bg-slate-950 flex items-center justify-center bg-[url('https://github.com/rajprajapati2001/SoloDiary/blob/main/assets/icons/solodiary_icon_512x512.png')] rounded-full shadow-lg border-2 border-slate-200 overflow-hidden">
-               <img src={MainLogo} alt="Logo" className="w-full h-full object-cover bg-[url('https://github.com/rajprajapati2001/SoloDiary/blob/main/assets/icons/solodiary_icon_512x512.png')] bg-cover bg-center" />
-            </div>
+<div className="w-[55px] h-[55px] bg-slate-950 flex items-center justify-center rounded-full shadow-lg border-2 border-slate-200 overflow-hidden">
+  <img 
+    src="https://raw.githubusercontent.com/rajprajapati2001/SoloDiary/main/assets/icons/solodiary_icon_512x512.png" 
+    alt="Logo" 
+    crossOrigin="anonymous"
+    className="w-full h-full object-cover bg-cover bg-center" 
+  />
+</div>
           </div>
         </div>
 
@@ -1594,12 +1601,12 @@ const [showLabels, setShowLabels] = useState(true);
       <div className="flex flex-col items-center gap-1 shrink-0">
         <div className="p-1 bg-white border border-slate-200 rounded-sm shadow-sm">
           <QRCodeSVG 
-            value="https://solodiary.com"
+            value="https://solo-diary-khaki.vercel.app/"
             size={54} 
             level="M" 
             includeMargin={false}
             imageSettings={{
-              src: "https://solodiary.com",
+              src: "https://solo-diary-khaki.vercel.app/",
               height: 10,
               width: 10,
               excavate: true,

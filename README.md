@@ -70,7 +70,9 @@ adb shell am start -n com.people.crud/.MainActivity
 Every time you make a change in your React code (like changing a button color or adding a feature):
 Run npm run build (Updates the dist folder).
 Run npx cap sync (Moves the update to the Android folder).
-Run .\gradlew.bat assembleDebug (Creates the new APK).
+Run cd android
+Run .\gradlew.bat assembleDebug (Creates the new APK Debug).
+Run .\gradlew.bat assembleRelease (Creates the new APK Release). (location = app\build\outputs\apk\release\app-release-unsigned.apk)
 Do you want to know how to generate a "Release" version for the Pla
 
 
