@@ -734,9 +734,9 @@ const loadPDFLibraries = () => {
 
 const openExternalLink = async () => {
   try {
-    await Browser.open({ url: 'https://solodiary.com' });
+    await Browser.open({ url: 'https://solo-diary-khaki.vercel.app/' });
   } catch (error) {
-    window.open('https://solodiary.com', '_system');
+    window.open('https://solo-diary-khaki.vercel.app/', '_system');
     console.error("Browser plugin error:", error);
   }
 };
@@ -1232,8 +1232,8 @@ const [showLabels, setShowLabels] = useState(true);
               <p className="text-[7px] font-black text-slate-400 uppercase tracking-[0.2em]">Where your stories stay yours</p>
             </div>
             {/* Round Logo */}
-            <div className="w-[55px] h-[55px] bg-slate-950 flex items-center justify-center rounded-full shadow-lg border-2 border-slate-200 overflow-hidden">
-               <img src={MainLogo} alt="Logo" className="w-full h-full object-cover" />
+            <div className="w-[55px] h-[55px] bg-slate-950 flex items-center justify-center bg-[url('https://github.com/rajprajapati2001/SoloDiary/blob/main/assets/icons/solodiary_icon_512x512.png')] rounded-full shadow-lg border-2 border-slate-200 overflow-hidden">
+               <img src={MainLogo} alt="Logo" className="w-full h-full object-cover bg-[url('https://github.com/rajprajapati2001/SoloDiary/blob/main/assets/icons/solodiary_icon_512x512.png')] bg-cover bg-center" />
             </div>
           </div>
         </div>

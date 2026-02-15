@@ -72,3 +72,26 @@ Run npm run build (Updates the dist folder).
 Run npx cap sync (Moves the update to the Android folder).
 Run .\gradlew.bat assembleDebug (Creates the new APK).
 Do you want to know how to generate a "Release" version for the Pla
+
+
+
+…or create a new repository on the command line
+echo "# SoloDiary" >> README.md
+git init
+git add README.md
+git commit -m "first commit"
+git branch -M main
+git remote add origin https://github.com/rajprajapati2001/SoloDiary.git
+git push -u origin main
+
+…or push an existing repository from the command line
+git remote add origin https://github.com/rajprajapati2001/SoloDiary.git
+git branch -M main
+git push -u origin main
+
+
+Step 	Command	What it does
+1. Check	git status	Shows which files have changed.
+2. Stage	git add .	Prepares all changes for the update.
+3. Save	git commit -m "..."	Saves the snapshot locally.
+4. Upload	git push	Sends everything to GitHub.
