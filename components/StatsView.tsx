@@ -741,6 +741,7 @@ const openExternalLink = async () => {
     console.error("Browser plugin error:", error);
   }
 };
+  
 const openAndroidLink = async () => {
   try {
     await Browser.open({ url: 'https://raw.githubusercontent.com/rajprajapati2001/SoloDiary/refs/heads/main/android/app/build/outputs/apk/release/solo-diary-v.1.0.apk' });
