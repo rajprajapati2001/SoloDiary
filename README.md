@@ -15,7 +15,7 @@ SoloDiary is a high-fidelity, tracking web application designed for individuals 
 
 🌐 Web App: [solo-diary-khaki.vercel.app](https://solo-diary-khaki.vercel.app/)
 
-📱 Android APK: [Download SoloDiary APK](android/app/build/outputs/apk/release/solodiary.apk)
+📱 Android APK: [Download SoloDiary APK](android/app/build/outputs/apk/release/solo-diary-v.1.0.apk)
 
 
 ## Screenshots  
