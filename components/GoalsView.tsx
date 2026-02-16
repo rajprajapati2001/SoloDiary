@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Goal } from '../types';
 import { X, Plus, Trash2, CheckCircle, Edit2, Flag } from 'lucide-react';
 
@@ -27,6 +27,8 @@ const GoalsView: React.FC<GoalsViewProps> = ({ userName, goals, onAddGoal, onDel
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [points, setPoints] = useState(0);
+
+    const formRef = useRef<HTMLDivElement>(null);
 
   const years = Array.from({ length: 6 }, (_, i) => currentYear + i);
 
@@ -70,6 +72,11 @@ const GoalsView: React.FC<GoalsViewProps> = ({ userName, goals, onAddGoal, onDel
     setName(goal.name);
     setPoints(goal.points);
     setShowForm(true);
+
+     // Smoothly scroll to the form section
+    setTimeout(() => {
+      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
   };
 
   const reset = () => {
@@ -79,6 +86,18 @@ const GoalsView: React.FC<GoalsViewProps> = ({ userName, goals, onAddGoal, onDel
     setPoints(0);
     setDeadlineMonth(currentMonthName);
     setDeadlineYear(currentYear);
+  };
+
+  const toggleForm = () => {
+    if (showForm) {
+      reset();
+      setShowForm(false);
+    } else {
+      setShowForm(true);
+      setTimeout(() => {
+        formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+    }
   };
 
   const formatAchievedDate = (dateStr: string) => {
@@ -94,11 +113,11 @@ const GoalsView: React.FC<GoalsViewProps> = ({ userName, goals, onAddGoal, onDel
       {/* Rest of your JSX code remains the same */}
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-black uppercase tracking-tighter text-gray-900 dark:text-white">Manage Goals</h2>
+          <h2 ref={formRef} className="text-2xl font-black uppercase tracking-tighter text-gray-900 dark:text-white">Manage Goals</h2>
           <p className="text-xs font-bold opacity-50 uppercase tracking-widest mt-1 text-gray-600 dark:text-slate-400">Dream big, stay consistent</p>
         </div>
         <button
-          onClick={() => { if (showForm) reset(); setShowForm(!showForm); }}
+          onClick={toggleForm} 
           className={`text-white px-3 py-2 sm:px-4 sm:py-2 rounded-xl font-bold shadow-lg hover:scale-105 transition-transform flex items-center gap-2 relative overflow-hidden ${
             showForm ? 'bg-red-600' : 'bg-blue-600'
           }`}
@@ -115,7 +134,7 @@ const GoalsView: React.FC<GoalsViewProps> = ({ userName, goals, onAddGoal, onDel
       </div>
 
       {showForm && (
-        <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-white/20 backdrop-blur-md shadow-xl">
+        <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-white/20 backdrop-blur-md shadow-xl  animate-in slide-in-from-top-4 duration-300">
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
             {/* Month and Year - Side by side on mobile, separate on desktop */}
             <div className="grid grid-cols-2 gap-4 md:grid-cols-1 md:col-span-2 lg:col-span-2">

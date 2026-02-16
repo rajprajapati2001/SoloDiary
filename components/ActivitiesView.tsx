@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { ActivityTemplate } from '../types';
 import { X, Plus, Trash2, Edit2, Zap, AlertCircle } from 'lucide-react';
 
@@ -17,6 +17,8 @@ const ActivitiesView: React.FC<ActivitiesViewProps> = ({ templates, onAdd, onEdi
   const [name, setName] = useState('');
   const [points, setPoints] = useState(0);
   const [error, setError] = useState<string | null>(null);
+
+  const formRef = useRef<HTMLDivElement>(null);
 
   const sortedTemplates = [...templates].sort((a, b) => a.name.localeCompare(b.name));
 
@@ -69,17 +71,34 @@ const ActivitiesView: React.FC<ActivitiesViewProps> = ({ templates, onAdd, onEdi
     setPoints(t.points);
     setShowForm(true);
     setError(null);
+    
+    // Smoothly scroll to the form section
+    setTimeout(() => {
+      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+  };
+
+  const toggleForm = () => {
+    if (showForm) {
+      reset();
+    } else {
+      setShowForm(true);
+      // Optional: scroll to form when adding new as well
+      setTimeout(() => {
+        formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+    }
   };
 
   return (
     <div className="space-y-6 dark:text-white text-black">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">Manage Activities</h2>
+          <h2  ref={formRef} className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">Manage Activities</h2>
           <p className="text-xs font-bold opacity-50 dark:opacity-40 text-gray-600 dark:text-slate-400 uppercase tracking-widest mt-1">Configure your point system</p>
         </div>
         <button
-  onClick={() => { if(showForm) reset(); else setShowForm(true); }}
+  onClick={toggleForm}
   className={`flex items-center gap-2 text-white px-3 py-2 rounded-xl font-bold shadow-lg hover:scale-105 transition-transform relative overflow-hidden ${
     showForm ? 'bg-red-600' : 'bg-blue-600'
   }`}
@@ -99,7 +118,7 @@ const ActivitiesView: React.FC<ActivitiesViewProps> = ({ templates, onAdd, onEdi
       </div>
 
       {showForm && (
-        <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-gray-100 dark:border-slate-700 shadow-xl space-y-4">
+        <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-gray-100 dark:border-slate-700 shadow-xl space-y-4  animate-in slide-in-from-top-4 duration-300">
   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
     {/* Activity Name - Full width on mobile, 1/4 width on desktop */}
     <div className="space-y-1 md:col-span-2">

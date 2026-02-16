@@ -1,6 +1,7 @@
 import React from 'react';
 import { Facebook, Instagram, Send, Mail, Github, MessageCircle } from 'lucide-react';
-import { Browser } from '@capacitor/browser'; // Import the browser plugin
+import { Capacitor } from '@capacitor/core';
+import { Browser } from '@capacitor/browser';
 import MainLogo from '../assets/icons/solodiary_icon.ico'
 
 interface FooterProps {
@@ -11,21 +12,33 @@ const Footer: React.FC<FooterProps> = ({ isFull }) => {
   const currentYear = new Date().getFullYear();
 
   const socialLinks = [
-      { name: 'GitHub', icon: Github, url: 'https://github.com', color: 'text-gray-400 dark:hover:text-white' },
-      { name: 'Instagram', icon: Instagram, url: 'https://www.instagram.com', color: 'text-pink-500' },
+      { name: 'GitHub', icon: Github, url: 'https://github.com/rajprajapati2001', color: 'text-gray-400 dark:hover:text-white' },
+      { name: 'Instagram', icon: Instagram, url: 'https://www.instagram.com/raj_pankaj_prajapati', color: 'text-pink-500' },
       { name: 'Gmail', icon: Mail, url: 'mailto:rp5876907@gmail.com', color: 'text-red-500' },
-      { name: 'Telegram', icon: Send, url: 'https://t.me', color: 'text-blue-500' },
+      { name: 'Telegram', icon: Send, url: 'https://t.me/raj_prajapati14022001', color: 'text-blue-500' },
       { name: 'Facebook', icon: Facebook, url: 'https://www.facebook.com', color: 'text-blue-600' },
-      { name: 'WhatsApp', icon: MessageCircle, url: 'https://wa.me', color: 'text-green-500' },
+      { name: 'WhatsApp', icon: MessageCircle, url: 'https://wa.me/+916353636344', color: 'text-green-500' },
   ];
 
   // Function to handle links natively in Android
   const handleLink = async (e: React.MouseEvent, url: string) => {
     e.preventDefault();
+    
+    // Check if the app is running as a native Android/iOS app
+    const isNative = Capacitor.isNativePlatform();
+
     if (url.startsWith('http')) {
-      await Browser.open({ url }); // Opens in System Browser (Chrome)
+      if (isNative) {
+        // Opens in a native Custom Tab (Android) or SafariView (iOS)
+        await Browser.open({ url });
+      } else {
+        // Opens in a new tab on standard web browsers
+        window.open(url, '_blank', 'noopener,noreferrer');
+      }
     } else {
-      window.location.href = url; // Standard handling for mailto/tel/whatsapp
+      // Standard handling for mailto, tel, or whatsapp protocol links
+      // This triggers the device's native app selector (e.g., opens Gmail app)
+      window.location.href = url;
     }
   };
 

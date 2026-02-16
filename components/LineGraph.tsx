@@ -81,12 +81,12 @@ const LineGraph: React.FC<LineGraphProps> = ({
                 <g>
                   <circle cx={x} cy={y} r="8" fill="none" stroke="#10b981" strokeWidth="1" strokeDasharray="2 1" />
                   
-                  <text x={x} y={y - 18} textAnchor="middle" className="fill-emerald-500 text-[14px] font-black">★</text>
+                  <text x={x} y={y - 20} textAnchor="middle" className="fill-emerald-500 text-[14px] font-black">★</text>
                   
                   {showGoalNames && (
                     <text 
                       x={x} 
-                      y={y - 30} 
+                      y={y - 33} 
                       textAnchor="middle" 
                       style={{ 
                         paintOrder: 'stroke', 

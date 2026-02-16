@@ -1537,14 +1537,22 @@ const [showLabels, setShowLabels] = useState(true);
                     
                     
                     {hasAttachmentsInReport && (
-                      <td className="px-0.5 py-0.5 text-center">
-                        {e.attachment ? (
-                          <div className="flex flex-col items-center gap-0.5">
-                            <QRCodeSVG value={e.attachment} size={40} level="M" />
-                          </div>
-                        ) : null}
-                      </td>
-                    )}
+  <td className="px-0.5 py-0.5 text-center">
+    {e.attachment ? (
+      <div className="flex flex-col items-center justify-center">
+        <a 
+          href={e.attachment} 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          title={e.attachment}
+          className="inline-block active:opacity-50 transition-opacity"
+        >
+          <QRCodeSVG value={e.attachment} size={40} level="M" />
+        </a>
+      </div>
+    ) : null}
+  </td>
+)}
                     {hasTransactionsInReport && (
                       <td className="px-4 py-2 text-[8px] font-black whitespace-nowrap text-right">
                         {e.debit! > 0 && <span className="text-red-600">-{e.debit}₹</span>}
@@ -1600,18 +1608,24 @@ const [showLabels, setShowLabels] = useState(true);
       {/* RIGHT: Functional QR Code */}
       <div className="flex flex-col items-center gap-1 shrink-0">
         <div className="p-1 bg-white border border-slate-200 rounded-sm shadow-sm">
+          <a 
+          href="https://solo-diary-khaki.vercel.app/" 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          className="inline-block active:opacity-50 transition-opacity"
+        >
           <QRCodeSVG 
             value="https://solo-diary-khaki.vercel.app/"
             size={54} 
             level="M" 
             includeMargin={false}
             imageSettings={{
-              src: "https://solo-diary-khaki.vercel.app/",
-              height: 10,
-              width: 10,
+              src: "https://raw.githubusercontent.com/rajprajapati2001/SoloDiary/refs/heads/main/assets/icons/solodiary_icon.ico",
+              height: 15,
+              width: 15,
               excavate: true,
             }}
-          />
+          /></a>
         </div>
         <div className="flex flex-col items-center">
           <span className="text-[6px] font-black text-slate-400 uppercase tracking-widest">Scan to Visit</span>

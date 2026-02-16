@@ -17,8 +17,8 @@ const DiaryView: React.FC<DiaryViewProps> = ({ entries, goals, onEdit, onDelete 
   });
 
   const diaryEntries = entries
-    .filter(e => e.description && e.toDate.startsWith(selectedMonth))
-    .sort((a, b) => b.toDate.localeCompare(a.toDate) || b.toTime.localeCompare(a.toTime));
+  .filter(e => e.description && e.toDate.startsWith(selectedMonth))
+  .sort((a, b) => b.toDate.localeCompare(a.toDate) || a.toTime.localeCompare(b.toTime));
 
   const groupedEntries = diaryEntries.reduce((acc, entry) => {
     if (!acc[entry.toDate]) acc[entry.toDate] = [];
