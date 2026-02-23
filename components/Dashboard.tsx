@@ -3,7 +3,8 @@ import CalendarView from './CalendarView';
 import LineGraph from './LineGraph';
 import Footer from './Footer';
 import { ActivityEntry, Goal } from '../types';
-import { TrendingUp, Award, Edit2, Trash2, Star, Banknote, Eye, EyeOff, Target, Calendar, Paperclip,ChartLine, ScrollText, Check, X as CloseIcon } from 'lucide-react';
+import { TrendingUp, Award, Edit2, Trash2, Star, Banknote, Eye, EyeOff, Target, Calendar, Paperclip,ChartLine, ScrollText, Check, X as CloseIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { motion } from 'motion/react';
 
 interface DashboardProps {
   userName: string;
@@ -48,6 +49,19 @@ const Dashboard: React.FC<DashboardProps> = ({ userName, entries, selectedDate, 
       setIsEditingName(false);
     }
   };
+
+    const handlePrevDate = () => {
+    const d = new Date(selectedDate);
+    d.setDate(d.getDate() - 1);
+    onSelectDate(d.toISOString().split('T')[0]);
+  };
+
+  const handleNextDate = () => {
+    const d = new Date(selectedDate);
+    d.setDate(d.getDate() + 1);
+    onSelectDate(d.toISOString().split('T')[0]);
+  };
+  
 const [showLabels, setShowLabels] = React.useState(true);
   const dateObj = new Date(selectedDate);
   const selectedYear = dateObj.getFullYear();
@@ -100,7 +114,7 @@ const [showLabels, setShowLabels] = React.useState(true);
   const monthName = dateObj.toLocaleString('default', { month: 'long' });
   const monthNameShort = dateObj.toLocaleString('default', { month: 'short' });
   const formattedTrackingDate = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
-  const formattedActivitiesDate = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  const formattedActivitiesDate = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' });
   const formattedFullActivitiesDate = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
 
   return (
@@ -200,7 +214,7 @@ const [showLabels, setShowLabels] = React.useState(true);
           <div className="flex justify-between items-center mb-4">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-blue-500/10"><Calendar className="text-blue-500" size={20} /></div>
-              <div>
+              <div className="flex items-center justify-between mb-6">
                 <h3 className="text-xl font-bold uppercase tracking-tight text-gray-800 dark:text-white">Monthly Progress</h3>
                 <p className="text-xs text-gray-500">{monthName} Target: {monthTarget.toLocaleString()} pts</p>
               </div>
@@ -298,6 +312,7 @@ const [showLabels, setShowLabels] = React.useState(true);
           
           <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-6">
             {/*notebook-text*/}
+<div className="flex items-center justify-between">
             <h3 className="inline-flex items-center gap-5 text-lg font-bold mb-6 text-gray-800 dark:text-white uppercase tracking-tighter">
   <ScrollText className="text-pink-500 shrink-0" size={30}/>
   
@@ -307,6 +322,27 @@ const [showLabels, setShowLabels] = React.useState(true);
     <span className="sm:hidden"> {formattedActivitiesDate}</span>
   </span>
 </h3>
+  <div className="flex gap-2">
+                <motion.button 
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={handlePrevDate}
+                  className="p-2 rounded-xl bg-gray-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-700 text-gray-600 dark:text-gray-400 hover:bg-blue-500 hover:text-white transition-colors shadow-sm"
+                  title="Previous Day"
+                >
+                  <ChevronLeft size={18} />
+                </motion.button>
+                <motion.button 
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={handleNextDate}
+                  className="p-2 rounded-xl bg-gray-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-700 text-gray-600 dark:text-gray-400 hover:bg-blue-500 hover:text-white transition-colors shadow-sm"
+                  title="Next Day"
+                >
+                  <ChevronRight size={18} />
+                </motion.button>
+              </div>
+</div>
             <div className="space-y-3">
               {selectedDateEntries.length === 0 ? (
                 <div className="text-center py-10 text-gray-400 italic">No activities recorded.</div>
