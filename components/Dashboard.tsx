@@ -313,7 +313,7 @@ const [showLabels, setShowLabels] = React.useState(true);
           <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-6">
             {/*notebook-text*/}
 <div className="flex items-center justify-between">
-            <h3 className="inline-flex items-center gap-5 text-lg font-bold mb-6 text-gray-800 dark:text-white uppercase tracking-tighter">
+            <h3 className="inline-flex items-center md:gap-5 gap-2 text-lg font-bold mb-6 text-gray-800 dark:text-white uppercase tracking-tighter">
   <ScrollText className="text-pink-500 shrink-0" size={30}/>
   
   {/* Mobile: Shows "Activities" | Desktop: Shows "Activities for [Date]" */}
@@ -322,7 +322,7 @@ const [showLabels, setShowLabels] = React.useState(true);
     <span className="sm:hidden"> {formattedActivitiesDate}</span>
   </span>
 </h3>
-  <div className="flex gap-2">
+  <div className="flex gap-1">
                 <motion.button 
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.9 }}
