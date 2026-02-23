@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, Home, List, Target, BarChart3, Sun, Moon, BookText, Loader2, User } from 'lucide-react';
+import { Plus, Home, List, Target, BarChart3, Sun, Moon, BookText, Loader2, User, CalendarSync } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import EntryForm from './components/EntryForm';
 import GoalsView from './components/GoalsView';
 import ActivitiesView from './components/ActivitiesView';
 import DiaryView from './components/DiaryView';
+import AutoFill from './components/AutoFill';
 import StatsView from './components/StatsView';
 import Footer from './components/Footer';
 import NoInternet from './components/NoInternet';
-import { ActivityEntry, Goal, ActivityTemplate, Page } from './types';
+import { ActivityEntry, Goal, ActivityTemplate, Page, AutoTemplate } from './types';
 import { getDB } from './db';
 import { INITIAL_ACTIVITIES } from './constants';
 import UserIcon from './assets/icons/user.png';
@@ -23,7 +24,7 @@ const App: React.FC = () => {
   const [tempName, setTempName] = useState('');
   const [currentPage, setCurrentPage] = useState<Page>(() => {
     const hash = window.location.hash.replace('#/', '') as Page;
-    return ['home', 'activities', 'goals', 'diary', 'chart'].includes(hash) ? hash : 'home';
+    return ['home', 'activities', 'goals', 'diary', 'auto', 'chart'].includes(hash) ? hash : 'home';
   });
   const [isDarkMode, setIsDarkMode] = useState(() => {
     const saved = localStorage.getItem('solo_diary_theme');
@@ -41,7 +42,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#/', '') as Page;
-      if (['home', 'activities', 'goals', 'diary', 'chart'].includes(hash)) {
+      if (['home', 'activities', 'goals', 'diary', 'auto', 'chart'].includes(hash)) {
         setCurrentPage(hash);
       }
     };
@@ -152,6 +153,17 @@ const App: React.FC = () => {
     setIsFormOpen(false);
     setEditingEntry(null);
   };
+  
+  const handleAddEntries = async (newEntries: ActivityEntry[]) => {
+    const db = await getDB();
+    const tx = db.transaction('entries', 'readwrite');
+    await Promise.all(newEntries.map(e => tx.store.put(e)));
+    await tx.done;
+    
+    const updatedEntries = [...newEntries, ...entries].sort((a, b) => b.toDate.localeCompare(a.toDate) || b.toTime.localeCompare(a.toTime));
+    setEntries(updatedEntries);
+    syncGoalsWithEntries(updatedEntries);
+  };
 
   const handleDeleteEntry = async (id: string) => {
     if (!window.confirm('Are you sure you want to delete this record?')) return;
@@ -225,6 +237,7 @@ const App: React.FC = () => {
         case 'activities': return 'bg-blue-500 text-white shadow-[0_0_8px_rgba(59,130,246,0.8)]';
         case 'goals': return 'bg-green-500 text-white shadow-[0_0_8px_rgba(34,197,94,0.8)]';
         case 'diary': return 'bg-pink-500 text-white shadow-[0_0_8px_rgba(236,72,153,0.8)]';
+        case 'auto': return 'bg-violet-500 text-white shadow-[0_0_8px_rgba(139,92,246,0.8)]';
         case 'chart': return isDarkMode ? 'bg-white text-black shadow-[0_0_8px_rgba(255,255,255,0.8)]' : 'bg-black text-white shadow-[0_0_8px_rgba(0,0,0,0.8)]';
         default: return '';
       }
@@ -237,6 +250,7 @@ const App: React.FC = () => {
         case 'activities': return 'drop-shadow-[0_0_4px_rgba(59,130,246,0.8)]';
         case 'goals': return 'drop-shadow-[0_0_4px_rgba(34,197,94,0.8)]';
         case 'diary': return 'drop-shadow-[0_0_4px_rgba(236,72,153,0.8)]';
+        case 'auto': return 'drop-shadow-[0_0_4px_rgba(139,92,246,0.8)]';
         case 'chart': return isDarkMode ? 'drop-shadow-[0_0_4px_rgba(255,255,255,0.8)]' : 'drop-shadow-[0_0_4px_rgba(0,0,0,0.8)]';
         default: return '';
       }
@@ -287,7 +301,7 @@ const App: React.FC = () => {
             setCurrentPage('home');
             window.location.hash = '#/home';
           }} className="flex items-center gap-3 cursor-pointer">
-            <div className="w-11 h-11 rounded-full overflow-hidden bg-[#0A2647] flex items-center justify-center border-blue-400 shadow-xl group relative">
+            <div className="w-11 h-11 rounded-full overflow-hidden bg-[#0A2647] flex items-center justify-center border-blue-400 shadow-xl group relative hidden sm:block">
               <img src={MainLogo} alt="Logo" />
             </div>
             <h1 className="text-xl font-black text-gray-900 dark:text-white tracking-tighter uppercase hidden sm:block">SOLODIARY</h1>
@@ -297,6 +311,7 @@ const App: React.FC = () => {
             <NavItem id="activities" icon={List} label="Activities" />
             <NavItem id="goals" icon={Target} label="Goals" />
             <NavItem id="diary" icon={BookText} label="Diary" />
+            <NavItem id="auto" icon={CalendarSync} label="Auto" />
             <NavItem id="chart" icon={BarChart3} label="Stats" />
           </div>
           <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2.5 rounded-xl text-gray-500 dark:text-gray-400 hover:bg-gray-100 transition-colors">
@@ -342,6 +357,13 @@ const App: React.FC = () => {
             goals={goals}
             onEdit={entry => { setEditingEntry(entry); setIsFormOpen(true); }}
             onDelete={handleDeleteEntry}
+          />
+        )}
+        {currentPage === 'auto' && (
+          <AutoFill 
+            onAddEntries={handleAddEntries} 
+            templates={templates}
+            goals={goals}
           />
         )}
         {currentPage === 'chart' && (

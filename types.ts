@@ -34,7 +34,23 @@ export interface ActivityTemplate {
   name: string;
 }
 
-export type Page = 'home' | 'activities' | 'goals' | 'diary' | 'chart';
+export interface AutoTemplate {
+  id: string;
+  isLongEvent: boolean;
+  fromTime: string | null;
+  toTime: string;
+  code: string;
+  name: string;
+  points: number;
+  description: string;
+  attachment: string;
+  debit?: number;
+  credit?: number;
+  isEnabled: boolean;
+}
+
+
+export type Page = 'home' | 'activities' | 'goals' | 'diary' | 'auto' | 'chart';
 
 export interface DailyStats {
   date: string;

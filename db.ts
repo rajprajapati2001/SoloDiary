@@ -2,7 +2,7 @@
 import { openDB, IDBPDatabase } from 'idb';
 
 const DB_NAME = 'SoloDiaryDB';
-const DB_VERSION = 2; // Increment version for new store
+const DB_VERSION = 3; // Increment version for new store
 
 export const initDB = async (): Promise<IDBPDatabase> => {
   return openDB(DB_NAME, DB_VERSION, {
@@ -15,6 +15,11 @@ export const initDB = async (): Promise<IDBPDatabase> => {
       if (oldVersion < 2) {
         if (!db.objectStoreNames.contains('settings')) {
           db.createObjectStore('settings');
+        }
+      }
+      if (oldVersion < 3) {
+        if (!db.objectStoreNames.contains('auto_templates')) {
+          db.createObjectStore('auto_templates', { keyPath: 'id' });
         }
       }
     },
