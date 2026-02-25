@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ActivityEntry, Goal } from '../types';
-import { Trash2, Edit2, Clock, Paperclip, Calendar, Star, Banknote } from 'lucide-react';
+import { Trash2, Edit2, Clock, Paperclip, Calendar, Star, Banknote, NotebookPen, Search } from 'lucide-react';
 
 interface DiaryViewProps {
   entries: ActivityEntry[];
@@ -10,15 +10,28 @@ interface DiaryViewProps {
 }
 
 const DiaryView: React.FC<DiaryViewProps> = ({ entries, goals, onEdit, onDelete }) => {
-  // Always default to current month and year
+  // Search state
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  // Default to current month and year
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   });
 
+  // Filter logic: Matches Month + Search Term (Name, Code, or Description)
   const diaryEntries = entries
-  .filter(e => e.description && e.toDate.startsWith(selectedMonth))
-  .sort((a, b) => b.toDate.localeCompare(a.toDate) || a.toTime.localeCompare(b.toTime));
+    .filter(e => {
+      const matchesMonth = e.description && e.toDate.startsWith(selectedMonth);
+      const searchLower = searchTerm.toLowerCase();
+      const matchesSearch = 
+        e.name.toLowerCase().includes(searchLower) ||
+        e.code.toLowerCase().includes(searchLower) ||
+        e.description?.toLowerCase().includes(searchLower);
+      
+      return matchesMonth && matchesSearch;
+    })
+    .sort((a, b) => b.toDate.localeCompare(a.toDate) || a.toTime.localeCompare(b.toTime));
 
   const groupedEntries = diaryEntries.reduce((acc, entry) => {
     if (!acc[entry.toDate]) acc[entry.toDate] = [];
@@ -33,25 +46,41 @@ const DiaryView: React.FC<DiaryViewProps> = ({ entries, goals, onEdit, onDelete 
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
         <div>
           <h2 className="text-3xl font-black uppercase tracking-tighter dark:text-white">Personal Diary</h2>
           <p className="text-sm font-bold text-gray-600 dark:text-slate-400">Records for {monthDisplay}</p>
         </div>
-        <div className="flex items-center gap-2 bg-white/10 dark:bg-slate-800 p-2.5 rounded-2xl border border-gray-100 dark:border-slate-700 shadow-xl no-print">
-          <Calendar size={20} className="text-blue-500" />
-          <input 
-            type="month" 
-            value={selectedMonth} 
-            onChange={e => setSelectedMonth(e.target.value)} 
-            className="bg-transparent dark:text-white border-none text-sm font-bold outline-none cursor-pointer"
-          />
+        
+        <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto no-print">
+          {/* --- SEARCH INPUT --- */}
+          <div className="relative w-full sm:w-64 group">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
+            <input 
+              type="text"
+              placeholder="Search logs..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 bg-white/10 dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 dark:text-white text-sm font-bold outline-none focus:border-blue-500 transition-all shadow-lg"
+            />
+          </div>
+
+          {/* --- DATE PICKER --- */}
+          <div className="flex items-center gap-2 bg-white/10 dark:bg-slate-800 p-2.5 rounded-2xl border border-gray-100 dark:border-slate-700 shadow-xl w-full sm:w-auto">
+            <Calendar size={20} className="text-blue-500" />
+            <input 
+              type="month" 
+              value={selectedMonth} 
+              onChange={e => setSelectedMonth(e.target.value)} 
+              className="bg-transparent dark:text-white border-none text-sm font-bold outline-none cursor-pointer w-full"
+            />
+          </div>
         </div>
       </div>
 
       {Object.keys(groupedEntries).length === 0 ? (
         <div className="p-12 text-center text-gray-400 dark:text-slate-500 italic bg-white/10 dark:bg-slate-800/50 rounded-3xl border border-gray-100 dark:border-slate-800">
-          No descriptive logs found for this period.
+          {searchTerm ? "No logs match your search criteria." : "No descriptive logs found for this period."}
         </div>
       ) : (
         <div className="space-y-8">
@@ -70,7 +99,7 @@ const DiaryView: React.FC<DiaryViewProps> = ({ entries, goals, onEdit, onDelete 
                     return (
                       <div 
                         key={item.id} 
-                        className={`bg-white dark:bg-slate-800/80 p-6 rounded-3xl border transition-all shadow-xl backdrop-blur-sm relative group ${
+                        className={`bg-white dark:bg-slate-800/80 md:p-6 p-3 rounded-3xl border transition-all shadow-xl backdrop-blur-sm relative group ${
                           goalAchieved 
                           ? 'border-emerald-500/30 bg-emerald-500/5' 
                           : 'border-gray-100 dark:border-slate-700'
@@ -79,7 +108,8 @@ const DiaryView: React.FC<DiaryViewProps> = ({ entries, goals, onEdit, onDelete 
                         <div className="flex justify-between items-start mb-4">
                           <div>
                             <div className="flex flex-wrap items-center gap-2 mb-2">
-                              <h4 className="text-2xl font-black uppercase tracking-tight dark:text-white">{item.name}</h4>
+                              <NotebookPen size={14} className="text-pink-600" />
+                              <h4 className="md:text-2xl text-sm font-black uppercase tracking-tight dark:text-white">{item.name}</h4>
                               <div className="flex gap-1">
                                 {goalAchieved && (
                                   <div className="flex items-center gap-1 bg-emerald-500/20 text-emerald-500 text-[10px] px-2.5 py-1 rounded-full font-black uppercase border border-emerald-500/20">
@@ -112,7 +142,7 @@ const DiaryView: React.FC<DiaryViewProps> = ({ entries, goals, onEdit, onDelete 
                           </div>
                         </div>
                         
-                        <p className="text-sm whitespace-pre-wrap leading-relaxed border-l-4 border-blue-500/30 dark:border-blue-400/20 pl-6 py-3 bg-gray-50 dark:bg-slate-900 rounded-r-xl dark:text-slate-300">
+                        <p className="md:text-sm text-xs whitespace-pre-wrap leading-relaxed border-l-4 border-blue-500/30 dark:border-blue-400/20 pl-6 md:py-3 py-1 bg-gray-50 dark:bg-slate-900 rounded-r-xl dark:text-slate-300">
                           {item.description}
                         </p>
 
@@ -121,7 +151,7 @@ const DiaryView: React.FC<DiaryViewProps> = ({ entries, goals, onEdit, onDelete 
                             href={item.attachment} 
                             target="_blank" 
                             rel="noreferrer"
-                            className="mt-6 inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-blue-500 dark:text-blue-400 bg-blue-500/5 px-4 py-2 rounded-xl hover:bg-blue-500/10 transition-all border border-blue-500/20 shadow-sm no-print"
+                            className="md:mt-6 mt-2 inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-blue-500 dark:text-blue-400 bg-blue-500/5 px-4 py-2 rounded-xl hover:bg-blue-500/10 transition-all border border-blue-500/20 shadow-sm no-print"
                           >
                             <Paperclip size={14} /> View Attachment
                           </a>

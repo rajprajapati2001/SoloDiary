@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { ActivityEntry, ActivityTemplate, Goal } from '../types';
-import { X, Save, Banknote, Clock, Zap, Target, FileText, Calendar as CalendarIcon, Link as LinkIcon, ChevronDown, Code, Star, ArrowDownLeft, ArrowUpRight, NotebookPen, Activity } from 'lucide-react';
+import { X, NotebookTabs, Save, Banknote, Clock, Zap, Target, FileText, Calendar as CalendarIcon, Link as LinkIcon, ChevronDown, Code, Star, ArrowDownLeft, ArrowUpRight, NotebookPen, Activity,KeySquare } from 'lucide-react';
 
 interface EntryFormProps {
   onClose: () => void;
@@ -11,9 +11,11 @@ interface EntryFormProps {
   templates: ActivityTemplate[];
   goals: Goal[];
   disableDates?: boolean;
+  title?: string;
+  icon?: React.ReactNode;
 }
 
-const EntryForm: React.FC<EntryFormProps> = ({ onClose, onSave, initialData, templates, goals, disableDates }) => {
+const EntryForm: React.FC<EntryFormProps> = ({ onClose, onSave, initialData, templates, goals, disableDates, title, icon }) => {
   const [isLongEvent, setIsLongEvent] = useState(initialData?.isLongEvent ?? false);
   const [isCashTransaction, setIsCashTransaction] = useState(!!(initialData?.debit || initialData?.credit));
   const [isDescriptionOpen, setIsDescriptionOpen] = useState(!!(initialData?.description || initialData?.attachment));
@@ -163,12 +165,19 @@ const [selectedGoalId, setSelectedGoalId] = useState("");
 
 
   const modalContent = (
-<div className="text-black dark:text-white fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl">
+<div className="text-black dark:text-white fixed inset-0 z-[100] flex items-center justify-center md:p-4 p-2 bg-black/80 backdrop-blur-xl">
   <div className="bg-white dark:bg-slate-900 w-full max-w-lg md:rounded-[2.5rem] rounded-[1.5rem] shadow-2xl overflow-hidden max-h-[90vh] flex flex-col border border-white/10 animate-in zoom-in duration-300">
         <div className="px-6 py-4 border-b border-gray-100 dark:border-white/10 flex justify-between items-center bg-white dark:bg-slate-900 z-10">
+          <div className="flex items-center gap-3">
+            {icon || (title?.toLowerCase().includes('key') || title?.toLowerCase().includes('auto') ? (
+              <KeySquare size={25} className="text-emerald-600" />
+            ) : (
+              <NotebookTabs size={25} className="text-blue-600" />
+            ))}
           <h2 className="text-xl font-black uppercase tracking-tighter text-black dark:text-white">
-            {initialData ? 'Edit Event Record' : 'Add Event Details'}
+            {title || (initialData ? 'Edit Event Record' : 'Add Event Details')}
           </h2>
+          </div>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-all">
             <X size={24} className="text-black dark:text-white" />
           </button>

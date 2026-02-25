@@ -47,6 +47,7 @@ export interface AutoTemplate {
   debit?: number;
   credit?: number;
   isEnabled: boolean;
+  order?: number;
 }
 
 

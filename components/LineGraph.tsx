@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Goal } from '../types';
 
 interface LineGraphProps {
@@ -19,6 +19,40 @@ const LineGraph: React.FC<LineGraphProps> = ({
   showGoalNames = true, 
   variant = 'stats' 
 }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const hasScrolledRef = useRef<string>('');
+
+   useEffect(() => {
+    if (containerRef.current && data.length > 0 && hasScrolledRef.current !== monthName) {
+      const today = new Date();
+      const isCurrentMonth = today.toLocaleString('default', { month: 'long' }) === monthName;
+      
+      if (isCurrentMonth) {
+        const todayDay = today.getDate();
+        const todayIndex = data.findIndex(d => d.day === todayDay);
+        
+        if (todayIndex !== -1) {
+          const svgWidth = 800;
+          const padding = 40;
+          const x = padding + (todayIndex * (svgWidth - padding * 2)) / (data.length - 1);
+          
+          // Calculate scroll position to center today's point
+          const container = containerRef.current;
+          const scrollWidth = container.scrollWidth;
+          const clientWidth = container.clientWidth;
+          
+          // The SVG width in pixels is scrollWidth
+          const scrollX = (x / svgWidth) * scrollWidth;
+          container.scrollTo({
+            left: scrollX - clientWidth / 2,
+            behavior: 'smooth'
+          });
+          hasScrolledRef.current = monthName;
+        }
+      }
+    }
+  }, [data, monthName]);
+
   if (data.length === 0) return <div className="p-10 text-center text-gray-400">No range data available.</div>;
 
   const maxPoints = Math.max(...data.map(d => d.points), 100);
@@ -33,7 +67,7 @@ const LineGraph: React.FC<LineGraphProps> = ({
   }).join(' ');
 
   return (
-    <div className="relative w-full overflow-x-auto overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+    <div  ref={containerRef} className="relative w-full overflow-x-auto overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] no-scrollbar">
       
       {/* Legend - Only visible if NOT in dashboard */}
       {variant !== 'dashboard' && (

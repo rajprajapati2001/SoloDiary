@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Goal } from '../types';
-import { X, Plus, Trash2, CheckCircle, Edit2, Flag } from 'lucide-react';
+import { X, Plus, Trash2, CheckCircle, Edit2, Flag, Search } from 'lucide-react'; // Added Search icon
 
 interface GoalsViewProps {
   userName: string;
@@ -14,7 +14,6 @@ const GoalsView: React.FC<GoalsViewProps> = ({ userName, goals, onAddGoal, onDel
   const currentYear = new Date().getFullYear();
   const currentMonthName = new Date().toLocaleString('default', { month: 'long' });
 
-  // Define the months array
   const months = [
     'January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'
@@ -27,12 +26,20 @@ const GoalsView: React.FC<GoalsViewProps> = ({ userName, goals, onAddGoal, onDel
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [points, setPoints] = useState(0);
+  const [searchTerm, setSearchTerm] = useState(''); // Added search state
 
-    const formRef = useRef<HTMLDivElement>(null);
+  const formRef = useRef<HTMLDivElement>(null);
 
   const years = Array.from({ length: 6 }, (_, i) => currentYear + i);
 
-  const sortedGoals = [...goals].sort((a, b) => {
+  // Logic: Filter by search term, then sort by achievement status and date
+  const filteredGoals = goals.filter(goal => 
+    goal.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    goal.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    goal.deadlineMonth.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const sortedGoals = [...filteredGoals].sort((a, b) => {
     if (a.achievedAt && !b.achievedAt) return 1;
     if (!a.achievedAt && b.achievedAt) return -1;
     return (b.createdAt || 0) - (a.createdAt || 0);
@@ -73,7 +80,6 @@ const GoalsView: React.FC<GoalsViewProps> = ({ userName, goals, onAddGoal, onDel
     setPoints(goal.points);
     setShowForm(true);
 
-     // Smoothly scroll to the form section
     setTimeout(() => {
       formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 100);
@@ -110,7 +116,6 @@ const GoalsView: React.FC<GoalsViewProps> = ({ userName, goals, onAddGoal, onDel
 
   return (
     <div className="space-y-6 dark:text-white text-black">
-      {/* Rest of your JSX code remains the same */}
       <div className="flex justify-between items-center">
         <div>
           <h2 ref={formRef} className="text-2xl font-black uppercase tracking-tighter text-gray-900 dark:text-white">Manage Goals</h2>
@@ -123,9 +128,9 @@ const GoalsView: React.FC<GoalsViewProps> = ({ userName, goals, onAddGoal, onDel
           }`}
         >
           {!showForm ? (
-            <Plus size={18} className="sm:mr-2" />
+            <Plus size={18} />
           ) : (
-            <X size={18} className="sm:mr-2 transition-transform duration-300 transform hover:scale-110" />
+            <X size={18} />
           )}
           <span className="hidden sm:inline-block">
             {showForm ? 'Cancel' : 'New Goal'}
@@ -133,8 +138,22 @@ const GoalsView: React.FC<GoalsViewProps> = ({ userName, goals, onAddGoal, onDel
         </button>
       </div>
 
+      {/* --- SEARCH BAR --- */}
+      <div className="relative group">
+        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+          <Search size={18} className="text-gray-400 group-focus-within:text-blue-500 transition-colors" />
+        </div>
+        <input
+          type="text"
+          placeholder="Search objectives, codes, or months..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full pl-11 pr-4 py-3 rounded-2xl border border-gray-200 dark:border-slate-700 dark:bg-slate-800/50 dark:text-white outline-none font-bold text-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
+        />
+      </div>
+
       {showForm && (
-        <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-white/20 backdrop-blur-md shadow-xl  animate-in slide-in-from-top-4 duration-300">
+        <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-white/20 backdrop-blur-md shadow-xl animate-in slide-in-from-top-4 duration-300">
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
             {/* Month and Year - Side by side on mobile, separate on desktop */}
             <div className="grid grid-cols-2 gap-4 md:grid-cols-1 md:col-span-2 lg:col-span-2">
@@ -158,7 +177,7 @@ const GoalsView: React.FC<GoalsViewProps> = ({ userName, goals, onAddGoal, onDel
                   className="w-full px-4 py-2.5 rounded-xl border dark:bg-black/20 dark:border-white/10 outline-none text-sm font-bold dark:text-white"
                 >
                   {years.map(y => (
-                    <option key={y} value={y}> {y} {y === currentYear ? '' : ''}</option>
+                    <option key={y} value={y}>{y}</option>
                   ))}
                 </select>
               </div>
@@ -212,18 +231,17 @@ const GoalsView: React.FC<GoalsViewProps> = ({ userName, goals, onAddGoal, onDel
 
       {/* Rest of your JSX code remains the same */}
       <div className="bg-white/10 dark:bg-slate-800/50 rounded-3xl shadow-2xl border border-white/20 overflow-hidden backdrop-blur-md">
-        {/* Mobile View: Cards */}
+        {/* Mobile View */}
         <div className="block md:hidden divide-y divide-white/10">
           {sortedGoals.map(goal => (
-            <div key={goal.id} className={`p-4 flex flex-col gap-3 ${goal.achievedAt ? 'opacity-60 bg-emerald-500/5' : ''}`}>
+            <div key={goal.id} className={`p-4 flex flex-col gap-1 ${goal.achievedAt ? 'opacity-60 bg-emerald-500/5' : ''}`}>
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-3">
                   {goal.achievedAt ? <CheckCircle className="text-emerald-500" size={24} /> : <div className="w-6 h-6 rounded-full border-2 border-white/20" />}
                   <span className="font-black text-blue-500 bg-blue-500/10 px-3 py-1 rounded-lg uppercase tracking-wider text-xs border border-blue-500/20">{goal.code}</span>
                 </div>
-                <span className="font-black text-blue-500 text-lg">{goal.points}</span>
+                <span className="font-black text-blue-500 text-lg">+{goal.points}</span>
               </div>
-
               <div className="flex flex-col gap-1">
                 <div className="flex items-center gap-2">
                   <Flag size={14} className={goal.achievedAt ? 'text-emerald-500' : 'text-blue-500'} />
@@ -240,34 +258,35 @@ const GoalsView: React.FC<GoalsViewProps> = ({ userName, goals, onAddGoal, onDel
                   </div>
                 )}
               </div>
-
-              <div className="flex justify-end gap-2 pt-2">
+              <div className="flex justify-end pt-2">
                 {!goal.achievedAt ? (
                   <>
-                    <button onClick={() => startEdit(goal)} className="p-2 text-gray-400 hover:text-blue-500 transition-colors"><Edit2 size={18} /></button>
-                    <button onClick={() => onDeleteGoal(goal.id)} className="p-2 text-gray-400 hover:text-red-500 transition-colors"><Trash2 size={18} /></button>
+                    <button onClick={() => startEdit(goal)} className="p-2 text-gray-400 hover:text-blue-500"><Edit2 size={18} /></button>
+                    <button onClick={() => onDeleteGoal(goal.id)} className="p-2 text-gray-400 hover:text-red-500"><Trash2 size={18} /></button>
                   </>
                 ) : (
-                  <span className="text-[10px] font-bold opacity-40 uppercase tracking-widest text-gray-500 dark:text-slate-400">Archived</span>
+                  <span className="text-[10px] font-bold opacity-40 uppercase tracking-widest">Archived</span>
                 )}
               </div>
             </div>
           ))}
           {sortedGoals.length === 0 && (
-            <div className="p-12 text-center text-gray-400 dark:text-slate-500 italic">No objectives recorded.</div>
+            <div className="p-12 text-center text-gray-400 dark:text-slate-500 italic">
+              {searchTerm ? "No goals match your search." : "No objectives recorded."}
+            </div>
           )}
         </div>
 
-        {/* Desktop View: Table */}
+        {/* Desktop View */}
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left min-w-[600px]">
             <thead className="bg-black/10">
               <tr>
-                <th className="px-6 py-4 text-[10px] font-black uppercase opacity-60 w-16 text-center text-gray-500 dark:text-slate-400">Done</th>
-                <th className="px-6 py-4 text-[10px] font-black uppercase opacity-60 text-gray-500 dark:text-slate-400">ID Code</th>
-                <th className="px-6 py-4 text-[10px] font-black uppercase opacity-60 text-gray-500 dark:text-slate-400">Task / Deadline</th>
-                <th className="px-6 py-4 text-[10px] font-black uppercase opacity-60 text-gray-500 dark:text-slate-400">Pts</th>
-                <th className="px-6 py-4 text-[10px] font-black uppercase opacity-60 text-right text-gray-500 dark:text-slate-400">Action</th>
+                <th className="px-6 py-4 text-[10px] font-black uppercase opacity-60 w-16 text-center">Done</th>
+                <th className="px-6 py-4 text-[10px] font-black uppercase opacity-60">ID Code</th>
+                <th className="px-6 py-4 text-[10px] font-black uppercase opacity-60">Task / Deadline</th>
+                <th className="px-6 py-4 text-[10px] font-black uppercase opacity-60">Pts</th>
+                <th className="px-6 py-4 text-[10px] font-black uppercase opacity-60 text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
@@ -295,15 +314,15 @@ const GoalsView: React.FC<GoalsViewProps> = ({ userName, goals, onAddGoal, onDel
                       </div>
                     )}
                   </td>
-                  <td className="px-6 py-4 font-black text-blue-500 text-lg">{goal.points}</td>
+                  <td className="px-6 py-4 font-black text-blue-500 text-lg">+{goal.points}</td>
                   <td className="px-6 py-4 text-right">
                     {!goal.achievedAt ? (
                       <div className="flex justify-end gap-2">
-                        <button onClick={() => startEdit(goal)} className="p-2 text-gray-400 hover:text-blue-500 transition-colors"><Edit2 size={18} /></button>
-                        <button onClick={() => onDeleteGoal(goal.id)} className="p-2 text-gray-400 hover:text-red-500 transition-colors"><Trash2 size={18} /></button>
+                        <button onClick={() => startEdit(goal)} className="p-2 text-gray-400 hover:text-blue-500"><Edit2 size={18} /></button>
+                        <button onClick={() => onDeleteGoal(goal.id)} className="p-2 text-gray-400 hover:text-red-500"><Trash2 size={18} /></button>
                       </div>
                     ) : (
-                      <span className="text-[10px] font-bold opacity-40 uppercase tracking-widest text-gray-500 dark:text-slate-400">Archived</span>
+                      <span className="text-[10px] font-bold opacity-40 uppercase tracking-widest">Archived</span>
                     )}
                   </td>
                 </tr>
@@ -311,7 +330,7 @@ const GoalsView: React.FC<GoalsViewProps> = ({ userName, goals, onAddGoal, onDel
               {sortedGoals.length === 0 && (
                 <tr>
                   <td colSpan={5} className="px-6 py-12 text-center text-gray-400 dark:text-slate-500 italic">
-                    No objectives recorded.
+                    {searchTerm ? "No goals match your search." : "No objectives recorded."}
                   </td>
                 </tr>
               )}

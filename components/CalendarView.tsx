@@ -8,10 +8,24 @@ interface CalendarViewProps {
   goals: Goal[];
   selectedDate: string;
   onSelectDate: (date: string) => void;
+  onMonthChange?: (month: string, year: string) => void;
 }
 
-const CalendarView: React.FC<CalendarViewProps> = ({ entries, goals, selectedDate, onSelectDate }) => {
-  const [currentMonth, setCurrentMonth] = useState(new Date(selectedDate || new Date()));
+const CalendarView: React.FC<CalendarViewProps> = ({ entries, goals, selectedDate, onSelectDate, onMonthChange }) => {
+  const [currentMonth, setCurrentMonth] = useState(() => {
+    if (selectedDate) return new Date(selectedDate);
+    return new Date();
+  });
+
+  // Sync internal month when selectedDate prop changes from outside (e.g. from StatsView selectors)
+  React.useEffect(() => {
+    if (selectedDate) {
+      const d = new Date(selectedDate);
+      if (d.getMonth() !== currentMonth.getMonth() || d.getFullYear() !== currentMonth.getFullYear()) {
+        setCurrentMonth(d);
+      }
+    }
+  }, [selectedDate]);
 
   const month = currentMonth.getMonth();
   const year = currentMonth.getFullYear();
@@ -24,8 +38,17 @@ const CalendarView: React.FC<CalendarViewProps> = ({ entries, goals, selectedDat
     return acc;
   }, {} as Record<string, number>);
 
-  const handlePrev = () => setCurrentMonth(new Date(year, month - 1, 1));
-  const handleNext = () => setCurrentMonth(new Date(year, month + 1, 1));
+  const handlePrev = () => {
+    const newDate = new Date(year, month - 1, 1);
+    setCurrentMonth(newDate);
+    onMonthChange?.(String(newDate.getMonth() + 1).padStart(2, '0'), newDate.getFullYear().toString());
+  };
+
+  const handleNext = () => {
+    const newDate = new Date(year, month + 1, 1);
+    setCurrentMonth(newDate);
+    onMonthChange?.(String(newDate.getMonth() + 1).padStart(2, '0'), newDate.getFullYear().toString());
+  };
 
   return (
     <div className="bg-white dark:bg-slate-800/80 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-6">
@@ -54,6 +77,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ entries, goals, selectedDat
           return (
             <button
               key={day}
+              data-date={dateStr}
               onClick={() => onSelectDate(dateStr)}
               className={`relative min-h-[50px] rounded-xl flex flex-col items-center justify-center transition-all ${
                 isActive 

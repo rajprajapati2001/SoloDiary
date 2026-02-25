@@ -320,7 +320,7 @@ const App: React.FC = () => {
         </div>
       </nav>
 
-      <main className="max-w-7xl mx-auto px-4 py-8 flex-1 print:p-0 print:m-0 print:max-w-none w-full">
+      <main className="max-w-7xl mx-auto px-4 py-4 flex-1 print:p-0 print:m-0 print:max-w-none w-full">
         {currentPage === 'home' && (
           <Dashboard
             userName={userName || 'User'}
@@ -364,6 +364,7 @@ const App: React.FC = () => {
             onAddEntries={handleAddEntries} 
             templates={templates}
             goals={goals}
+            entries={entries}
           />
         )}
         {currentPage === 'chart' && (

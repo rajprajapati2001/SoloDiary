@@ -28,6 +28,10 @@ const StatsView: React.FC<StatsViewProps> = ({ userName, entries, goals, onRefre
     return String(d.getMonth() + 1).padStart(2, '0');
   });
   const [selectedYear, setSelectedYear] = useState(() => new Date().getFullYear().toString());
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  });
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportData, setExportData] = useState<string>('');
   const [copied, setCopied] = useState(false);
@@ -175,126 +179,147 @@ const subject = encodeURIComponent(`SoloDiary Backup - ${userName}`);
 // ============================================
 
 const handleWebView = () => {
-  const formattedData = typeof exportData === 'string' 
-    ? exportData 
-    : JSON.stringify(exportData, null, 2);
-  
+  // 1. Generate HTML for the Activity Matrix
+  const matrixHtml = activitySummary.map(item => `
+    <div class="matrix-card" data-code="${item.code}" onclick="toggleHighlight('${item.code}')">
+      <div style="display: flex; justify-content: space-between; align-items: start;">
+        <span class="code-badge" style="font-size: 7px; font-weight: 900; color: #2563eb; background: #eff6ff; padding: 2px 6px; border-radius: 4px; border: 1px solid #dbeafe; text-transform: uppercase;">${item.code}</span>
+        <span style="font-size: 10px; font-weight: 900;">+${item.totalPoints}</span>
+      </div>
+      <div style="font-size: 9px; font-weight: 700; text-transform: uppercase; margin-top: 4px;">${item.name}</div>
+      <div style="font-size: 7px; color: #64748b; font-weight: 900; margin-top: 2px;">LOGS: ${item.count}</div>
+    </div>
+  `).join('');
+
+  // 2. Generate HTML for the Chronological Table
+  const tableBodyHtml = Object.keys(groupedLogsByDate).sort().map(dateStr => {
+    const dayLogs = groupedLogsByDate[dateStr];
+    const dayRows = dayLogs.map(log => `
+      <tr class="log-row" data-code="${log.code}">
+        <td style="padding: 8px; font-size: 8px; font-weight: 900; white-space: nowrap;">${log.toTime}</td>
+        <td style="padding: 8px; text-align: center;">
+          <span class="code-badge" style="font-size: 7px; font-weight: 900; color: #2563eb; background: #eff6ff; padding: 2px 6px; border-radius: 4px; border: 1px solid #dbeafe; text-transform: uppercase;">${log.code}</span>
+        </td>
+        <td style="padding: 8px;">
+          <div style="font-size: 10px; font-weight: 900; text-transform: uppercase;">${log.name}</div>
+          ${log.description ? `<div style="font-size: 8px; color: #64748b; margin-top: 2px; font-weight: 900;">${log.description}</div>` : ''}
+        </td>
+        <td style="padding: 8px; text-align: center; font-size: 10px; font-weight: 900;">+${log.points}</td>
+      </tr>
+    `).join('');
+
+    const formattedDate = new Date(dateStr).toLocaleDateString('en-GB', {
+      day: '2-digit', month: 'short', year: 'numeric', weekday: 'short'
+    });
+
+    return `
+      <tr style="background: #f1f5f9; border-top: 1px solid #e2e8f0;">
+        <td colspan="4" style="padding: 6px 12px; font-size: 10px; font-weight: 900; color: #0f172a;">
+          📅 ${formattedDate.toUpperCase()}
+        </td>
+      </tr>
+      ${dayRows}
+    `;
+  }).join('');
+
+  // 3. Complete Document Structure
   const html = `
     <!DOCTYPE html>
     <html>
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-        <title>SoloDiary Export - ${userName}</title>
-        <style>
-          * { margin: 0; padding: 0; box-sizing: border-box; }
-          body { 
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'SF Mono', 'Fira Code', monospace;
-            padding: 16px; 
-            background: #f8fafc; 
-            color: #0f172a; 
-            line-height: 1.6;
-            font-size: 14px;
-          }
-          .container {
-            max-width: 100%;
-            background: white;
-            border-radius: 16px;
-            padding: 20px;
-            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-            border: 1px solid #e2e8f0;
-          }
-          .header {
-            margin-bottom: 20px;
-            padding-bottom: 16px;
-            border-bottom: 2px solid #0f172a;
-          }
-          .title {
-            font-size: 20px;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: -0.02em;
-            color: #0f172a;
-          }
-          .subtitle {
-            font-size: 12px;
-            color: #64748b;
-            margin-top: 4px;
-          }
-          pre {
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            background: #f1f5f9;
-            padding: 16px;
-            border-radius: 12px;
-            font-size: 12px;
-            border: 1px solid #e2e8f0;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-          }
-          .actions {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            padding: 16px;
-            background: white;
-            border-top: 1px solid #e2e8f0;
-            display: flex;
-            gap: 12px;
-            justify-content: center;
-            backdrop-filter: blur(10px);
-          }
-          .button {
-            flex: 1;
-            padding: 14px 20px;
-            border: none;
-            border-radius: 40px;
-            font-weight: 700;
-            font-size: 14px;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            background: #0f172a;
-            color: white;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <div class="title">📋 SoloDiary Archive</div>
-            <div class="subtitle">${userName} • ${new Date().toLocaleString()}</div>
-          </div>
-          <pre>${formattedData}</pre>
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>SoloDiary Report - ${userName}</title>
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: sans-serif; padding: 16px; background: #f8fafc; color: #0f172a; line-height: 1.5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; border-radius: 16px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .header { margin-bottom: 24px; border-bottom: 3px solid #0f172a; padding-bottom: 12px; }
+
+        /* Matrix Grid */
+        .matrix-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; margin-bottom: 30px; }
+        .matrix-card { padding: 10px; border: 1px solid #e2e8f0; border-radius: 10px; background: white; cursor: pointer; transition: all 0.2s ease; }
+        .matrix-card.active { border: 2px solid #2563eb !important; background: #eff6ff !important; transform: translateY(-2px); }
+
+        /* Table Styling */
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .log-row { border-bottom: 1px solid #f1f5f9; transition: all 0.3s ease; border-left: 4px solid transparent; }
+        .log-row.highlighted { background: #fffbeb !important; border-left-color: #f59e0b !important; }
+
+        .code-badge { font-size: 7px; font-weight: 900; color: #2563eb; background: #eff6ff; padding: 2px 6px; border-radius: 4px; border: 1px solid #dbeafe; text-transform: uppercase; }
+
+        .actions { position: fixed; bottom: 0; left: 0; right: 0; padding: 16px; background: rgba(255,255,255,0.9); backdrop-filter: blur(10px); display: flex; gap: 12px; border-top: 1px solid #e2e8f0; }
+        .button { flex: 1; padding: 14px; border: none; border-radius: 40px; font-weight: 800; background: #0f172a; color: white; cursor: pointer; text-transform: uppercase; font-size: 12px; }
+
+        @media print {
+          .actions { display: none !important; }
+          body { padding: 0; background: white; }
+          .container { box-shadow: none; border: none; width: 100%; max-width: 100%; }
+          .matrix-card { break-inside: avoid; }
+          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1 style="font-size: 22px; font-weight: 900; text-transform: uppercase; letter-spacing: -0.5px;">📋 SoloDiary Report</h1>
+          <p style="font-size: 12px; color: #64748b; font-weight: 600;">${userName} • ${new Date().toLocaleString()}</p>
         </div>
-        <div class="actions">
-          <button class="button" onclick="window.copyToClipboard()">Copy</button>
-          <button class="button" onclick="window.print()">Print</button>
-          <button class="button" onclick="window.close()">Close</button>
-        </div>
-        <script>
-          window.copyToClipboard = function() {
-            const text = ${JSON.stringify(formattedData)};
-            if (navigator.clipboard) {
-              navigator.clipboard.writeText(text).then(() => {
-                alert('Copied!');
-              });
-            } else {
-              const el = document.createElement('textarea');
-              el.value = text;
-              document.body.appendChild(el);
-              el.select();
-              document.execCommand('copy');
-              document.body.removeChild(el);
-              alert('Copied!');
+
+        <h3 style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; color: #475569;">Activity Breakdown</h3>
+        <div class="matrix-grid">${matrixHtml}</div>
+
+        <h3 style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; color: #475569;">Daily Ledger</h3>
+        <table>
+          <thead>
+            <tr style="background: #0f172a; color: white; font-size: 9px; text-transform: uppercase;">
+              <th style="padding: 10px; text-align: left;">Time</th>
+              <th style="padding: 10px; text-align: center;">Code</th>
+              <th style="padding: 10px; text-align: left;">Details</th>
+              <th style="padding: 10px; text-align: center;">Points</th>
+            </tr>
+          </thead>
+          <tbody>${tableBodyHtml}</tbody>
+        </table>
+        <div style="height: 100px;"></div>
+      </div>
+
+      <div class="actions">
+        <button class="button" style="background: #2563eb;" onclick="window.print()">Print PDF</button>
+        <button class="button" onclick="window.close()">Close</button>
+      </div>
+
+      <script>
+        window.toggleHighlight = function(code) {
+          const cards = document.querySelectorAll('.matrix-card');
+          const rows = document.querySelectorAll('.log-row');
+          const selectedCard = document.querySelector('.matrix-card[data-code="' + code + '"]');
+
+          if (!selectedCard) return;
+          const isAlreadyActive = selectedCard.classList.contains('active');
+
+          // Reset everything
+          cards.forEach(c => c.classList.remove('active'));
+          rows.forEach(r => r.classList.remove('highlighted'));
+
+          // Apply highlight if it wasn't already active
+          if (!isAlreadyActive) {
+            document.querySelectorAll('.matrix-card[data-code="' + code + '"]').forEach(c => c.classList.add('active'));
+            document.querySelectorAll('.log-row[data-code="' + code + '"]').forEach(r => r.classList.add('highlighted'));
+
+            // Scroll to the first instance in the table
+            const firstMatch = document.querySelector('.log-row[data-code="' + code + '"]');
+            if (firstMatch) {
+              firstMatch.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
-          };
-        </script>
-      </body>
+          }
+        };
+      </script>
+    </body>
     </html>
   `;
-  
-  // Open in new window with proper viewport for mobile
+
   const newWindow = window.open('', '_blank');
   if (newWindow) {
     newWindow.document.write(html);
@@ -494,6 +519,20 @@ const showToast = (message: string) => {
     const year = d.getFullYear();
     return `${day} ${month} ${year}`;
   };
+
+  const handleDateClick = (dateStr: string) => {
+    setSelectedDate(dateStr);
+    const element = document.getElementById(`ledger-date-${dateStr}`);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      element.classList.add('bg-blue-50', 'dark:bg-blue-900/20');
+      setTimeout(() => {
+        element.classList.remove('bg-blue-50', 'dark:bg-blue-900/20');
+      }, 2000);
+    }
+  };
+
+  const [highlightedCode, setHighlightedCode] = useState<string | null>(null);
 
   const currentMonthEntries = useMemo(() => {
     return entries.filter(e => {
@@ -846,7 +885,7 @@ const handleWebReport = async () => {
           .map(rule => rule.cssText)
           .join('');
       } catch (e) {
-        return ''; 
+        return '';
       }
     })
     .join('');
@@ -863,10 +902,59 @@ const handleWebReport = async () => {
       <style>
         ${styles}
         body { padding: 20px; background-color: #f3f4f6; }
+        .matrix-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; margin-bottom: 30px; }
+        .matrix-card { padding: 10px; border: 1px solid #e2e8f0; border-radius: 10px; background: white; cursor: pointer; transition: all 0.2s ease; }
+        .matrix-card.active { border: 2px solid #2563eb !important; background: #eff6ff !important; transform: translateY(-2px); }
+        .log-row { border-bottom: 1px solid #f1f5f9; transition: all 0.3s ease; border-left: 4px solid transparent; }
+        .log-row.highlighted { background: #fffbeb !important; border-left-color: #f59e0b !important; }
+        .code-badge { font-size: 7px; font-weight: 900; color: #2563eb; background: #eff6ff; padding: 2px 6px; border-radius: 4px; border: 1px solid #dbeafe; text-transform: uppercase; }
       </style>
     </head>
     <body>
       ${element.outerHTML}
+      <script>
+        // Date Highlighter
+        document.addEventListener('click', (e) => {
+          const btn = e.target.closest('button[data-date]');
+          if (btn) {
+            const dateStr = btn.getAttribute('data-date');
+            const target = document.getElementById('ledger-date-' + dateStr);
+            if (target) {
+              target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              target.style.backgroundColor = '#eff6ff';
+              setTimeout(() => {
+                target.style.backgroundColor = '';
+              }, 2000);
+            }
+          }
+        });
+
+        // Code Highlighter (like in handleWebView)
+        window.toggleHighlight = function(code) {
+          const cards = document.querySelectorAll('.matrix-card');
+          const rows = document.querySelectorAll('.log-row');
+          const selectedCard = document.querySelector('.matrix-card[data-code="' + code + '"]');
+
+          if (!selectedCard) return;
+          const isAlreadyActive = selectedCard.classList.contains('active');
+
+          // Reset everything
+          cards.forEach(c => c.classList.remove('active'));
+          rows.forEach(r => r.classList.remove('highlighted'));
+
+          // Apply highlight if it wasn't already active
+          if (!isAlreadyActive) {
+            document.querySelectorAll('.matrix-card[data-code="' + code + '"]').forEach(c => c.classList.add('active'));
+            document.querySelectorAll('.log-row[data-code="' + code + '"]').forEach(r => r.classList.add('highlighted'));
+
+            // Scroll to the first instance in the table
+            const firstMatch = document.querySelector('.log-row[data-code="' + code + '"]');
+            if (firstMatch) {
+              firstMatch.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+          }
+        };
+      </script>
     </body>
     </html>
   `;
@@ -875,7 +963,6 @@ const handleWebReport = async () => {
 
   try {
     // 3. Logic for Android (Share API)
-    // We convert the HTML string into a File object
     const blob = new Blob([htmlContent], { type: 'text/html' });
     const file = new File([blob], fileName, { type: 'text/html' });
 
@@ -890,17 +977,17 @@ const handleWebReport = async () => {
           htmlDownloadFallback(htmlContent, fileName);
         }
       }
-    } 
+    }
     // 4. Logic for Web/PC (Standard Blob Download)
     else {
       htmlDownloadFallback(htmlContent, fileName);
     }
   } catch (err) {
     console.error('HTML Export failed:', err);
-    // Ultimate fallback
     htmlDownloadFallback(htmlContent, fileName);
   }
 };
+
 
 /**
  * Fallback for PC and browsers that don't support sharing HTML files
@@ -1190,7 +1277,7 @@ const [showLabels, setShowLabels] = useState(true);
       {/* PRINTABLE TRANSCRIPT AREA */}
       <div 
   id="printable-report" 
-  className="font-variant-ligatures: none; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; bg-white p-10 text-slate-900 min-h-[297mm] w-[210mm] flex flex-col mx-auto shadow-lg border border-slate-100 rounded-none md:rounded-xl overflow-hidden print:p-0 print:m-0 print:border-none print:shadow-none"
+  className="antialiased font-medium bg-white p-10 text-slate-900 min-h-[297mm] w-[210mm] flex flex-col mx-auto shadow-lg border border-slate-100 overflow-hidden"
 >
         {/* Document Header */}
         <div className="flex justify-between items-start border-b-[3px] border-slate-950 pb-4 mb-6">
@@ -1205,13 +1292,13 @@ const [showLabels, setShowLabels] = useState(true);
 </div>
 
             <div className="text-left space-y-0.5">
-              <p className="text-[8px] font-black uppercase tracking-[0.1em] text-slate-900">
+              <p className="text-[8px]  font-semibold uppercase tracking-[0.1em] text-slate-900">
                 PRINCIPAL: {userName.toUpperCase()}
               </p>
-              <p className="text-[8px] font-black uppercase tracking-[0.1em] text-blue-600">
+              <p className="text-[8px]  font-semibold uppercase tracking-[0.1em] text-blue-600">
                 PERIOD: {monthLabelText} {selectedYear}
               </p>
-              <p className="text-[8px] font-black uppercase tracking-[0.1em] text-slate-400">
+              <p className="text-[8px]  font-semibold uppercase tracking-[0.1em] text-slate-400">
                 ISSUED: {new Date().toLocaleString('en-GB', {
                   day: '2-digit',
                   month: 'short',
@@ -1226,13 +1313,13 @@ const [showLabels, setShowLabels] = useState(true);
 
           <div className="flex items-center gap-3 text-right">
             <div>
-              <h1 className="text-2xl font-black tracking-tighter leading-none mb-0.5">SOLODIARY</h1>
+              <h1 className="text-2xl  font-semibold tracking-tighter leading-none mb-0.5">SOLODIARY</h1>
               <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em]">
               <span className="text-blue-500">Think.</span>{' '}
               <span className="text-green-500">Write.</span>{' '}
               <span className="text-pink-500">Grow.</span>
               </p>
-              <p className="text-[7px] font-black text-slate-400 uppercase tracking-[0.2em]">Where your stories stay yours</p>
+              <p className="text-[7px]  font-semibold text-slate-400 uppercase tracking-[0.2em]">Where your stories stay yours</p>
             </div>
             {/* Round Logo */}
 <div className="w-[55px] h-[55px] bg-slate-950 flex items-center justify-center rounded-full shadow-lg border-2 border-slate-200 overflow-hidden">
@@ -1250,24 +1337,24 @@ const [showLabels, setShowLabels] = useState(true);
         <div className="mb-8 print-section">
            <div className="flex justify-between items-end mb-4">
               <div className="space-y-0.5">
-                <p className="text-base font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
+                <p className="text-base  font-semibold text-slate-900 uppercase tracking-widest flex items-center gap-2">
                   {monthLabelText} ({selectedYear}) Overview
                   <TrendingUp size={16} className="text-blue-600" />
                 </p>
-                <h3 className="text-4xl font-black text-slate-900 leading-none tracking-tighter">
-                  {userMonthPoints.toLocaleString()} / <span className="text-slate-300">{monthTargetBase.toLocaleString()}</span>
+                <h3 className="text-4xl  font-semibold text-slate-900 leading-none tracking-tighter">
+                  {userMonthPoints.toLocaleString()} / <span className="font-black text-slate-300">{monthTargetBase.toLocaleString()}</span>
                 </h3>
-                <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.1em]">Points Earned <span className="text-black font-bold">vs</span> Monthly Baseline</p>
+                <p className="text-[9px]  font-semibold text-slate-400 uppercase tracking-[0.1em]">Points Earned <span className="text-black font-black">vs</span> Monthly Baseline</p>
               </div>
 
               <div className="flex gap-2">
                  <div className="bg-slate-950 text-white px-5 py-3 rounded-xl flex flex-col items-center justify-center min-w-[100px] shadow-sm">
-                    <span className="text-2xl font-black leading-none">{monthProgressPct.toFixed(1)}%</span>
-                    <span className="text-[7px] uppercase font-black opacity-60 mt-1 tracking-widest">Efficiency</span>
+                    <span className="text-2xl  font-semibold leading-none">{monthProgressPct.toFixed(1)}%</span>
+                    <span className="text-[7px] uppercase  font-semibold opacity-60 mt-1 tracking-widest">Efficiency</span>
                  </div>
                  <div className="border-[2px] border-slate-950 text-slate-950 px-5 py-3 rounded-xl flex flex-col items-center justify-center min-w-[100px]">
-                    <span className="text-2xl font-black leading-none">{userMonthPoints}</span>
-                    <span className="text-[7px] uppercase font-black opacity-40 mt-1 tracking-widest">Points</span>
+                    <span className="text-2xl  font-semibold leading-none">{userMonthPoints}</span>
+                    <span className="text-[7px] uppercase  font-semibold opacity-40 mt-1 tracking-widest">Points</span>
                  </div>
               </div>
            </div>
@@ -1279,13 +1366,18 @@ const [showLabels, setShowLabels] = useState(true);
 
         {/* Data Matrix Module */}
         <div className="grid grid-cols-2 lg:grid-cols-2 gap-6 mb-8 items-start print-section">
-          <div className="bg-white rounded-xl border border-slate-100 overflow-hidden">
+          <div className="bg-slate-800/80 rounded-2xl border border-slate-100 overflow-hidden">
              <CalendarView 
                 key={`${selectedYear}-${selectedMonth}`}
                 entries={entries} 
                 goals={goals} 
                 selectedDate={`${selectedYear}-${selectedMonth}-01`} 
-                onSelectDate={() => {}} 
+                onSelectDate={handleDateClick}
+                onMonthChange={(m, y) => {
+                  setSelectedMonth(m);
+                  setSelectedYear(y);
+                  setSelectedDate(`${y}-${m}-01`);
+              }}
              />
           </div>
           <div className="space-y-3 flex flex-col h-full">
@@ -1293,22 +1385,22 @@ const [showLabels, setShowLabels] = useState(true);
               <div className="absolute top-0 right-0 p-2 opacity-10 text-slate-900">
                 <Zap size={40} />
               </div>
-              <p className="text-[9px] font-black uppercase text-slate-400 mb-0.5 tracking-widest">Month Net Yield</p>
-              <p className="text-3xl font-black text-slate-950 tracking-tighter">{userMonthPoints.toLocaleString()} PTS</p>
+              <p className="text-[9px]  font-semibold uppercase text-slate-400 mb-0.5 tracking-widest">Month Net Yield</p>
+              <p className="text-3xl  font-bold text-slate-950 tracking-tighter">{userMonthPoints.toLocaleString()} PTS</p>
             </div>
             
             <div className="grid grid-cols-2 gap-3">
               <div className="p-4 bg-slate-50 border border-slate-100 rounded-lg flex flex-col justify-between">
-                <p className="text-[8px] font-black uppercase text-slate-400 mb-0.5 tracking-widest">
+                <p className="text-[8px]  font-semibold uppercase text-slate-400 mb-0.5 tracking-widest">
                   <Award size={10} className="text-blue-500 inline mr-1" /> Yearly Points
                 </p>
-                <p className="text-lg font-black text-slate-950">{yearPoints.toLocaleString()}</p>
+                <p className="text-lg  font-semibold text-slate-950">{yearPoints.toLocaleString()}</p>
               </div>
               <div className="p-4 bg-slate-50 border border-slate-100 rounded-lg flex flex-col justify-between">
-                <p className="text-[8px] font-black uppercase text-slate-400 mb-0.5 tracking-widest">
+                <p className="text-[8px]  font-semibold uppercase text-slate-400 mb-0.5 tracking-widest">
                   <Target size={10} className="text-purple-500 inline mr-1" /> Yearly Goals
                 </p>
-                <p className="text-lg font-black text-slate-950">{yearGoalsAchievedCount}</p>
+                <p className="text-lg  font-semibold text-slate-950">{yearGoalsAchievedCount}</p>
               </div>
             </div>
 
@@ -1321,11 +1413,11 @@ const [showLabels, setShowLabels] = useState(true);
         <Landmark size={40} />
       </div>
       
-      <p className={`text-[9px] font-black uppercase mb-0.5 tracking-widest ${isNegative ? 'text-red-400' : 'text-emerald-400'}`}>
+      <p className={`text-[9px]  font-semibold uppercase mb-0.5 tracking-widest ${isNegative ? 'text-red-400' : 'text-emerald-400'}`}>
         Month Net Amount
       </p>
       
-      <p className={`text-3xl font-black tracking-tighter ${isNegative ? 'text-red-600' : 'text-emerald-600'}`}>
+      <p className={`text-3xl  font-bold tracking-tighter ${isNegative ? 'text-red-600' : 'text-emerald-600'}`}>
         {isNegative ? '- ' : '+ '} ₹{Math.abs(netAmount).toLocaleString()}
       </p>
     </div>
@@ -1333,17 +1425,17 @@ const [showLabels, setShowLabels] = useState(true);
     {/* Bottom Grid */}
     <div className="grid grid-cols-2 gap-3">
       <div className="p-4 bg-red-50/50 border border-red-100 rounded-lg flex flex-col justify-between">
-         <p className="text-[8px] font-black uppercase text-red-500 mb-0.5 tracking-widest">
+         <p className="text-[8px]  font-semibold uppercase text-red-500 mb-0.5 tracking-widest">
            <Banknote size={10} className="inline mr-1" /> Debit
          </p>
-         <p className="text-lg font-black text-red-600">₹{totalDebitAmt.toLocaleString()}</p>
+         <p className="text-lg  font-semibold text-red-600">₹{totalDebitAmt.toLocaleString()}</p>
       </div>
       
       <div className="p-4 bg-emerald-50/50 border border-emerald-100 rounded-lg flex flex-col justify-between">
-         <p className="text-[8px] font-black uppercase text-emerald-600 mb-0.5 tracking-widest">
+         <p className="text-[8px]  font-semibold uppercase text-emerald-600 mb-0.5 tracking-widest">
            <Banknote size={10} className="inline mr-1" /> Credit
          </p>
-         <p className="text-lg font-black text-emerald-600">₹{totalCreditAmt.toLocaleString()}</p>
+         <p className="text-lg  font-semibold text-emerald-600">₹{totalCreditAmt.toLocaleString()}</p>
       </div>
     </div>
   </div>
@@ -1352,7 +1444,7 @@ const [showLabels, setShowLabels] = useState(true);
         </div>
 
         {/* Trajectory Module - Monthly Variance Projection*/}
-        <h3 className="text-sm font-black uppercase tracking-tighter text-slate-950 mb-3 border-l-[3px] border-slate-950 pl-2 flex items-center gap-2">
+        <h3 className="text-sm  font-semibold uppercase tracking-tighter text-slate-950 mb-3 border-l-[3px] border-slate-950 pl-2 flex items-center gap-2">
              <ChartLine size={16} strokeWidth={3} className="text-purple-600" /> 
              Monthly Variance Projection
            </h3>
@@ -1366,7 +1458,7 @@ const [showLabels, setShowLabels] = useState(true);
       <div className="w-8" /> 
 
       {/* 2. Centered Title */}
-      <h4 className="flex-1 text-[8px] font-black text-center uppercase tracking-[0.3em] text-slate-400">
+      <h4 className="flex-1 text-[8px]  font-semibold text-center uppercase tracking-[0.3em] text-slate-400">
         Yield Trajectory ({monthLabelText} {selectedYear})
       </h4>
 
@@ -1395,7 +1487,7 @@ const [showLabels, setShowLabels] = useState(true);
 
         {/* Goal Ledger Module "text-purple-600"*/}
         <div className="mb-8 print-section">
-           <h3 className="text-sm font-black uppercase tracking-tighter text-slate-950 mb-3 border-l-[3px] border-slate-950 pl-2 flex items-center gap-2">
+           <h3 className="text-sm  font-semibold uppercase tracking-tighter text-slate-950 mb-3 border-l-[3px] border-slate-950 pl-2 flex items-center gap-2">
              <Target size={16} className="text-green-600" />
              Strategic Objectives
            </h3>
@@ -1403,28 +1495,28 @@ const [showLabels, setShowLabels] = useState(true);
              <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-slate-950 text-white border-b border-slate-950">
-                    <th className="px-4 py-2 text-[7px] font-black uppercase tracking-widest">ID</th>
-                    <th className="px-4 py-2 text-[7px] font-black uppercase tracking-widest">Golas List</th>
-                    <th className="px-4 py-2 text-[7px] font-black uppercase tracking-widest text-center">Value</th>
-                    <th className="px-4 py-2 text-[7px] font-black uppercase tracking-widest text-right">Status</th>
+                    <th className="px-4 py-2 text-[7px]  font-semibold uppercase tracking-widest">ID</th>
+                    <th className="px-4 py-2 text-[7px]  font-semibold uppercase tracking-widest">Golas List</th>
+                    <th className="px-4 py-2 text-[7px]  font-semibold uppercase tracking-widest text-center">Value</th>
+                    <th className="px-4 py-2 text-[7px]  font-semibold uppercase tracking-widest text-right">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {reportGoals.sort((a,b) => (a.achievedAt ? 1 : -1)).map(g => (
                     <tr key={g.id} className={g.achievedAt ? 'bg-emerald-50/20' : 'bg-white'}>
-                      <td className={`px-4 py-2 font-black text-[9px] text-blue-600 ${g.achievedAt ? 'line-through opacity-30' : ''}`}>{g.code}</td>
-                      <td className={`px-4 py-2 font-bold text-[9px] text-slate-950 ${g.achievedAt ? 'line-through opacity-30' : ''}`}>{g.name}</td>
-                      <td className={`px-4 py-2 font-black text-[9px] text-slate-950 text-center ${g.achievedAt ? 'line-through opacity-30' : ''}`}>+{g.points}</td>
+                      <td className={`px-4 py-2  font-semibold text-[9px] text-blue-600 ${g.achievedAt ? 'line-through opacity-30' : ''}`}>{g.code}</td>
+                      <td className={`px-4 py-2 font-medium text-[9px] text-slate-950 ${g.achievedAt ? 'line-through opacity-30' : ''}`}>{g.name}</td>
+                      <td className={`px-4 py-2  font-semibold text-[9px] text-slate-950 text-center ${g.achievedAt ? 'line-through opacity-30' : ''}`}>+{g.points}</td>
                       <td className="px-4 py-2 text-right">
                          {g.achievedAt ? (
                            <div className="flex flex-col items-end leading-none">
-                              <span className="text-emerald-700 font-black text-[7px] tracking-widest px-1.5 py-0.5 rounded bg-emerald-100 border border-emerald-200 uppercase flex items-center gap-1">
+                              <span className="text-emerald-700  font-semibold text-[7px] tracking-widest px-1.5 py-0.5 rounded bg-emerald-100 border border-emerald-200 uppercase flex items-center gap-1">
                                 <CheckCircle2 size={8} /> DONE
                               </span>
-                              <span className="text-[6px] font-black text-slate-400 mt-0.5 uppercase tracking-widest">{formatDateDDMMYYYY(g.achievedAt)}</span>
+                              <span className="text-[6px]  font-semibold text-slate-400 mt-0.5 uppercase tracking-widest">{formatDateDDMMYYYY(g.achievedAt)}</span>
                            </div>
                          ) : (
-                           <span className="text-red-500 font-black text-[7px] tracking-widest uppercase inline-flex items-center gap-0.5">
+                           <span className="text-red-500  font-semibold text-[7px] tracking-widest uppercase inline-flex items-center gap-0.5">
                             <Clock size={8} className="text-red-500" />
                             PENDING
                           </span>
@@ -1433,7 +1525,7 @@ const [showLabels, setShowLabels] = useState(true);
                     </tr>
                   ))}
                   {reportGoals.length === 0 && (
-                    <tr><td colSpan={4} className="p-6 text-center text-[9px] font-bold text-slate-300 italic">No objectives recorded.</td></tr>
+                    <tr><td colSpan={4} className="p-6 text-center text-[9px] font-medium text-slate-300 italic">No objectives recorded.</td></tr>
                   )}
                 </tbody>
              </table>
@@ -1441,33 +1533,56 @@ const [showLabels, setShowLabels] = useState(true);
         </div>
 
         {/* Matrix */}
-        <div className="mb-8 print-section">
-           <h3 className="text-sm font-black uppercase tracking-tighter text-slate-950 mb-3 border-l-[3px] border-slate-950 pl-2 flex items-center gap-2">
-             <Zap size={16} className="text-blue-600" />
-             Participation Matrix
-           </h3>
-           <div className="grid grid-cols-5 md:grid-cols-5 gap-2">
-              {activitySummary.map(item => (
-                <div key={item.code} className="p-2 border border-slate-100 rounded-lg bg-white flex flex-col justify-between min-h-[60px] shadow-sm hover:border-blue-200 transition-colors">
-                   <div className="flex justify-between items-start mb-0.5">
-                      <span className="text-[7px] font-black text-blue-600 uppercase bg-blue-50 px-1 py-0.25 rounded border border-blue-100">{item.code}</span>
-                      <span className="text-[10px] font-black text-slate-950">+{item.totalPoints}</span>
-                   </div>
-                   <div>
-                      <p className="text-[9px] font-bold text-slate-950 uppercase truncate mb-0.25">{item.name}</p>
-                      <p className="text-[6px] font-black text-slate-400 uppercase tracking-widest">Logs: {item.count}</p>
-                   </div>
-                </div>
-              ))}
-              {activitySummary.length === 0 && (
-                <div className="border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm col-span-full p-6 text-center text-[9px] font-bold text-slate-300 italic">No summary data.</div>
-              )}
-           </div>
+<div className="mb-8 print-section">
+  <h3 className="text-sm  font-semibold uppercase tracking-tighter text-slate-950 mb-3 border-l-[3px] border-slate-950 pl-2 flex items-center gap-2">
+    <Zap size={16} className="text-blue-600" />
+    Participation Matrix
+  </h3>
+  <div className="grid grid-cols-5 md:grid-cols-5 gap-2">
+    {activitySummary.map(item => {
+      // Check if this specific card is the one currently selected
+      const isActive = highlightedCode === item.code;
+
+      return (
+        <div 
+          key={item.code} 
+          // Toggle logic: if clicking the same one, turn it off (null), otherwise set to item.code
+          onClick={() => setHighlightedCode(isActive ? null : item.code)}
+          className={`p-2 border rounded-lg flex flex-col justify-between min-h-[60px] shadow-sm transition-all cursor-pointer ${
+            isActive 
+              ? 'border-blue-600 ring-2 ring-blue-100 bg-blue-50' 
+              : 'border-slate-100 bg-white hover:border-blue-200'
+          }`}
+        >
+          <div className="flex justify-between items-start mb-0.5">
+            <span className={`text-[7px]  font-bold uppercase px-1 py-0.25 rounded border transition-colors ${
+              isActive 
+                ? 'bg-blue-600 text-white border-blue-700' 
+                : 'text-blue-600 bg-blue-50 border-blue-100'
+            }`}>
+              {item.code}
+            </span>
+            <span className="text-[10px]  font-black text-slate-950">+{item.totalPoints}</span>
+          </div>
+          <div>
+            <p className="text-[9px] font-medium text-slate-950 uppercase truncate mb-0.25">{item.name}</p>
+            <p className="text-[6px]  font-semibold text-slate-400 uppercase tracking-widest">Logs: {item.count}</p>
+          </div>
         </div>
+      );
+    })}
+    
+    {activitySummary.length === 0 && (
+      <div className="border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm col-span-full p-6 text-center text-[9px] font-medium text-slate-300 italic">
+        No summary data.
+      </div>
+    )}
+  </div>
+</div>
 
         {/* Detailed Ledger */}
-        <div className="mb-8 print-section">
-  <h3 className="text-sm font-black uppercase tracking-tighter text-slate-950 mb-3 border-l-[3px] border-slate-950 pl-2 flex items-center gap-2">
+<div className="mb-8 print-section">
+  <h3 className="text-sm  font-semibold uppercase tracking-tighter text-slate-950 mb-3 border-l-[3px] border-slate-950 pl-2 flex items-center gap-2">
     <NotebookText size={16} className="text-pink-600" />
     Chronological Log Diary
   </h3>
@@ -1475,18 +1590,18 @@ const [showLabels, setShowLabels] = useState(true);
     <table className="w-full text-left border-collapse">
       <thead className="table-header-group">
         <tr className="bg-slate-950 text-white">
-          <th className="px-4 py-2 text-[7px] font-black uppercase tracking-widest w-24">Timestamp</th>
-          <th className="px-4 py-2 text-[7px] font-black uppercase tracking-widest w-12 text-center">Code</th>
-          <th className="px-4 py-2 text-[7px] font-black uppercase tracking-widest">Entry Details</th>
-          {hasAttachmentsInReport && <th className="px-4 py-2 text-[7px] font-black uppercase tracking-widest w-12 text-center">QR</th> }
-          {hasTransactionsInReport && <th className="px-4 py-2 text-[7px] font-black uppercase tracking-widest w-16 text-right">Account</th>}
-           <th className="px-4 py-2 text-[7px] font-black uppercase tracking-widest text-center w-14">Pts</th>
+          <th className="px-4 py-2 text-[7px]  font-semibold uppercase tracking-widest w-24">Timestamp</th>
+          <th className="px-4 py-2 text-[7px]  font-semibold uppercase tracking-widest w-12 text-center">Code</th>
+          <th className="px-4 py-2 text-[7px]  font-semibold uppercase tracking-widest">Entry Details</th>
+          {hasAttachmentsInReport && <th className="px-4 py-2 text-[7px]  font-semibold uppercase tracking-widest w-12 text-center">QR</th> }
+          {hasTransactionsInReport && <th className="px-4 py-2 text-[7px]  font-semibold uppercase tracking-widest w-16 text-right">Account</th>}
+           <th className="px-4 py-2 text-[7px]  font-semibold uppercase tracking-widest text-center w-14">Pts</th>
         </tr>
       </thead>
       <tbody className="divide-y divide-slate-50">
         {Object.keys(groupedLogsByDate).length === 0 ? (
           <tr>
-            <td colSpan={6} className="p-6 text-center text-[9px] font-bold text-slate-300 italic">
+            <td colSpan={6} className="p-6 text-center text-[9px] font-medium text-slate-300 italic">
               No records found.
             </td>
           </tr>
@@ -1496,73 +1611,93 @@ const [showLabels, setShowLabels] = useState(true);
             const achievedGoalsToday = goals.filter(g => g.achievedAt === dateStr);
             return (
               <React.Fragment key={dateStr}>
-                <tr className="bg-slate-100/50 border-y border-slate-100">
+                <tr id={`ledger-date-${dateStr}`} className="bg-slate-100/50 border-y border-slate-100 transition-colors duration-500">
                   <td colSpan={6} className="px-4 py-1.5">
                     <div className="flex justify-between items-center">
-                      <span className="text-[10px] font-black text-slate-950 tracking-[0.05em] uppercase flex items-center gap-2">
+                      <span className="text-[10px]  font-semibold text-slate-950 tracking-[0.05em] uppercase flex items-center gap-2">
                         <Clock size={10} className="text-blue-500" />
                         {new Date(dateStr).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        <span className="text-gray-600/75">{` (${new Date(dateStr).toLocaleDateString('en-GB', { weekday: 'long' })})`}</span>
                         {achievedGoalsToday.length > 0 && <Star size={10} className="text-amber-500 fill-amber-500" />}
                       </span>
-                      <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest px-1.5 py-0.25 rounded bg-white border border-slate-100">
+                      <span className="text-[7px]  font-semibold text-slate-400 uppercase tracking-widest px-1.5 py-0.25 rounded bg-white border border-slate-100">
                         DAY YIELD: <span className="text-slate-950">{dayPts} PTS</span>
                       </span>
                     </div>
                   </td>
                 </tr>
-                {groupedLogsByDate[dateStr].map(e => (
-                  <tr key={e.id} className="align-top hover:bg-slate-50/50 transition-colors">
-                    <td className="px-4 py-2 text-[8px] font-black text-slate-900 whitespace-nowrap leading-tight">
-                      {e.fromTime && e.isLongEvent ? (
-  <>
-    {e.fromTime} <span className="text-gray-600/75">To</span> {e.toTime}
-  </>
-) : (
-  e.toTime
-)}
-                    </td>
-                    <td className="px-0 py-0 text-center">
-                      <span className="text-[7px] font-black text-blue-600 uppercase bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100">{e.code}</span>
-                    </td>
-                    <td className="px-1.5 py-0.5">
-                      <p className="text-[10px] font-black leading-tight text-slate-950 mb-1 uppercase tracking-tighter flex items-center gap-1">
-                        {goals.some(g => g.code === e.code && g.achievedAt === e.toDate) && <Star size={8} className="text-amber-500 fill-amber-500" />}
-                        {e.name}
-                      </p>
-                      {e.description && (
-                        <p className="text-[8px] text-slate-600 leading-normal italic whitespace-pre-wrap border-l border-slate-200 pl-2 mt-1">
-                          {e.description}
-                        </p>
-                      )}
-                    </td>
-                    
-                    
-                    {hasAttachmentsInReport && (
-  <td className="px-0.5 py-0.5 text-center">
-    {e.attachment ? (
-      <div className="flex flex-col items-center justify-center">
-        <a 
-          href={e.attachment} 
-          target="_blank" 
-          rel="noopener noreferrer" 
-          title={e.attachment}
-          className="inline-block active:opacity-50 transition-opacity"
-        >
-          <QRCodeSVG value={e.attachment} size={40} level="M" />
-        </a>
-      </div>
-    ) : null}
-  </td>
-)}
-                    {hasTransactionsInReport && (
-                      <td className="px-4 py-2 text-[8px] font-black whitespace-nowrap text-right">
-                        {e.debit! > 0 && <span className="text-red-600">-{e.debit}₹</span>}
-                        {e.credit! > 0 && <span className="text-emerald-600 ml-1">+{e.credit}₹</span>}
+                {groupedLogsByDate[dateStr].map(e => {
+                  // HIGHLIGHT LOGIC: Check if this row's code matches the clicked matrix code
+                  const isHighlighted = highlightedCode === e.code;
+                  
+                  return (
+                    <tr 
+                      key={e.id} 
+                      className={`align-top transition-all duration-300 ${
+                        isHighlighted 
+                          ? 'bg-amber-50 ring-1 ring-inset ring-amber-200' 
+                          : 'hover:bg-slate-50/50'
+                      }`}
+                    >
+                      <td className="px-4 py-2 text-[8px]  font-semibold text-slate-900 whitespace-nowrap leading-tight">
+                        {e.fromTime && e.isLongEvent ? (
+                          <>
+                            {e.fromTime} <span className="text-gray-600/75">To</span> {e.toTime}
+                          </>
+                        ) : (
+                          e.toTime
+                        )}
                       </td>
-                    )}
-                    <td className="px-4 py-2 text-center text-[10px] font-black text-slate-950">+{e.points}</td>
-                  </tr>
-                ))}
+                      <td className="px-0 py-0 text-center">
+                        <span className={`text-[7px]  font-semibold uppercase px-1.5 py-0.5 rounded border transition-colors ${
+                          isHighlighted 
+                            ? 'bg-amber-500 text-white border-amber-600 shadow-sm' 
+                            : 'text-blue-600 bg-blue-50 border-blue-100'
+                        }`}>
+                          {e.code}
+                        </span>
+                      </td>
+                      <td className="px-1.5 py-0.5">
+                        <p className="text-[10px]  font-semibold leading-tight text-slate-950 mb-1 uppercase tracking-tighter flex items-center gap-1">
+                          {goals.some(g => g.code === e.code && g.achievedAt === e.toDate) && <Star size={8} className="text-amber-500 fill-amber-500" />}
+                          {e.name}
+                        </p>
+                        {e.description && (
+                          <p className={`text-[8px] leading-normal italic whitespace-pre-wrap border-l pl-2 mt-1 transition-colors ${
+                            isHighlighted ? 'text-slate-900 border-amber-400' : 'text-slate-600 border-slate-200'
+                          }`}>
+                            {e.description}
+                          </p>
+                        )}
+                      </td>
+                      
+                      {hasAttachmentsInReport && (
+                        <td className="px-0.5 py-0.5 text-center">
+                          {e.attachment ? (
+                            <div className="flex flex-col items-center justify-center">
+                              <a 
+                                href={e.attachment} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                title={e.attachment}
+                                className="inline-block active:opacity-50 transition-opacity"
+                              >
+                                <QRCodeSVG value={e.attachment} size={40} level="M" />
+                              </a>
+                            </div>
+                          ) : null}
+                        </td>
+                      )}
+                      {hasTransactionsInReport && (
+                        <td className="px-4 py-2 text-[8px]  font-semibold whitespace-nowrap text-right">
+                          {e.debit! > 0 && <span className="text-red-600">-{e.debit}₹</span>}
+                          {e.credit! > 0 && <span className="text-emerald-600 ml-1">+{e.credit}₹</span>}
+                        </td>
+                      )}
+                      <td className="px-4 py-2 text-center text-[10px]  font-semibold text-slate-950">+{e.points}</td>
+                    </tr>
+                  );
+                })}
               </React.Fragment>
             );
           })
@@ -1583,10 +1718,10 @@ const [showLabels, setShowLabels] = useState(true);
             <BadgeCheck size={20} strokeWidth={2.5} className="text-emerald-400" />
           </div>
           <div>
-            <p className="m-0 text-[7px] font-bold text-slate-500 uppercase tracking-widest">
+            <p className="m-0 text-[7px] font-medium text-slate-500 uppercase tracking-widest">
               SoloDiary • EST 2026
             </p>
-            <h4 className="m-0 text-[10px] font-black uppercase tracking-tight text-slate-900 leading-none">
+            <h4 className="m-0 text-[10px]  font-semibold uppercase tracking-tight text-slate-900 leading-none">
               Verified Transcript
             </h4>
           </div>
@@ -1599,7 +1734,7 @@ const [showLabels, setShowLabels] = useState(true);
         
         {/* Signature Line */}
         <div className="pt-1 flex items-center gap-1">
-          <span className="text-[7px] font-black text-slate-900 uppercase">Authorized Signatory:</span>
+          <span className="text-[7px]  font-semibold text-slate-900 uppercase">Authorized Signatory:</span>
           <span className="text-[8px] font-medium text-slate-700 border-b border-slate-300 px-2 min-w-[80px]">
             {userName.toUpperCase()}
           </span>
@@ -1629,13 +1764,13 @@ const [showLabels, setShowLabels] = useState(true);
           /></a>
         </div>
         <div className="flex flex-col items-center">
-          <span className="text-[6px] font-black text-slate-400 uppercase tracking-widest">Scan to Visit</span>
-          <span className="text-[5px] font-bold text-slate-300 lowercase">solodiary.com</span>
+          <span className="text-[6px]  font-semibold text-slate-400 uppercase tracking-widest">Scan to Visit</span>
+          <span className="text-[5px] font-medium text-slate-300 lowercase">solodiary.com</span>
         </div>
       </div>
 
     </div>
-        <span className="text-[6px] font-bold text-slate-300 text-center">&copy; {currentYearNum} • <span className="text-green-300">SoloDiary</span> @ <span className="text-blue-300">Raj Prajapati</span></span>
+        <span className="text-[6px] font-medium text-slate-300 text-center">&copy; {currentYearNum} • <span className="text-green-300">SoloDiary</span> @ <span className="text-blue-300">Raj Prajapati</span></span>
       </div>
 
 </div>
@@ -1644,7 +1779,7 @@ const [showLabels, setShowLabels] = useState(true);
         @media print {
           .no-print { display: none !important; }
           body { 
-            background: white !important; 
+            color: black !important;
             margin: 0 !important;
             padding: 0 !important;
             -webkit-print-color-adjust: exact !important;
@@ -1675,6 +1810,17 @@ const [showLabels, setShowLabels] = useState(true);
           tr { page-break-inside: avoid !important; break-inside: avoid !important; }
           table { width: 100% !important; border-collapse: collapse !important; }
         }
+          .matrix-card.active {
+  border: 2px solid #2563eb !important;
+  background: #eff6ff !important;
+  transform: translateY(-2px);
+}
+
+.log-row.highlighted,
+tr.highlighted {
+  background: #fffbeb !important;
+  border-left: 4px solid #f59e0b !important;
+}
       `}</style>
     </div>
   );

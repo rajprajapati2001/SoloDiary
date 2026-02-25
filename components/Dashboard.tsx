@@ -120,7 +120,7 @@ const [showLabels, setShowLabels] = React.useState(true);
   return (
     <div className="space-y-6">
       {/* Box with Gradient Background and Right-Aligned Time Card */}
-      <div className={`flex flex-col md:flex-row items-center justify-between gap-6 mb-8 bg-white dark:bg-slate-800 p-6 rounded-3xl border-0 border-gray-100 dark:border-slate-700 shadow-sm ${currentTimeClass}`}>
+      <div className={`flex flex-col md:flex-row items-center justify-between md:gap-6 gap-3 mb-4 bg-white dark:bg-slate-800 p-6 rounded-3xl border-0 border-gray-100 dark:border-slate-700 shadow-sm ${currentTimeClass}`}>
         <div className="text-center md:text-left  flex-1">
                     {isEditingName ? (
             <div className="flex items-center gap-2 justify-center md:justify-start">
@@ -214,7 +214,7 @@ const [showLabels, setShowLabels] = React.useState(true);
           <div className="flex justify-between items-center mb-4">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-blue-500/10"><Calendar className="text-blue-500" size={20} /></div>
-              <div className="flex items-center justify-between mb-6">
+              <div>
                 <h3 className="text-xl font-bold uppercase tracking-tight text-gray-800 dark:text-white">Monthly Progress</h3>
                 <p className="text-xs text-gray-500">{monthName} Target: {monthTarget.toLocaleString()} pts</p>
               </div>
@@ -276,7 +276,15 @@ const [showLabels, setShowLabels] = React.useState(true);
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1">
-          <CalendarView entries={entries} goals={goals} selectedDate={selectedDate} onSelectDate={onSelectDate} />
+          <CalendarView 
+            entries={entries} 
+            goals={goals} 
+            selectedDate={selectedDate} 
+            onSelectDate={onSelectDate} 
+            onMonthChange={(m, y) => {
+              onSelectDate(`${y}-${m}-01`);
+            }}
+          />
         </div>
         
         <div className="lg:col-span-2 space-y-6">
