@@ -99,7 +99,7 @@ const DiaryView: React.FC<DiaryViewProps> = ({ entries, goals, onEdit, onDelete 
                     return (
                       <div 
                         key={item.id} 
-                        className={`bg-white dark:bg-slate-800/80 md:p-6 p-3 rounded-3xl border transition-all shadow-xl backdrop-blur-sm relative group ${
+                        className={`bg-white dark:bg-slate-800/80 md:p-6 p-3 md:rounded-3xl rounded-2xl border transition-all shadow-xl backdrop-blur-sm relative group ${
                           goalAchieved 
                           ? 'border-emerald-500/30 bg-emerald-500/5' 
                           : 'border-gray-100 dark:border-slate-700'

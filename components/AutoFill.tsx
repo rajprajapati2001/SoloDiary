@@ -8,6 +8,7 @@ import {
   closestCenter,
   KeyboardSensor,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   DragEndEvent,
@@ -49,6 +50,7 @@ const SortableItem: React.FC<SortableItemProps> = ({ t, toggleTemplate, onEdit, 
     transform: CSS.Transform.toString(transform),
     transition,
     zIndex: isDragging ? 10 : 1,
+    touchAction: 'none',
   };
 
   return (
@@ -65,7 +67,7 @@ const SortableItem: React.FC<SortableItemProps> = ({ t, toggleTemplate, onEdit, 
         <button
           {...attributes}
           {...listeners}
-          className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-grab active:cursor-grabbing"
+          className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-grab active:cursor-grabbing touch-none"
         >
           <GripVertical size={20} />
         </button>
@@ -96,12 +98,15 @@ const SortableItem: React.FC<SortableItemProps> = ({ t, toggleTemplate, onEdit, 
           >
             <Trash2 size={16} />
           </button>
+          <div className="relative flex items-center">
           <input
             type="checkbox"
             checked={t.isEnabled}
             onChange={() => toggleTemplate(t)}
-            className="w-5 h-5 rounded-lg border-2 border-gray-200 checked:bg-blue-600 transition-all cursor-pointer ml-1"
+            className="w-5 h-5 rounded-lg border-2 border-gray-200 checked:bg-blue-600 transition-all cursor-pointer appearance-none checked:border-blue-600"
           />
+          {t.isEnabled && <Check size={14} className="absolute left-0.5 text-white pointer-events-none" />}
+          </div>
         </div>
       </div>
 
@@ -140,7 +145,17 @@ const AutoFill: React.FC<AutoFillProps> = ({ onAddEntries, templates: activityTe
   const [searchTerm, setSearchTerm] = useState('');
 
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 250,
+        tolerance: 5,
+      },
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
@@ -202,7 +217,19 @@ const AutoFill: React.FC<AutoFillProps> = ({ onAddEntries, templates: activityTe
     fetchTemplates();
   };
 
-    const handleDragEnd = async (event: DragEndEvent) => {
+  const handleToggleAll = async (enable: boolean) => {
+    const db = await getDB();
+    const tx = db.transaction('auto_templates', 'readwrite');
+    const updatedTemplates = templates.map(t => ({ ...t, isEnabled: enable }));
+    await Promise.all(updatedTemplates.map(t => tx.store.put(t)));
+    await tx.done;
+    fetchTemplates();
+  };
+
+  const allSelected = templates.length > 0 && templates.every(t => t.isEnabled);
+  const someSelected = templates.some(t => t.isEnabled) && !allSelected;
+
+  const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
 
     if (over && active.id !== over.id) {
@@ -232,7 +259,8 @@ const AutoFill: React.FC<AutoFillProps> = ({ onAddEntries, templates: activityTe
 
     if (!window.confirm(`Add ${enabledTemplates.length} records to today's diary?`)) return;
 
-    const today = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     const alreadyFilled = entries.some(e => e.toDate === today);
 
     if (alreadyFilled && !window.confirm('Records for today already exist. Add again?')) return;
@@ -268,29 +296,54 @@ const AutoFill: React.FC<AutoFillProps> = ({ onAddEntries, templates: activityTe
           </div>
           <div>
             <h2 className="text-xl font-black uppercase tracking-tighter dark:text-white">AutoFill Engine</h2>
-            <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Manual automation for daily logs</p>
+            <p className="md:text-xs text-[9px] font-bold text-gray-500 uppercase tracking-widest">Manual automation for daily logs</p>
           </div>
         </div>
         <div className="flex gap-3">
-          <button onClick={handleAutoFill} className="flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white font-black rounded-2xl shadow-lg hover:bg-emerald-700 transition-all uppercase tracking-widest text-xs">
+          <button onClick={handleAutoFill} className="flex items-center gap-2 md:px-6 md:py-3 px-2 py-2 pl-4 pr-4 bg-emerald-600 text-white font-black rounded-2xl shadow-lg hover:bg-emerald-700 transition-all uppercase tracking-widest text-xs">
             <Check size={18} /> Run AutoFill
           </button>
-          <button onClick={() => { setEditingTemplate(null); setIsFormOpen(true); }} className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white font-black rounded-2xl shadow-lg hover:bg-blue-700 transition-all uppercase tracking-widest text-xs">
+          <button onClick={() => { setEditingTemplate(null); setIsFormOpen(true); }} className="flex items-center gap-2 md:px-6 md:py-3 px-2 py-2 pl-4 pr-4 bg-blue-600 text-white font-black rounded-2xl shadow-lg hover:bg-blue-700 transition-all uppercase tracking-widest text-xs">
             <KeySquare size={18} /> New Key
           </button>
         </div>
       </div>
 
-      {/* --- SEARCH BAR --- */}
-      <div className="relative group mx-2">
-        <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
-        <input 
-          type="text"
-          placeholder="Search by name, code or description..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full pl-12 pr-4 py-3.5 bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 dark:text-white text-sm font-bold outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all shadow-sm"
-        />
+      {/* --- SEARCH BAR & SELECT ALL --- */}
+      <div className="flex items-center gap-2 sm:gap-4 mx-2">
+        <div className="relative group flex-1">
+          <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
+          <input 
+            type="text"
+            placeholder="Search by name, code or description..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-12 pr-4 py-3.5 bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 dark:text-white text-sm font-bold outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all shadow-sm"
+          />
+        </div>
+        
+        {templates.length > 0 && (
+          <div className="flex items-center gap-2 sm:gap-3 px-3 py-3 sm:px-6 bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 shadow-sm shrink-0">
+            <label className="flex items-center gap-2 sm:gap-3 cursor-pointer group">
+              <div className="relative flex items-center">
+                <input 
+                  type="checkbox"
+                  checked={allSelected}
+                  ref={el => {
+                    if (el) el.indeterminate = someSelected;
+                  }}
+                  onChange={(e) => handleToggleAll(e.target.checked)}
+                  className="w-5 h-5 rounded-lg border-2 border-gray-200 checked:bg-blue-600 transition-all cursor-pointer appearance-none checked:border-blue-600"
+                />
+                {allSelected && <Check size={14} className="absolute left-0.5 text-white pointer-events-none" />}
+                {someSelected && <div className="absolute left-1 w-3 h-0.5 bg-gray-400 rounded-full pointer-events-none" />}
+              </div>
+              <span className="hidden sm:block text-xs font-black uppercase tracking-widest text-gray-500 dark:text-slate-400 group-hover:text-blue-600 transition-colors">
+                {allSelected ? 'Deselect All' : 'Select All'}
+              </span>
+            </label>
+          </div>
+        )}
       </div>
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>

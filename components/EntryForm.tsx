@@ -40,7 +40,7 @@ const EntryForm: React.FC<EntryFormProps> = ({ onClose, onSave, initialData, tem
 
   useEffect(() => {
     const now = new Date();
-    const today = now.toISOString().split('T')[0];
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     const currentTime = now.toTimeString().slice(0, 5);
     
     if (!initialData) {
@@ -108,7 +108,7 @@ const EntryForm: React.FC<EntryFormProps> = ({ onClose, onSave, initialData, tem
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave({
       id: initialData?.id || Math.random().toString(36).substr(2, 9),

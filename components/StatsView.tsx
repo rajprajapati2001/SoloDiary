@@ -609,25 +609,40 @@ const showToast = (message: string) => {
   const hasAttachmentsInReport = useMemo(() => currentMonthEntries.some(e => !!e.attachment), [currentMonthEntries]);
   const hasTransactionsInReport = useMemo(() => currentMonthEntries.some(e => (e.debit || 0) > 0 || (e.credit || 0) > 0), [currentMonthEntries]);
 
-  const getGraphDataForMonth = () => {
-    const data = [];
-    const firstDay = new Date(parseInt(selectedYear), parseInt(selectedMonth) - 1, 1);
-    const lastDay = new Date(parseInt(selectedYear), parseInt(selectedMonth), 0);
-    let current = new Date(firstDay);
-    while (current <= lastDay) {
-      const dStr = current.toISOString().split('T')[0];
-      const pts = entries.filter(e => e.toDate === dStr).reduce((s, e) => s + e.points, 0);
-      const achievedInDay = goals.filter(g => g.achievedAt === dStr);
-      data.push({ 
-        day: current.getDate(), 
-        points: pts, 
-        fullDate: dStr,
-        achievedGoals: achievedInDay 
-      });
-      current.setDate(current.getDate() + 1);
-    }
-    return data;
-  };
+const getGraphDataForMonth = () => {
+  const data = [];
+  // Note: month is 0-indexed in Date constructor (Jan = 0)
+  const firstDay = new Date(parseInt(selectedYear), parseInt(selectedMonth) - 1, 1);
+  const lastDay = new Date(parseInt(selectedYear), parseInt(selectedMonth), 0);
+  
+  let current = new Date(firstDay);
+  
+  while (current <= lastDay) {
+    // FIX: Generate YYYY-MM-DD using local methods
+    const year = current.getFullYear();
+    const month = String(current.getMonth() + 1).padStart(2, '0');
+    const day = String(current.getDate()).padStart(2, '0');
+    const dStr = `${year}-${month}-${day}`;
+
+    // Now dStr will correctly be "2024-03-01" regardless of timezone
+    const pts = entries
+      .filter(e => e.toDate === dStr)
+      .reduce((s, e) => s + e.points, 0);
+      
+    const achievedInDay = goals.filter(g => g.achievedAt === dStr);
+
+    data.push({ 
+      day: current.getDate(), 
+      points: pts, 
+      fullDate: dStr,
+      achievedGoals: achievedInDay 
+    });
+
+    // Advance to the next day locally
+    current.setDate(current.getDate() + 1);
+  }
+  return data;
+};
 
 const handlePrintReport = async () => {
   const cleanName = userName.replace(/[^a-z0-9]/gi, '_');

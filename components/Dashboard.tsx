@@ -53,13 +53,13 @@ const Dashboard: React.FC<DashboardProps> = ({ userName, entries, selectedDate, 
     const handlePrevDate = () => {
     const d = new Date(selectedDate);
     d.setDate(d.getDate() - 1);
-    onSelectDate(d.toISOString().split('T')[0]);
+    onSelectDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
   };
 
   const handleNextDate = () => {
     const d = new Date(selectedDate);
     d.setDate(d.getDate() + 1);
-    onSelectDate(d.toISOString().split('T')[0]);
+    onSelectDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
   };
   
 const [showLabels, setShowLabels] = React.useState(true);
@@ -97,8 +97,8 @@ const [showLabels, setShowLabels] = React.useState(true);
     const data = [];
     let current = new Date(firstDayOfMonth);
     while (current <= lastDayOfMonth) {
-      const dStr = current.toISOString().split('T')[0];
-      const pts = entries.filter(e => e.toDate === dStr).reduce((s, e) => s + e.points, 0);
+      const dStr = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
+      const pts = entries.filter(e => e.toDate === dStr).reduce((sum, e) => sum + e.points, 0);
       const achievedInDay = goals.filter(g => g.achievedAt === dStr);
       data.push({ 
         day: current.getDate(), 
