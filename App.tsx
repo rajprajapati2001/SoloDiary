@@ -309,7 +309,7 @@ const App: React.FC = () => {
             </div>
             <h1 className="text-xl font-black text-gray-900 dark:text-white tracking-tighter uppercase hidden sm:block">SOLODIARY</h1>
           </div>
-          <div className="flex items-center gap-1 md:gap-4 flex-1 justify-center sm:justify-end mr-2 ml-2">
+          <div className="flex items-center gap-1 md:gap-4 flex-1 justify-center sm:justify-end mr-2 md:ml-2 ml-0">
             <NavItem id="home" icon={Home} label="Dashboard" />
             <NavItem id="activities" icon={List} label="Activities" />
             <NavItem id="goals" icon={Target} label="Goals" />
@@ -323,7 +323,7 @@ const App: React.FC = () => {
         </div>
       </nav>
 
-      <main className="max-w-7xl mx-auto px-4 py-4 flex-1 print:p-0 print:m-0 print:max-w-none w-full">
+      <main className="max-w-7xl mx-auto md:px-4 px-2.5 md:py-4 py-2 flex-1 print:p-0 print:m-0 print:max-w-none w-full">
         {currentPage === 'home' && (
           <Dashboard
             userName={userName || 'User'}
@@ -378,11 +378,15 @@ const App: React.FC = () => {
       <Footer isFull={currentPage === 'home' || currentPage === 'chart'} />
 
       <button
-        onClick={() => { setEditingEntry(null); setIsFormOpen(true); }}
-        className="fixed bottom-8 right-8 w-16 h-16 bg-blue-600 text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all z-40 no-print"
-      >
-        <Plus size={32} strokeWidth={3} />
-      </button>
+  onClick={() => { setEditingEntry(null); setIsFormOpen(true); }}
+  className="group fixed bottom-8 right-8 w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-700 text-white rounded-full shadow-[0_10px_25px_-5px_rgba(59,130,246,0.5)] flex items-center justify-center hover:scale-110 hover:shadow-[0_20px_35px_-5px_rgba(59,130,246,0.6)] active:scale-95 transition-all duration-300 z-40 no-print"
+>
+  <Plus 
+    size={32} 
+    strokeWidth={3} 
+    className="transition-transform duration-500 group-hover:rotate-180 drop-shadow-md" 
+  />
+</button>
 
       {isFormOpen && (
         <EntryForm

@@ -3,7 +3,7 @@ import CalendarView from './CalendarView';
 import LineGraph from './LineGraph';
 import Footer from './Footer';
 import { ActivityEntry, Goal } from '../types';
-import { TrendingUp, Award, Edit2, Trash2, Star, Banknote, Eye, EyeOff, Target, Calendar, Paperclip,ChartLine, ScrollText, Check, X as CloseIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { TrendingUp, Award, Clock, Edit2, Trash2, Star, Banknote, Eye, EyeOff, Target, Calendar, Paperclip,ChartLine, ScrollText, Check, X as CloseIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface DashboardProps {
@@ -118,7 +118,7 @@ const [showLabels, setShowLabels] = React.useState(true);
   const formattedFullActivitiesDate = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
 
   return (
-    <div className="space-y-6">
+    <div className="md:space-y-6 space-y-2.5">
       {/* Box with Gradient Background and Right-Aligned Time Card */}
       <div className={`flex flex-col md:flex-row items-center justify-between md:gap-6 gap-3 mb-4 bg-white dark:bg-slate-800 p-6 rounded-3xl border-0 border-gray-100 dark:border-slate-700 shadow-sm ${currentTimeClass}`}>
         <div className="text-center md:text-left  flex-1">
@@ -188,9 +188,9 @@ const [showLabels, setShowLabels] = React.useState(true);
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 md:gap-6 gap-3">
       {/* Daily 100pt Progress Section */}
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700">
+        <div className="bg-white dark:bg-slate-800 md:p-6 p-3 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700">
           <div className="flex justify-between items-center mb-4">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-emerald-500/10"><Target className="text-emerald-500" size={20} /></div>
@@ -210,7 +210,7 @@ const [showLabels, setShowLabels] = React.useState(true);
         </div>
         
         {/* Total Month Progress */}
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700">
+        <div className="bg-white dark:bg-slate-800 md:p-6 p-3 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700">
           <div className="flex justify-between items-center mb-4">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-blue-500/10"><Calendar className="text-blue-500" size={20} /></div>
@@ -232,8 +232,8 @@ const [showLabels, setShowLabels] = React.useState(true);
         
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 flex flex-col justify-between">
+      <div className="grid grid-cols-2 lg:grid-cols-4 md:gap-4 gap-3">
+        <div className="bg-white dark:bg-slate-800 md:p-5 p-2.5 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 flex flex-col justify-between">
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2 rounded-lg bg-blue-500/10"><TrendingUp className="text-blue-500" size={18} /></div>
             <p className="text-[10px] font-bold uppercase text-gray-400">Yearly Points ({selectedYear})</p>
@@ -241,7 +241,7 @@ const [showLabels, setShowLabels] = React.useState(true);
           <p className="text-2xl font-black text-gray-800 dark:text-white">{totalYearlyPoints.toLocaleString()}</p>
         </div>
 
-        <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 flex flex-col justify-between">
+        <div className="bg-white dark:bg-slate-800 md:p-5 p-2.5 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 flex flex-col justify-between">
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2 rounded-lg bg-purple-500/10"><Award className="text-purple-500" size={18} /></div>
             <p className="text-[10px] font-bold uppercase text-gray-400">Yearly Goals ({selectedYear})</p>
@@ -249,7 +249,7 @@ const [showLabels, setShowLabels] = React.useState(true);
           <p className="text-2xl font-black text-gray-800 dark:text-white">{yearlyGoalsAchieved}</p>
         </div>
 
-        <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 flex flex-col justify-between col-span-2 lg:col-span-2">
+        <div className="bg-white dark:bg-slate-800 md:p-5 p-2.5 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 flex flex-col justify-between col-span-2 lg:col-span-2">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-emerald-500/10"><Banknote className="text-emerald-500" size={18} /></div>
@@ -274,7 +274,7 @@ const [showLabels, setShowLabels] = React.useState(true);
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 md:gap-6 gap-3">
         <div className="lg:col-span-1">
           <CalendarView 
             entries={entries} 
@@ -288,7 +288,7 @@ const [showLabels, setShowLabels] = React.useState(true);
         </div>
         
         <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white dark:bg-slate-800 p-6 pl-2 pr-2 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 relative">
+          <div className="bg-white dark:bg-slate-800 md:p-6 p-3 pl-2 pr-2 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 relative">
   <div className="flex justify-between items-start">
     <h3 className="inline-flex items-center gap-5 pl-4 pr-4 text-lg font-bold uppercase tracking-tighter mb-6 text-gray-800 dark:text-white">
       <ChartLine className="text-green-500 shrink-0" size={30}/>
@@ -318,9 +318,9 @@ const [showLabels, setShowLabels] = React.useState(true);
 />
 </div>
           
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-6">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 md:p-6 p-0">
             {/*notebook-text*/}
-<div className="flex items-center justify-between">
+<div className="flex items-center justify-between md:p-0 p-3 pb-0">
             <h3 className="inline-flex items-center md:gap-5 gap-2 text-lg font-bold mb-6 text-gray-800 dark:text-white uppercase tracking-tighter">
   <ScrollText className="text-pink-500 shrink-0" size={30}/>
   
@@ -351,7 +351,7 @@ const [showLabels, setShowLabels] = React.useState(true);
                 </motion.button>
               </div>
 </div>
-            <div className="space-y-3">
+            <div className="md:space-y-3 space-y-1.5 md:p-0 p-1">
               {selectedDateEntries.length === 0 ? (
                 <div className="text-center py-10 text-gray-400 italic">No activities recorded.</div>
               ) : (
@@ -359,53 +359,76 @@ const [showLabels, setShowLabels] = React.useState(true);
                   const isGoal = goals.some(g => g.code === entry.code && g.achievedAt === entry.toDate);
                   const isCash = !!(entry.debit || entry.credit);
                   return (
-                    <div key={entry.id} className="group p-4 rounded-2xl border border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50 hover:bg-white dark:hover:bg-slate-800 transition-all shadow-sm">
-                      <div className="flex items-start justify-between">
-                        <div className="flex gap-3">
-                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-xs shrink-0 ${isGoal ? 'bg-emerald-600' : 'bg-blue-600'} text-white shadow-lg`}>
-                            {entry.code}
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <h4 className="font-bold text-gray-800 dark:text-white">{entry.name}</h4>
-                              {isGoal && <Star size={14} className="text-emerald-500" fill="currentColor" />}
-                              {isCash && <Banknote size={14} className="text-emerald-500" />}
-                            </div>
-                            <div className="flex gap-2 items-center mt-0.5 text-[10px] font-bold text-gray-500 dark:text-gray-400">
-                              <p>{entry.isLongEvent ? `${entry.fromTime} — ${entry.toTime}` : entry.toTime}</p>
-                              {isCash && (
-                                <div className="flex gap-2">
-                                  {entry.debit! > 0 && <span className="text-red-500">-{entry.debit}₹</span>}
-                                  {entry.credit! > 0 && <span className="text-emerald-500">+{entry.credit}₹</span>}
-                                </div>
-                              )}
-                            </div>
-                            {entry.description && (
-                              <p className="text-xs text-gray-600 dark:text-gray-300 mt-2 italic border-l-2 border-blue-500/20 pl-3 py-1 bg-black/5 dark:bg-white/5 rounded-r-lg">
-                                {entry.description}
-                              </p>
-                            )}
-                            {entry.attachment && (
-                              <a 
-                                href={entry.attachment} 
-                                target="_blank" 
-                                rel="noreferrer" 
-                                className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-blue-500 dark:text-blue-400 bg-blue-500/5 px-3 py-1.5 rounded-xl hover:bg-blue-500/10 transition-all border border-blue-500/20 mt-2 shadow-sm"
-                              >
-                                <Paperclip size={12} /> View Attachment
-                              </a>
-                            )}
-                          </div>
-                        </div>
-                        <div className="text-right shrink-0">
-                          <span className={`text-lg font-black ${isGoal ? 'text-emerald-500' : 'text-blue-600'}`}>+{entry.points}</span>
-                          <div className="flex gap-2 mt-2">
-                            <button onClick={() => onEdit(entry)} className="p-1.5 text-gray-400 hover:text-blue-500 transition-all"><Edit2 size={16}/></button>
-                            <button onClick={() => onDelete(entry.id)} className="p-1.5 text-gray-400 hover:text-red-600 transition-all"><Trash2 size={16}/></button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                    <div key={entry.id} className="group md:p-4 p-3 rounded-2xl border border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50 hover:bg-white dark:hover:bg-slate-800 transition-all shadow-sm">
+  {/* TOP SECTION */}
+  <div className="flex items-start gap-3">
+    {/* Icon Square */}
+    <div className={`md:w-12 md:h-12 w-10 h-10 rounded-xl flex items-center justify-center font-black md:text-xs text-[10px] shrink-0 ${isGoal ? 'bg-emerald-600' : 'bg-blue-600'} text-white shadow-lg`}>
+      {entry.code}
+    </div>
+
+    {/* Title and Time Badge */}
+    <div className="flex-1 min-w-0">
+      <div className="flex items-center gap-2">
+        <h4 className="font-bold text-gray-800 dark:text-white truncate">{entry.name}</h4>
+        {isGoal && <Star size={14} className="text-emerald-500" fill="currentColor" />}
+        {isCash && <Banknote size={14} className="text-emerald-500" />}
+      </div>
+
+      {/* Time Badge with Border/Radius */}
+      <div className="inline-flex items-center gap-2 mt-1.5 px-2 py-1 rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 text-[10px] font-bold text-gray-500 dark:text-gray-400 shadow-sm">
+        <Clock size={10} />
+        <span>{entry.isLongEvent ? `${entry.fromTime} — ${entry.toTime}` : entry.toTime}</span>
+        {isCash && (
+          <div className="flex gap-2 ml-1 border-l pl-2 border-gray-200 dark:border-slate-700">
+            {entry.debit > 0 && <span className="text-red-500">-{entry.debit}₹</span>}
+            {entry.credit > 0 && <span className="text-emerald-500">+{entry.credit}₹</span>}
+          </div>
+        )}
+      </div>
+    </div>
+
+    {/* Points and Actions */}
+    <div className="flex items-center gap-3 shrink-0">
+      <span className={`text-lg font-black ${isGoal ? 'text-emerald-500' : 'text-blue-600'}`}>
+        +{entry.points}
+      </span>
+      <div className="flex flex-col border-l border-gray-200 dark:border-slate-700 pl-2 gap-1 md:opacity-0 group-hover:opacity-100 transition-opacity">
+        <button onClick={() => onEdit(entry)} className="p-1 text-gray-400 hover:text-blue-500 transition-colors">
+          <Edit2 size={15}/>
+        </button>
+        <button onClick={() => onDelete(entry.id)} className="p-1 text-gray-400 hover:text-red-600 transition-colors">
+          <Trash2 size={15}/>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  {/* FULL WIDTH DESCRIPTION */}
+  {entry.description && (
+  <div className={`mt-4 w-full p-3 rounded-xl shadow-inner text-xs italic leading-relaxed border-l-4 ${
+    isGoal 
+      ? 'bg-emerald-50/50 dark:bg-emerald-900/20 border-emerald-500 text-emerald-700 dark:text-emerald-300' 
+      : 'bg-gray-100/50 dark:bg-slate-800/80 border-blue-500 text-gray-600 dark:text-gray-300'
+  }`}>
+    {entry.description}
+  </div>
+)}
+
+  {/* Attachment Link */}
+  {entry.attachment && (
+    <div className="mt-3">
+      <a 
+        href={entry.attachment} 
+        target="_blank" 
+        rel="noreferrer" 
+        className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-blue-500 dark:text-blue-400 bg-blue-500/5 px-3 py-1.5 rounded-xl hover:bg-blue-500/10 transition-all border border-blue-500/20 shadow-sm"
+      >
+        <Paperclip size={12} /> View Attachment
+      </a>
+    </div>
+  )}
+</div>
                   );
                 })
               )}

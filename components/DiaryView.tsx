@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ActivityEntry, Goal } from '../types';
-import { Trash2, Edit2, Clock, Paperclip, Calendar, Star, Banknote, NotebookPen, Search } from 'lucide-react';
+import { Trash2, Edit2, Clock, Paperclip, Calendar, Star, Banknote, NotebookPen, Search, ArrowUpDown } from 'lucide-react';
 
 interface DiaryViewProps {
   entries: ActivityEntry[];
@@ -19,6 +19,8 @@ const DiaryView: React.FC<DiaryViewProps> = ({ entries, goals, onEdit, onDelete 
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   });
 
+  const [sortAsc, setSortAsc] = useState(false); // Default: Descending (latest first)
+
   // Filter logic: Matches Month + Search Term (Name, Code, or Description)
   const diaryEntries = entries
     .filter(e => {
@@ -31,7 +33,11 @@ const DiaryView: React.FC<DiaryViewProps> = ({ entries, goals, onEdit, onDelete 
       
       return matchesMonth && matchesSearch;
     })
-    .sort((a, b) => b.toDate.localeCompare(a.toDate) || a.toTime.localeCompare(b.toTime));
+    .sort((a, b) => {
+  const dateCompare = sortAsc ? a.toDate.localeCompare(b.toDate) : b.toDate.localeCompare(a.toDate);
+  // Keep time sorting consistent (earliest to latest within the day)
+  return dateCompare || a.toTime.localeCompare(b.toTime);
+});
 
   const groupedEntries = diaryEntries.reduce((acc, entry) => {
     if (!acc[entry.toDate]) acc[entry.toDate] = [];
@@ -52,30 +58,46 @@ const DiaryView: React.FC<DiaryViewProps> = ({ entries, goals, onEdit, onDelete 
           <p className="text-sm font-bold text-gray-600 dark:text-slate-400">Records for {monthDisplay}</p>
         </div>
         
-        <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto no-print">
-          {/* --- SEARCH INPUT --- */}
-          <div className="relative w-full sm:w-64 group">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
-            <input 
-              type="text"
-              placeholder="Search logs..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-white/10 dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 dark:text-white text-sm font-bold outline-none focus:border-blue-500 transition-all shadow-lg"
-            />
-          </div>
+        <div className="flex flex-row sm:flex-row items-center gap-3 w-full lg:w-auto no-print">
+  {/* --- SEARCH INPUT --- */}
+  <div className="relative flex-1 sm:w-64 group">
+    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
+    <input 
+      type="text"
+      placeholder="Search logs..."
+      value={searchTerm}
+      onChange={(e) => setSearchTerm(e.target.value)}
+      className="w-full pl-10 pr-4 py-2.5 bg-white/10 dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 dark:text-white text-sm font-bold outline-none focus:border-blue-500 transition-all shadow-lg"
+    />
+  </div>
 
-          {/* --- DATE PICKER --- */}
-          <div className="flex items-center gap-2 bg-white/10 dark:bg-slate-800 p-2.5 rounded-2xl border border-gray-100 dark:border-slate-700 shadow-xl w-full sm:w-auto">
-            <Calendar size={20} className="text-blue-500" />
-            <input 
-              type="month" 
-              value={selectedMonth} 
-              onChange={e => setSelectedMonth(e.target.value)} 
-              className="bg-transparent dark:text-white border-none text-sm font-bold outline-none cursor-pointer w-full"
-            />
-          </div>
-        </div>
+  {/* --- SORT BUTTON --- */}
+  <button 
+    onClick={() => setSortAsc(!sortAsc)}
+    className={`shrink-0 h-[46px] px-4 rounded-2xl border transition-all flex items-center gap-2 font-bold text-sm shadow-lg ${
+      sortAsc 
+        ? 'bg-blue-600 text-white border-blue-600' 
+        : 'bg-white/10 dark:bg-slate-800 dark:text-white border-gray-100 dark:border-slate-700 hover:border-blue-500'
+    }`}
+    title={sortAsc ? "Showing Oldest First" : "Showing Newest First"}
+  >
+    <div className={`transition-transform duration-300 ${sortAsc ? 'rotate-180' : 'rotate-0'}`}>
+      <ArrowUpDown size={16} /> 
+    </div>
+    <span className="hidden md:inline">{sortAsc ? 'Oldest' : 'Newest'}</span>
+  </button>
+</div>
+
+  {/* --- DATE PICKER --- */}
+  <div className="flex items-center gap-2 bg-white/10 dark:bg-slate-800 h-[46px] px-3 rounded-2xl border border-gray-100 dark:border-slate-700 shadow-xl w-full sm:w-auto">
+    <Calendar size={18} className="text-blue-500 shrink-0" />
+    <input 
+      type="month" 
+      value={selectedMonth} 
+      onChange={e => setSelectedMonth(e.target.value)} 
+      className="bg-transparent dark:text-white border-none text-sm font-bold outline-none cursor-pointer w-full focus:ring-0"
+    />
+  </div>
       </div>
 
       {Object.keys(groupedEntries).length === 0 ? (
@@ -86,12 +108,26 @@ const DiaryView: React.FC<DiaryViewProps> = ({ entries, goals, onEdit, onDelete 
         <div className="space-y-8">
           {Object.keys(groupedEntries).map((date) => {
             const items = groupedEntries[date];
+            const totalPoints = items.reduce((sum, item) => sum + item.points, 0);
+            const hasGoalInDay = items.some(item => isGoalEntry(item));
             return (
               <div key={date} className="space-y-4">
+                <div className="flex items-center justify-between w-full gap-3">
+                  
                 <h3 className="text-lg font-black text-blue-500 flex items-center gap-2 drop-shadow-sm">
+                  {hasGoalInDay ? (
+                      <div className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center text-white shadow-lg shadow-emerald-500/50">
+                        <Star size={10} fill="currentColor" />
+                      </div>
+                    ) : (
                   <div className="w-3 h-3 rounded-full bg-blue-500 shadow-lg shadow-blue-500/50" />
+                  )}
                   {new Date(date).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}
                 </h3>
+                <div className="bg-blue-600 text-white items-right text-[10px] font-black px-2.5 py-1 rounded-xl shadow-lg shadow-blue-600/20 uppercase tracking-widest">
+                    {totalPoints} PTS
+                  </div>
+                </div>
                 <div className="grid gap-6">
                   {items.map(item => {
                     const goalAchieved = isGoalEntry(item);
