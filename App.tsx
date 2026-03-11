@@ -1,19 +1,65 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { Plus, Home, List, Target, BarChart3, Sun, Moon, BookText, Loader2, User, CalendarSync } from 'lucide-react';
-import Dashboard from './components/Dashboard';
+const Dashboard = lazy(() => import('./components/Dashboard'));
 import EntryForm from './components/EntryForm';
-import GoalsView from './components/GoalsView';
-import ActivitiesView from './components/ActivitiesView';
-import DiaryView from './components/DiaryView';
-import AutoFill from './components/AutoFill';
-import StatsView from './components/StatsView';
-import Footer from './components/Footer';
-import NoInternet from './components/NoInternet';
+const GoalsView = lazy(() => import('./components/GoalsView'));
+const ActivitiesView = lazy(() => import('./components/ActivitiesView'));
+const DiaryView = lazy(() => import('./components/DiaryView'));
+const AutoFill = lazy(() => import('./components/AutoFill'));
+const StatsView = lazy(() => import('./components/StatsView'));
+const Footer = lazy(() => import('./components/Footer'));
+const NoInternet = lazy(() => import('./components/NoInternet'));
 import { ActivityEntry, Goal, ActivityTemplate, Page, AutoTemplate } from './types';
 import { getDB } from './db';
 import { INITIAL_ACTIVITIES } from './constants';
 import UserIcon from './assets/icons/user.png';
 import MainLogo from "./assets/icons/solodiary_icon.ico";
+
+const PageLoader = () => (
+  <div className="flex items-center justify-center py-20">
+    <Loader2 className="animate-spin text-blue-500" size={32} />
+  </div>
+);
+
+const NavItem = ({ icon: Icon, label, id, currentPage, isDarkMode, onNavigate }: { icon: any, label: string, id: Page, currentPage: Page, isDarkMode: boolean, onNavigate: (id: Page) => void }) => {
+  const isActive = currentPage === id;
+
+  const getTabColor = () => {
+    if (!isActive) return 'text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-slate-800';
+    switch (id) {
+      case 'home': return isDarkMode ? 'bg-white text-black shadow-[0_0_8px_rgba(255,255,255,0.8)]' : 'bg-black text-white shadow-[0_0_8px_rgba(0,0,0,0.8)]';
+      case 'activities': return 'bg-blue-500 text-white shadow-[0_0_8px_rgba(59,130,246,0.8)]';
+      case 'goals': return 'bg-green-500 text-white shadow-[0_0_8px_rgba(34,197,94,0.8)]';
+      case 'diary': return 'bg-pink-500 text-white shadow-[0_0_8px_rgba(236,72,153,0.8)]';
+      case 'auto': return 'bg-violet-500 text-white shadow-[0_0_8px_rgba(139,92,246,0.8)]';
+      case 'chart': return isDarkMode ? 'bg-white text-black shadow-[0_0_8px_rgba(255,255,255,0.8)]' : 'bg-black text-white shadow-[0_0_8px_rgba(0,0,0,0.8)]';
+      default: return '';
+    }
+  };
+
+  const getIconGlow = () => {
+    if (!isActive) return '';
+    switch (id) {
+      case 'home': return isDarkMode ? 'drop-shadow-[0_0_4px_rgba(255,255,255,0.8)]' : 'drop-shadow-[0_0_4px_rgba(0,0,0,0.8)]';
+      case 'activities': return 'drop-shadow-[0_0_4px_rgba(59,130,246,0.8)]';
+      case 'goals': return 'drop-shadow-[0_0_4px_rgba(34,197,94,0.8)]';
+      case 'diary': return 'drop-shadow-[0_0_4px_rgba(236,72,153,0.8)]';
+      case 'auto': return 'drop-shadow-[0_0_4px_rgba(139,92,246,0.8)]';
+      case 'chart': return isDarkMode ? 'drop-shadow-[0_0_4px_rgba(255,255,255,0.8)]' : 'drop-shadow-[0_0_4px_rgba(0,0,0,0.8)]';
+      default: return '';
+    }
+  };
+
+  return (
+    <button
+      onClick={() => onNavigate(id)}
+      className={`flex items-center gap-2 px-3 py-2 rounded-xl transition-all ${getTabColor()}`}
+    >
+      <Icon size={20} className={getIconGlow()} />
+      <span className="hidden lg:inline font-bold">{label}</span>
+    </button>
+  );
+};
 
 const App: React.FC = () => {
   const [entries, setEntries] = useState<ActivityEntry[]>([]);
@@ -33,6 +79,7 @@ const App: React.FC = () => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<ActivityEntry | null>(null);
   const [currentTimeClass, setCurrentTimeClass] = useState('sky-12');
+  const [themeReady, setThemeReady] = useState(false);
   const [selectedDate, setSelectedDate] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -128,7 +175,12 @@ const App: React.FC = () => {
     const root = window.document.documentElement;
     if (isDarkMode) root.classList.add('dark');
     else root.classList.remove('dark');
+    root.style.colorScheme = isDarkMode ? 'dark' : 'light';
   }, [isDarkMode]);
+
+  useEffect(() => {
+    setThemeReady(true);
+  }, []);
 
   useEffect(() => {
     const updateTimeClass = () => {
@@ -230,53 +282,23 @@ const App: React.FC = () => {
     return <NoInternet onRetry={() => window.location.reload()} />;
   }
 
-  const NavItem = ({ icon: Icon, label, id }: { icon: any, label: string, id: Page }) => {
-    const isActive = currentPage === id;
-
-    const getTabColor = () => {
-      if (!isActive) return 'text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-slate-800';
-      switch (id) {
-        case 'home': return isDarkMode ? 'bg-white text-black shadow-[0_0_8px_rgba(255,255,255,0.8)]' : 'bg-black text-white shadow-[0_0_8px_rgba(0,0,0,0.8)]';
-        case 'activities': return 'bg-blue-500 text-white shadow-[0_0_8px_rgba(59,130,246,0.8)]';
-        case 'goals': return 'bg-green-500 text-white shadow-[0_0_8px_rgba(34,197,94,0.8)]';
-        case 'diary': return 'bg-pink-500 text-white shadow-[0_0_8px_rgba(236,72,153,0.8)]';
-        case 'auto': return 'bg-violet-500 text-white shadow-[0_0_8px_rgba(139,92,246,0.8)]';
-        case 'chart': return isDarkMode ? 'bg-white text-black shadow-[0_0_8px_rgba(255,255,255,0.8)]' : 'bg-black text-white shadow-[0_0_8px_rgba(0,0,0,0.8)]';
-        default: return '';
-      }
-    };
-
-    const getIconGlow = () => {
-      if (!isActive) return '';
-      switch (id) {
-        case 'home': return isDarkMode ? 'drop-shadow-[0_0_4px_rgba(255,255,255,0.8)]' : 'drop-shadow-[0_0_4px_rgba(0,0,0,0.8)]';
-        case 'activities': return 'drop-shadow-[0_0_4px_rgba(59,130,246,0.8)]';
-        case 'goals': return 'drop-shadow-[0_0_4px_rgba(34,197,94,0.8)]';
-        case 'diary': return 'drop-shadow-[0_0_4px_rgba(236,72,153,0.8)]';
-        case 'auto': return 'drop-shadow-[0_0_4px_rgba(139,92,246,0.8)]';
-        case 'chart': return isDarkMode ? 'drop-shadow-[0_0_4px_rgba(255,255,255,0.8)]' : 'drop-shadow-[0_0_4px_rgba(0,0,0,0.8)]';
-        default: return '';
-      }
-    };
-
-    return (
-      <button
-        onClick={() => setCurrentPage(id)}
-        className={`flex items-center gap-2 px-3 py-2 rounded-xl transition-all ${getTabColor()}`}
-      >
-        <Icon size={20} className={getIconGlow()} />
-        <span className="hidden lg:inline font-bold">{label}</span>
-      </button>
-    );
-  };
-
   return (
-    <div className="min-h-screen transition-colors duration-500 bg-gray-50 dark:bg-slate-950 print:bg-white print:dark:bg-white flex flex-col">
+    <div className={`min-h-screen bg-gray-50 dark:bg-slate-950 print:bg-white print:dark:bg-white flex flex-col ${themeReady ? 'transition-colors duration-500' : ''}`}>
       {showNamePrompt && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black backdrop-blur-xl">
-          <form onSubmit={handleSaveName} className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] shadow-2xl border border-white/20 w-full max-w-md space-y-6 text-center animate-in zoom-in duration-300">
-            <div className="w-20 h-20 bg-blue-600/10 border-blue border-2 border-dotted rounded-3xl mx-auto flex items-center justify-center text-white shadow-2xl shadow-blue-500/50 mb-4">
-              <img src={UserIcon} size={20} className="p-2" alt="User" />
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 welcome-backdrop">
+          {/* Animated floating orbs */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <div className="welcome-orb w-72 h-72 bg-blue-500/30 rounded-full absolute -top-20 -left-20" style={{ animationDelay: '0s' }} />
+            <div className="welcome-orb w-96 h-96 bg-indigo-500/20 rounded-full absolute -bottom-32 -right-32" style={{ animationDelay: '2s' }} />
+            <div className="welcome-orb w-48 h-48 bg-pink-500/25 rounded-full absolute top-1/4 right-10" style={{ animationDelay: '4s' }} />
+            <div className="welcome-orb w-64 h-64 bg-cyan-400/20 rounded-full absolute bottom-1/4 -left-16" style={{ animationDelay: '1s' }} />
+            <div className="welcome-orb w-40 h-40 bg-violet-500/25 rounded-full absolute top-10 right-1/3" style={{ animationDelay: '3s' }} />
+            <div className="welcome-orb w-56 h-56 bg-emerald-400/15 rounded-full absolute bottom-10 left-1/3" style={{ animationDelay: '5s' }} />
+          </div>
+
+          <form onSubmit={handleSaveName} className="welcome-form bg-white/90 dark:bg-slate-900/90 p-8 rounded-[2.5rem] shadow-2xl border border-white/30 dark:border-slate-700/50 w-full max-w-md space-y-6 text-center relative backdrop-blur-sm">
+            <div className="welcome-icon w-20 h-20 bg-blue-600/10 border-blue border-2 border-dotted rounded-3xl mx-auto flex items-center justify-center text-white shadow-2xl shadow-blue-500/50 mb-4">
+              <img src={UserIcon} className="p-2" alt="User" />
             </div>
             <div>
               <h2 className="text-2xl font-black uppercase tracking-tighter dark:text-white">Welcome Pilot</h2>
@@ -291,7 +313,7 @@ const App: React.FC = () => {
               className="w-full px-6 py-4 rounded-2xl bg-gray-50 dark:bg-slate-800 border-2 border-transparent focus:border-blue-600 outline-none text-center font-black uppercase tracking-widest text-lg dark:text-white transition-all"
               required
             />
-            <button type="submit" className="w-full py-4 bg-blue-600 text-white font-black rounded-2xl shadow-xl hover:bg-blue-700 transition-all uppercase tracking-[0.2em] text-sm">
+            <button type="submit" className="w-full py-4 bg-blue-600 text-white font-black rounded-2xl shadow-xl hover:bg-blue-700 hover:shadow-blue-500/40 hover:scale-[1.02] active:scale-95 transition-all uppercase tracking-[0.2em] text-sm">
               Initialize Profile
             </button>
           </form>
@@ -310,12 +332,12 @@ const App: React.FC = () => {
             <h1 className="text-xl font-black text-gray-900 dark:text-white tracking-tighter uppercase hidden sm:block">SOLODIARY</h1>
           </div>
           <div className="flex items-center gap-1 md:gap-4 flex-1 justify-center sm:justify-end mr-2 md:ml-2 ml-0">
-            <NavItem id="home" icon={Home} label="Dashboard" />
-            <NavItem id="activities" icon={List} label="Activities" />
-            <NavItem id="goals" icon={Target} label="Goals" />
-            <NavItem id="diary" icon={BookText} label="Diary" />
-            <NavItem id="auto" icon={CalendarSync} label="Auto" />
-            <NavItem id="chart" icon={BarChart3} label="Stats" />
+            <NavItem id="home" icon={Home} label="Dashboard" currentPage={currentPage} isDarkMode={isDarkMode} onNavigate={setCurrentPage} />
+            <NavItem id="activities" icon={List} label="Activities" currentPage={currentPage} isDarkMode={isDarkMode} onNavigate={setCurrentPage} />
+            <NavItem id="goals" icon={Target} label="Goals" currentPage={currentPage} isDarkMode={isDarkMode} onNavigate={setCurrentPage} />
+            <NavItem id="diary" icon={BookText} label="Diary" currentPage={currentPage} isDarkMode={isDarkMode} onNavigate={setCurrentPage} />
+            <NavItem id="auto" icon={CalendarSync} label="Auto" currentPage={currentPage} isDarkMode={isDarkMode} onNavigate={setCurrentPage} />
+            <NavItem id="chart" icon={BarChart3} label="Stats" currentPage={currentPage} isDarkMode={isDarkMode} onNavigate={setCurrentPage} />
           </div>
           <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2.5 rounded-xl text-gray-500 dark:text-gray-400 hover:bg-gray-100 transition-colors">
             {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
@@ -324,6 +346,7 @@ const App: React.FC = () => {
       </nav>
 
       <main className="max-w-7xl mx-auto md:px-4 px-2.5 md:py-4 py-2 flex-1 print:p-0 print:m-0 print:max-w-none w-full">
+        <Suspense fallback={<PageLoader />}>
         {currentPage === 'home' && (
           <Dashboard
             userName={userName || 'User'}
@@ -373,6 +396,7 @@ const App: React.FC = () => {
         {currentPage === 'chart' && (
           <StatsView userName={userName || 'User'} entries={entries} goals={goals} onRefresh={fetchData} />
         )}
+        </Suspense>
       </main>
 
       <Footer isFull={currentPage === 'home' || currentPage === 'chart'} />

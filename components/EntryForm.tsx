@@ -6,7 +6,7 @@ import { X, NotebookTabs, Save, Banknote, Clock, Zap, Target, FileText, Calendar
 
 interface EntryFormProps {
   onClose: () => void;
-  onSave: (entry: ActivityEntry) => void;
+  onSave: (entry: ActivityEntry) => void | Promise<void>;
   initialData?: ActivityEntry | null;
   templates: ActivityTemplate[];
   goals: Goal[];
@@ -16,6 +16,9 @@ interface EntryFormProps {
 }
 
 const EntryForm: React.FC<EntryFormProps> = ({ onClose, onSave, initialData, templates, goals, disableDates, title, icon }) => {
+  const [isVisible, setIsVisible] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLongEvent, setIsLongEvent] = useState(initialData?.isLongEvent ?? false);
   const [isCashTransaction, setIsCashTransaction] = useState(!!(initialData?.debit || initialData?.credit));
   const [isDescriptionOpen, setIsDescriptionOpen] = useState(!!(initialData?.description || initialData?.attachment));
@@ -37,6 +40,11 @@ const EntryForm: React.FC<EntryFormProps> = ({ onClose, onSave, initialData, tem
   
   const nameSuggestionRef = useRef<HTMLDivElement>(null);
   const codeSuggestionRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => setIsVisible(true));
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
 
   useEffect(() => {
     const now = new Date();
@@ -108,9 +116,22 @@ const EntryForm: React.FC<EntryFormProps> = ({ onClose, onSave, initialData, tem
     }
   };
 
+  const handleCloseWithAnimation = () => {
+    if (isClosing) return;
+    setIsClosing(true);
+    setIsVisible(false);
+    window.setTimeout(() => onClose(), 180);
+  };
+
     const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave({
+    if (isClosing || isSubmitting) return;
+
+    setIsSubmitting(true);
+    setIsClosing(true);
+    setIsVisible(false);
+
+    const payload: ActivityEntry = {
       id: initialData?.id || Math.random().toString(36).substr(2, 9),
       isLongEvent,
       fromDate: isLongEvent ? fromDate : null,
@@ -125,7 +146,11 @@ const EntryForm: React.FC<EntryFormProps> = ({ onClose, onSave, initialData, tem
       description: isDescriptionOpen ? description : '',
       attachment: isDescriptionOpen ? attachment : '',
       createdAt: initialData?.createdAt || Date.now(),
-    });
+    };
+
+    window.setTimeout(async () => {
+      await Promise.resolve(onSave(payload));
+    }, 160);
   };
 
   const SuggestionList = ({ list, onSelect }: { list: any[], onSelect: (s: any) => void }) => (
@@ -165,8 +190,8 @@ const [selectedGoalId, setSelectedGoalId] = useState("");
 
 
   const modalContent = (
-<div className="text-black dark:text-white fixed inset-0 z-[100] flex items-center justify-center md:p-4 p-2 bg-black/80 backdrop-blur-xl">
-  <div className="bg-white dark:bg-slate-900 w-full max-w-lg md:rounded-[2.5rem] rounded-[1.5rem] shadow-2xl overflow-hidden max-h-[90vh] flex flex-col border border-white/10 animate-in zoom-in duration-300">
+<div className={`text-black dark:text-white fixed inset-0 z-[100] flex items-center justify-center md:p-4 p-2 bg-black/80 backdrop-blur-xl transition-opacity duration-150 ${isVisible ? 'opacity-100' : 'opacity-0'}`}>
+  <div className={`bg-white dark:bg-slate-900 w-full max-w-lg md:rounded-[2.5rem] rounded-[1.5rem] shadow-2xl overflow-hidden max-h-[90vh] flex flex-col border border-white/10 transform transition-all duration-200 ease-out ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'} ${isClosing ? 'duration-150 ease-in' : ''}`}>
         <div className="px-6 py-4 border-b border-gray-100 dark:border-white/10 flex justify-between items-center bg-white dark:bg-slate-900 z-10">
           <div className="flex items-center gap-3">
             {icon || (title?.toLowerCase().includes('key') || title?.toLowerCase().includes('auto') ? (
@@ -178,7 +203,7 @@ const [selectedGoalId, setSelectedGoalId] = useState("");
             {title || (initialData ? 'Edit Event Record' : 'Add Event Details')}
           </h2>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-all">
+          <button disabled={isClosing || isSubmitting} onClick={handleCloseWithAnimation} className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-all disabled:opacity-60 disabled:cursor-not-allowed">
             <X size={24} className="text-black dark:text-white" />
           </button>
         </div>
@@ -240,11 +265,11 @@ const [selectedGoalId, setSelectedGoalId] = useState("");
   </label>
   <div className="relative flex items-center">
     {/* Mobile Overlay: Text Left, Icon Right */}
-    <div className="absolute inset-0 md:hidden flex items-center justify-between w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:bg-black/20 dark:border-white/10 pointer-events-none z-10">
+    <div className="absolute inset-0 md:hidden flex items-center w-full px-4 py-2.5 rounded-xl border border-gray-200 pointer-events-none z-10">
       <span className="text-black dark:text-white font-bold text-sm">
         {formatMobileDate(fromDate)}
       </span>
-      <CalendarIcon size={16} className="text-blue-500" />
+      <CalendarIcon size={16} className="absolute right-4 text-blue-500" />
     </div>
 
     {/* Input: Hidden visually on mobile but clickable */}
@@ -257,10 +282,7 @@ const [selectedGoalId, setSelectedGoalId] = useState("");
     />
     
     {/* Desktop Icon: Always visible on PC */}
-    <CalendarIcon 
-      size={16} 
-      className="hidden md:block absolute right-4 text-blue-500 pointer-events-none" 
-    />
+    
   </div>
 </div>
 )}
@@ -294,11 +316,11 @@ const [selectedGoalId, setSelectedGoalId] = useState("");
   </label>
   <div className="relative flex items-center">
     {/* Mobile Overlay: Text Left, Icon Right (Hidden on PC) */}
-    <div className="absolute inset-0 md:hidden flex items-center justify-between w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:bg-black/20 dark:border-white/10 pointer-events-none z-10">
+    <div className="absolute inset-0 md:hidden flex items-center w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:bg-black/20 dark:border-white/10 pointer-events-none z-10">
       <span className="text-black dark:text-white font-bold text-sm">
         {formatMobileDate(toDate)}
       </span>
-      <CalendarIcon size={16} className="text-blue-500" />
+      <CalendarIcon size={16} className="absolute right-4 text-blue-500" />
     </div>
 
     {/* Input Field: Visible on PC, Invisible but functional on Mobile */}
@@ -311,10 +333,7 @@ const [selectedGoalId, setSelectedGoalId] = useState("");
     />
     
     {/* Desktop Only Icon: Right aligned inside the input area */}
-    <CalendarIcon 
-      size={16} 
-      className="hidden md:block absolute right-4 text-blue-500 pointer-events-none" 
-    />
+    
   </div>
 </div>
 )}
@@ -505,14 +524,16 @@ const [selectedGoalId, setSelectedGoalId] = useState("");
           <div className="flex gap-3 pt-6">
             <button 
               type="button" 
-              onClick={onClose} 
-              className="flex-1 py-4 bg-red-700 text-white font-black rounded-2xl shadow-lg hover:bg-red-800 active:scale-95 transition-all uppercase tracking-widest text-sm"
+              disabled={isClosing || isSubmitting}
+              onClick={handleCloseWithAnimation} 
+              className="flex-1 py-4 bg-red-700 text-white font-black rounded-2xl shadow-lg hover:bg-red-800 active:scale-95 transition-all uppercase tracking-widest text-sm disabled:opacity-60 disabled:cursor-not-allowed"
             >
               Cancel
             </button>
             <button 
               type="submit" 
-              className="flex-[2] py-4 bg-green-700 text-white font-black rounded-2xl shadow-lg hover:bg-green-800 active:scale-95 transition-all flex items-center justify-center gap-2 uppercase tracking-widest text-sm"
+              disabled={isClosing || isSubmitting}
+              className="flex-[2] py-4 bg-green-700 text-white font-black rounded-2xl shadow-lg hover:bg-green-800 active:scale-95 transition-all flex items-center justify-center gap-2 uppercase tracking-widest text-sm disabled:opacity-60 disabled:cursor-not-allowed"
             >
               <Save size={20} /> Save Record
             </button>

@@ -7,8 +7,7 @@ import CalendarView from './CalendarView';
 import { getDB } from '../db';
 import MainLogo from "../assets/icons/solodiary_icon.ico";
 import AndroidIcon from "../assets/icons/android.png"
-import html2canvas from 'html2canvas';
-import { jsPDF } from 'jspdf';
+// html2canvas and jsPDF are loaded dynamically when needed
 import { Browser } from '@capacitor/browser';
 import { Share } from '@capacitor/share';
 import { Capacitor } from '@capacitor/core';
@@ -195,7 +194,7 @@ const handleWebView = () => {
   const tableBodyHtml = Object.keys(groupedLogsByDate).sort().map(dateStr => {
     const dayLogs = groupedLogsByDate[dateStr];
     const dayRows = dayLogs.map(log => `
-      <tr class="log-row" data-code="${log.code}">
+      <tr class="log-row" data-code="${log.code}" data-debit="${log.debit || 0}" data-credit="${log.credit || 0}">
         <td style="padding: 8px; font-size: 8px; font-weight: 900; white-space: nowrap;">${log.toTime}</td>
         <td style="padding: 8px; text-align: center;">
           <span class="code-badge" style="font-size: 7px; font-weight: 900; color: #2563eb; background: #eff6ff; padding: 2px 6px; border-radius: 4px; border: 1px solid #dbeafe; text-transform: uppercase;">${log.code}</span>
@@ -267,6 +266,12 @@ const handleWebView = () => {
           <p style="font-size: 12px; color: #64748b; font-weight: 600;">${userName} • ${new Date().toLocaleString()}</p>
         </div>
 
+        <div style="display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap;">
+          <button class="finance-btn" onclick="toggleFinanceHighlight('net')" style="border-color: ${isNegative ? '#fca5a5' : '#6ee7b7'};">💰 Net: ${isNegative ? '-' : '+'} ₹${Math.abs(netAmount).toLocaleString()}</button>
+          <button class="finance-btn" onclick="toggleFinanceHighlight('debit')" style="border-color: #fca5a5; color: #dc2626;">🔴 Debit: ₹${totalDebitAmt.toLocaleString()}</button>
+          <button class="finance-btn" onclick="toggleFinanceHighlight('credit')" style="border-color: #6ee7b7; color: #059669;">🟢 Credit: ₹${totalCreditAmt.toLocaleString()}</button>
+        </div>
+
         <h3 style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; color: #475569;">Activity Breakdown</h3>
         <div class="matrix-grid">${matrixHtml}</div>
 
@@ -292,27 +297,61 @@ const handleWebView = () => {
 
       <script>
         window.toggleHighlight = function(code) {
-          const cards = document.querySelectorAll('.matrix-card');
-          const rows = document.querySelectorAll('.log-row');
-          const selectedCard = document.querySelector('.matrix-card[data-code="' + code + '"]');
+          var cards = document.querySelectorAll('.matrix-card');
+          var rows = document.querySelectorAll('.log-row');
+          var selectedCard = document.querySelector('.matrix-card[data-code="' + code + '"]');
+          document.querySelectorAll('.finance-btn').forEach(function(b) { b.classList.remove('active'); });
 
           if (!selectedCard) return;
-          const isAlreadyActive = selectedCard.classList.contains('active');
+          var isAlreadyActive = selectedCard.classList.contains('active');
 
-          // Reset everything
-          cards.forEach(c => c.classList.remove('active'));
-          rows.forEach(r => r.classList.remove('highlighted'));
+          cards.forEach(function(c) { c.classList.remove('active'); });
+          rows.forEach(function(r) { r.classList.remove('highlighted'); });
 
-          // Apply highlight if it wasn't already active
           if (!isAlreadyActive) {
-            document.querySelectorAll('.matrix-card[data-code="' + code + '"]').forEach(c => c.classList.add('active'));
-            document.querySelectorAll('.log-row[data-code="' + code + '"]').forEach(r => r.classList.add('highlighted'));
+            document.querySelectorAll('.matrix-card[data-code="' + code + '"]').forEach(function(c) { c.classList.add('active'); });
+            document.querySelectorAll('.log-row[data-code="' + code + '"]').forEach(function(r) { r.classList.add('highlighted'); });
+            var firstMatch = document.querySelector('.log-row[data-code="' + code + '"]');
+            if (firstMatch) firstMatch.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        };
 
-            // Scroll to the first instance in the table
-            const firstMatch = document.querySelector('.log-row[data-code="' + code + '"]');
-            if (firstMatch) {
-              firstMatch.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        window.toggleFinanceHighlight = function(mode) {
+          var btns = document.querySelectorAll('.finance-btn');
+          var rows = document.querySelectorAll('.log-row');
+          var cards = document.querySelectorAll('.matrix-card');
+          var clickedBtn = null;
+          btns.forEach(function(b) {
+            if ((mode === 'net' && b.textContent.indexOf('Net') !== -1) ||
+                (mode === 'debit' && b.textContent.indexOf('Debit') !== -1) ||
+                (mode === 'credit' && b.textContent.indexOf('Credit') !== -1)) {
+              clickedBtn = b;
             }
+          });
+          var isActive = clickedBtn && clickedBtn.classList.contains('active');
+          btns.forEach(function(b) { b.classList.remove('active'); });
+          rows.forEach(function(r) { r.classList.remove('highlighted'); });
+          cards.forEach(function(c) { c.classList.remove('active'); });
+          if (!isActive) {
+            if (clickedBtn) clickedBtn.classList.add('active');
+            var highlightedCodes = new Set();
+            rows.forEach(function(r) {
+              var debit = parseFloat(r.getAttribute('data-debit') || '0');
+              var credit = parseFloat(r.getAttribute('data-credit') || '0');
+              var match = false;
+              if (mode === 'net') match = debit > 0 || credit > 0;
+              else if (mode === 'debit') match = debit > 0;
+              else if (mode === 'credit') match = credit > 0;
+              if (match) {
+                r.classList.add('highlighted');
+                highlightedCodes.add(r.getAttribute('data-code'));
+              }
+            });
+            cards.forEach(function(c) {
+              if (highlightedCodes.has(c.getAttribute('data-code'))) c.classList.add('active');
+            });
+            var first = document.querySelector('.log-row.highlighted');
+            if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
           }
         };
       </script>
@@ -440,6 +479,8 @@ const handleDownloadPdf = async () => {
   const element = document.getElementById('printable-report');
   if (!element) return;
 
+  const { default: html2canvas } = await import('html2canvas');
+  const { jsPDF } = await import('jspdf');
   const canvas = await html2canvas(element, { scale: 2, useCORS: true });
   const imgData = canvas.toDataURL('image/png');
   
@@ -533,6 +574,7 @@ const showToast = (message: string) => {
   };
 
   const [highlightedCode, setHighlightedCode] = useState<string | null>(null);
+  const [financeHighlight, setFinanceHighlight] = useState<'net' | 'debit' | 'credit' | 'goals' | null>(null);
 
   const currentMonthEntries = useMemo(() => {
     return entries.filter(e => {
@@ -608,6 +650,65 @@ const showToast = (message: string) => {
 
   const hasAttachmentsInReport = useMemo(() => currentMonthEntries.some(e => !!e.attachment), [currentMonthEntries]);
   const hasTransactionsInReport = useMemo(() => currentMonthEntries.some(e => (e.debit || 0) > 0 || (e.credit || 0) > 0), [currentMonthEntries]);
+
+  const debitCodes = useMemo(() => {
+    const codes = new Set<string>();
+    currentMonthEntries.forEach(e => { if ((e.debit || 0) > 0) codes.add(e.code); });
+    return codes;
+  }, [currentMonthEntries]);
+
+  const creditCodes = useMemo(() => {
+    const codes = new Set<string>();
+    currentMonthEntries.forEach(e => { if ((e.credit || 0) > 0) codes.add(e.code); });
+    return codes;
+  }, [currentMonthEntries]);
+
+  const goalCodes = useMemo(() => new Set(reportGoals.map(g => g.code)), [reportGoals]);
+
+  const isEntryFinanceHighlighted = (entry: ActivityEntry) => {
+    if (!financeHighlight) return false;
+    switch (financeHighlight) {
+      case 'net': return (entry.debit || 0) > 0 || (entry.credit || 0) > 0;
+      case 'debit': return (entry.debit || 0) > 0;
+      case 'credit': return (entry.credit || 0) > 0;
+      case 'goals': return goalCodes.has(entry.code);
+      default: return false;
+    }
+  };
+
+  const isCodeFinanceHighlighted = (code: string) => {
+    if (!financeHighlight) return false;
+    switch (financeHighlight) {
+      case 'net': return debitCodes.has(code) || creditCodes.has(code);
+      case 'debit': return debitCodes.has(code);
+      case 'credit': return creditCodes.has(code);
+      case 'goals': return goalCodes.has(code);
+      default: return false;
+    }
+  };
+
+  const isGoalFinanceHighlighted = (goal: Goal) => {
+    if (!financeHighlight) return false;
+    switch (financeHighlight) {
+      case 'net': return debitCodes.has(goal.code) || creditCodes.has(goal.code);
+      case 'debit': return debitCodes.has(goal.code);
+      case 'credit': return creditCodes.has(goal.code);
+      case 'goals': return true;
+      default: return false;
+    }
+  };
+
+  const handleFinanceToggle = (mode: 'net' | 'debit' | 'credit' | 'goals') => {
+    const newMode = financeHighlight === mode ? null : mode;
+    setFinanceHighlight(newMode);
+    setHighlightedCode(null);
+    if (newMode) {
+      setTimeout(() => {
+        const el = document.getElementById('strategic-objectives');
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+    }
+  };
 
 const getGraphDataForMonth = () => {
   const data = [];
@@ -693,13 +794,14 @@ if (isMobile) {
 // Mobile PDF Generator with html2canvas + jsPDF
 const generateMobilePDF = async (fileName: string) => {
   try {
-    // Load libraries dynamically if not available
-    await loadPDFLibraries();
+    const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+      import('html2canvas'),
+      import('jspdf')
+    ]);
     
     const element = document.getElementById('printable-report');
     if (!element) throw new Error('Report element not found');
     
-    // Show loading indicator (you can add a toast/alert)
     console.log('Generating PDF...');
     
     const canvas = await html2canvas(element, {
@@ -713,7 +815,7 @@ const generateMobilePDF = async (fileName: string) => {
     });
     
     const imgData = canvas.toDataURL('image/JPEG', 0.95);
-    const pdf = new jspdf.jsPDF({
+    const pdf = new jsPDF({
       orientation: 'portrait',
       unit: 'px',
       format: 'a4'
@@ -724,7 +826,6 @@ const generateMobilePDF = async (fileName: string) => {
     
     pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
     
-    // Try native sharing first (iOS/Android)
     const pdfBlob = pdf.output('blob');
     const pdfFile = new File([pdfBlob], `${fileName}.pdf`, { type: 'application/pdf' });
     
@@ -735,56 +836,12 @@ const generateMobilePDF = async (fileName: string) => {
         text: 'SoloDiary Report'
       });
     } else {
-      // Fallback: Save PDF
       pdf.save(`${fileName}.pdf`);
     }
   } catch (error) {
     console.error('PDF generation failed:', error);
-    // Fallback to web print
     window.print();
   }
-};
-
-// Load PDF libraries
-const loadPDFLibraries = () => {
-  return new Promise((resolve, reject) => {
-    if (window.html2canvas && window.jspdf) {
-      resolve(true);
-      return;
-    }
-    
-    let loaded = 0;
-    const checkLoaded = () => {
-      loaded++;
-      if (loaded === 2) {
-        setTimeout(resolve, 100);
-      }
-    };
-    
-    // html2canvas
-    if (!window.html2canvas) {
-      const script1 = document.createElement('script');
-      script1.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-      script1.async = true;
-      script1.onload = checkLoaded;
-      script1.onerror = reject;
-      document.head.appendChild(script1);
-    } else {
-      loaded++;
-    }
-    
-    // jspdf
-    if (!window.jspdf) {
-      const script2 = document.createElement('script');
-      script2.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-      script2.async = true;
-      script2.onload = checkLoaded;
-      script2.onerror = reject;
-      document.head.appendChild(script2);
-    } else {
-      loaded++;
-    }
-  });
 };
 
 const openExternalLink = async () => {
@@ -812,11 +869,10 @@ const handleImageReport = async () => {
     return;
   }
 
-  // Optional: Add a loading indicator here (e.g., setIsLoading(true))
   console.log("Generating report...");
 
   try {
-    // 1. Capture the element with high resolution
+    const { default: html2canvas } = await import('html2canvas');
     const canvas = await html2canvas(element, {
       useCORS: true,
       logging: false,
@@ -917,12 +973,35 @@ const handleWebReport = async () => {
       <style>
         ${styles}
         body { padding: 20px; background-color: #f3f4f6; }
+        /* Force CalendarView dark bg in print & export */
+        .bg-slate-800\/80,
+        .bg-slate-800\/80 > div.bg-white {
+          background-color: rgba(30,41,59,0.8) !important;
+          color: white !important;
+        }
+        .bg-slate-800\/80 h3,
+        .bg-slate-800\/80 button,
+        .bg-slate-800\/80 span {
+          color: white !important;
+        }
+        .bg-slate-800\/80 .text-gray-400 { color: #94a3b8 !important; }
+        .bg-slate-800\/80 .text-gray-700,
+        .bg-slate-800\/80 .dark\:text-gray-300 { color: #cbd5e1 !important; }
+        .bg-slate-800\/80 .bg-blue-100 { background-color: rgba(30,58,138,0.4) !important; color: #93c5fd !important; }
+        .bg-slate-800\/80 .text-blue-600 { color: #93c5fd !important; }
+        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         .matrix-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; margin-bottom: 30px; }
         .matrix-card { padding: 10px; border: 1px solid #e2e8f0; border-radius: 10px; background: white; cursor: pointer; transition: all 0.2s ease; }
         .matrix-card.active { border: 2px solid #2563eb !important; background: #eff6ff !important; transform: translateY(-2px); }
         .log-row { border-bottom: 1px solid #f1f5f9; transition: all 0.3s ease; border-left: 4px solid transparent; }
         .log-row.highlighted { background: #fffbeb !important; border-left-color: #f59e0b !important; }
+        .goal-row { cursor: pointer; transition: all 0.2s ease; }
+        .goal-row:hover { background: #f8fafc; }
+        .goal-row.active { background: #fffbeb !important; }
         .code-badge { font-size: 7px; font-weight: 900; color: #2563eb; background: #eff6ff; padding: 2px 6px; border-radius: 4px; border: 1px solid #dbeafe; text-transform: uppercase; }
+        [data-finance-toggle] { cursor: pointer; transition: all 0.3s ease; }
+        [data-finance-toggle]:hover { transform: scale(1.02); }
+        [data-finance-toggle].finance-active { outline: 3px solid #f59e0b !important; outline-offset: -3px; background: #fffbeb !important; }
       </style>
     </head>
     <body>
@@ -942,31 +1021,130 @@ const handleWebReport = async () => {
               }, 2000);
             }
           }
+
+          // Graph point click - scroll to ledger date
+          const graphPoint = e.target.closest('g[data-fulldate]');
+          if (graphPoint) {
+            const fullDate = graphPoint.getAttribute('data-fulldate');
+            if (fullDate) {
+              const target = document.getElementById('ledger-date-' + fullDate);
+              if (target) {
+                target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                target.style.backgroundColor = '#eff6ff';
+                setTimeout(() => {
+                  target.style.backgroundColor = '';
+                }, 2000);
+              }
+            }
+          }
+        });
+
+        // Matrix Card click delegation
+        document.addEventListener('click', (e) => {
+          const card = e.target.closest('.matrix-card');
+          if (card) {
+            const code = card.getAttribute('data-code');
+            if (code) window.toggleHighlight(code);
+            return;
+          }
+          // Goal row click delegation
+          const goalRow = e.target.closest('.goal-row');
+          if (goalRow) {
+            const code = goalRow.getAttribute('data-code');
+            if (code) window.toggleHighlight(code);
+          }
         });
 
         // Code Highlighter (like in handleWebView)
         window.toggleHighlight = function(code) {
           const cards = document.querySelectorAll('.matrix-card');
           const rows = document.querySelectorAll('.log-row');
+          const goalRows = document.querySelectorAll('.goal-row');
           const selectedCard = document.querySelector('.matrix-card[data-code="' + code + '"]');
+          const selectedGoal = document.querySelector('.goal-row[data-code="' + code + '"]');
 
-          if (!selectedCard) return;
-          const isAlreadyActive = selectedCard.classList.contains('active');
+          const isAlreadyActive = (selectedCard && selectedCard.classList.contains('active')) || 
+                                  (selectedGoal && selectedGoal.classList.contains('active'));
 
           // Reset everything
           cards.forEach(c => c.classList.remove('active'));
           rows.forEach(r => r.classList.remove('highlighted'));
+          goalRows.forEach(r => r.classList.remove('active'));
+          document.querySelectorAll('[data-finance-toggle]').forEach(el => el.classList.remove('finance-active'));
 
           // Apply highlight if it wasn't already active
           if (!isAlreadyActive) {
             document.querySelectorAll('.matrix-card[data-code="' + code + '"]').forEach(c => c.classList.add('active'));
             document.querySelectorAll('.log-row[data-code="' + code + '"]').forEach(r => r.classList.add('highlighted'));
+            document.querySelectorAll('.goal-row[data-code="' + code + '"]').forEach(r => r.classList.add('active'));
 
             // Scroll to the first instance in the table
             const firstMatch = document.querySelector('.log-row[data-code="' + code + '"]');
             if (firstMatch) {
               firstMatch.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
+          }
+        };
+
+        // Finance toggle click delegation
+        document.addEventListener('click', function(e) {
+          var finCard = e.target.closest('[data-finance-toggle]');
+          if (finCard) {
+            var mode = finCard.getAttribute('data-finance-toggle');
+            if (mode) window.toggleFinanceHighlight(mode);
+          }
+        });
+
+        window.toggleFinanceHighlight = function(mode) {
+          var allFinCards = document.querySelectorAll('[data-finance-toggle]');
+          var rows = document.querySelectorAll('.log-row');
+          var cards = document.querySelectorAll('.matrix-card');
+          var goalRows = document.querySelectorAll('.goal-row');
+          var clickedCard = document.querySelector('[data-finance-toggle="' + mode + '"]');
+          var isActive = clickedCard && clickedCard.classList.contains('finance-active');
+
+          allFinCards.forEach(function(el) { el.classList.remove('finance-active'); });
+          rows.forEach(function(r) { r.classList.remove('highlighted'); });
+          cards.forEach(function(c) { c.classList.remove('active'); });
+          goalRows.forEach(function(r) { r.classList.remove('active'); });
+
+          if (!isActive) {
+            if (clickedCard) clickedCard.classList.add('finance-active');
+            var highlightedCodes = new Set();
+
+            if (mode === 'goals') {
+              goalRows.forEach(function(r) {
+                r.classList.add('active');
+                var code = r.getAttribute('data-code');
+                if (code) highlightedCodes.add(code);
+              });
+              rows.forEach(function(r) {
+                if (highlightedCodes.has(r.getAttribute('data-code'))) r.classList.add('highlighted');
+              });
+            } else {
+              rows.forEach(function(r) {
+                var debit = parseFloat(r.getAttribute('data-debit') || '0');
+                var credit = parseFloat(r.getAttribute('data-credit') || '0');
+                var match = false;
+                if (mode === 'net') match = debit > 0 || credit > 0;
+                else if (mode === 'debit') match = debit > 0;
+                else if (mode === 'credit') match = credit > 0;
+                if (match) {
+                  r.classList.add('highlighted');
+                  highlightedCodes.add(r.getAttribute('data-code'));
+                }
+              });
+              goalRows.forEach(function(r) {
+                if (highlightedCodes.has(r.getAttribute('data-code'))) r.classList.add('active');
+              });
+            }
+
+            cards.forEach(function(c) {
+              if (highlightedCodes.has(c.getAttribute('data-code'))) c.classList.add('active');
+            });
+
+            var obj = document.getElementById('strategic-objectives');
+            if (obj) obj.scrollIntoView({ behavior: 'smooth', block: 'start' });
           }
         };
       </script>
@@ -1381,7 +1559,7 @@ const [showLabels, setShowLabels] = useState(true);
 
         {/* Data Matrix Module */}
         <div className="grid grid-cols-2 lg:grid-cols-2 gap-6 mb-8 items-start print-section">
-          <div className="bg-slate-800/80 rounded-2xl border border-slate-100 overflow-hidden">
+          <div className="bg-slate-800/80 rounded-2xl border border-slate-100 overflow-hidden" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
              <CalendarView 
                 key={`${selectedYear}-${selectedMonth}`}
                 entries={entries} 
@@ -1411,7 +1589,12 @@ const [showLabels, setShowLabels] = useState(true);
                 </p>
                 <p className="text-lg  font-semibold text-slate-950">{yearPoints.toLocaleString()}</p>
               </div>
-              <div className="p-4 bg-slate-50 border border-slate-100 rounded-lg flex flex-col justify-between">
+              <div 
+                data-finance-toggle="goals"
+                onClick={() => handleFinanceToggle('goals')}
+                className={`p-4 rounded-lg flex flex-col justify-between cursor-pointer transition-all duration-300 hover:scale-[1.02] active:scale-95 ${
+                  financeHighlight === 'goals' ? 'bg-purple-100 border-2 border-purple-400 ring-2 ring-purple-200' : 'bg-slate-50 border border-slate-100'
+                }`}>
                 <p className="text-[8px]  font-semibold uppercase text-slate-400 mb-0.5 tracking-widest">
                   <Target size={10} className="text-purple-500 inline mr-1" /> Yearly Goals
                 </p>
@@ -1421,9 +1604,12 @@ const [showLabels, setShowLabels] = useState(true);
 
             <div className="space-y-3">
     {/* Dynamic Top Card */}
-    <div className={`p-5 border-[2px] rounded-xl bg-white flex flex-col justify-center relative overflow-hidden group shadow-sm transition-colors duration-300 ${
-      isNegative ? 'border-red-500' : 'border-emerald-500'
-    }`}>
+    <div 
+      data-finance-toggle="net"
+      onClick={() => handleFinanceToggle('net')}
+      className={`p-5 border-[2px] rounded-xl flex flex-col justify-center relative overflow-hidden group shadow-sm transition-all duration-300 cursor-pointer hover:scale-[1.02] active:scale-95 ${
+        financeHighlight === 'net' ? 'border-amber-500 ring-2 ring-amber-200 bg-amber-50' : (isNegative ? 'border-red-500 bg-white' : 'border-emerald-500 bg-white')
+      }`}>
       <div className={`absolute top-0 right-0 p-2 opacity-10 ${isNegative ? 'text-red-900' : 'text-emerald-900'}`}>
         <Landmark size={40} />
       </div>
@@ -1439,14 +1625,24 @@ const [showLabels, setShowLabels] = useState(true);
 
     {/* Bottom Grid */}
     <div className="grid grid-cols-2 gap-3">
-      <div className="p-4 bg-red-50/50 border border-red-100 rounded-lg flex flex-col justify-between">
+      <div 
+        data-finance-toggle="debit"
+        onClick={() => handleFinanceToggle('debit')}
+        className={`p-4 rounded-lg flex flex-col justify-between cursor-pointer transition-all duration-300 hover:scale-[1.02] active:scale-95 ${
+          financeHighlight === 'debit' ? 'bg-red-100 border-2 border-red-400 ring-2 ring-red-200' : 'bg-red-50/50 border border-red-100'
+        }`}>
          <p className="text-[8px]  font-semibold uppercase text-red-500 mb-0.5 tracking-widest">
            <Banknote size={10} className="inline mr-1" /> Debit
          </p>
          <p className="text-lg  font-semibold text-red-600">₹{totalDebitAmt.toLocaleString()}</p>
       </div>
       
-      <div className="p-4 bg-emerald-50/50 border border-emerald-100 rounded-lg flex flex-col justify-between">
+      <div 
+        data-finance-toggle="credit"
+        onClick={() => handleFinanceToggle('credit')}
+        className={`p-4 rounded-lg flex flex-col justify-between cursor-pointer transition-all duration-300 hover:scale-[1.02] active:scale-95 ${
+          financeHighlight === 'credit' ? 'bg-emerald-100 border-2 border-emerald-400 ring-2 ring-emerald-200' : 'bg-emerald-50/50 border border-emerald-100'
+        }`}>
          <p className="text-[8px]  font-semibold uppercase text-emerald-600 mb-0.5 tracking-widest">
            <Banknote size={10} className="inline mr-1" /> Credit
          </p>
@@ -1495,14 +1691,22 @@ const [showLabels, setShowLabels] = useState(true);
       <LineGraph 
         data={getGraphDataForMonth()} 
         monthName={monthLabelText} 
-        showGoalNames={showLabels} 
+        showGoalNames={showLabels}
+        onPointClick={(fullDate) => {
+          const target = document.getElementById(`ledger-date-${fullDate}`);
+          if (target) {
+            target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            target.style.backgroundColor = '#eff6ff';
+            setTimeout(() => { target.style.backgroundColor = ''; }, 2000);
+          }
+        }}
       />
     </div>
 </div>
 
         {/* Goal Ledger Module "text-purple-600"*/}
         <div className="mb-8 print-section">
-           <h3 className="text-sm  font-semibold uppercase tracking-tighter text-slate-950 mb-3 border-l-[3px] border-slate-950 pl-2 flex items-center gap-2">
+           <h3 id="strategic-objectives" className="text-sm  font-semibold uppercase tracking-tighter text-slate-950 mb-3 border-l-[3px] border-slate-950 pl-2 flex items-center gap-2">
              <Target size={16} className="text-green-600" />
              Strategic Objectives
            </h3>
@@ -1518,8 +1722,21 @@ const [showLabels, setShowLabels] = useState(true);
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {reportGoals.sort((a,b) => (a.achievedAt ? 1 : -1)).map(g => (
-                    <tr key={g.id} className={g.achievedAt ? 'bg-emerald-50/20' : 'bg-white'}>
-                      <td className={`px-4 py-2  font-semibold text-[9px] text-blue-600 ${g.achievedAt ? 'line-through opacity-30' : ''}`}>{g.code}</td>
+                    <tr 
+                      key={g.id} 
+                      data-code={g.code}
+                      onClick={() => {
+                        setHighlightedCode(highlightedCode === g.code ? null : g.code);
+                        setFinanceHighlight(null);
+                        // Scroll to first matching log row
+                        setTimeout(() => {
+                          const row = document.querySelector(`tr.log-row[data-code="${g.code}"]`);
+                          if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }, 50);
+                      }}
+                      className={`goal-row cursor-pointer transition-all duration-200 ${highlightedCode === g.code || isGoalFinanceHighlighted(g) ? 'ring-1 ring-inset ring-amber-200 bg-amber-50' : (g.achievedAt ? 'bg-emerald-50/20' : 'bg-white hover:bg-slate-50')}`}
+                    >
+                      <td className={`px-4 py-2  font-semibold text-[9px] text-blue-600 ${g.achievedAt ? 'line-through opacity-60' : ''}`}>{g.code}</td>
                       <td className={`px-4 py-2 font-medium text-[9px] text-slate-950 ${g.achievedAt ? 'line-through opacity-30' : ''}`}>{g.name}</td>
                       <td className={`px-4 py-2  font-semibold text-[9px] text-slate-950 text-center ${g.achievedAt ? 'line-through opacity-30' : ''}`}>+{g.points}</td>
                       <td className="px-4 py-2 text-right">
@@ -1556,14 +1773,15 @@ const [showLabels, setShowLabels] = useState(true);
   <div className="grid grid-cols-5 md:grid-cols-5 gap-2">
     {activitySummary.map(item => {
       // Check if this specific card is the one currently selected
-      const isActive = highlightedCode === item.code;
+      const isActive = highlightedCode === item.code || isCodeFinanceHighlighted(item.code);
 
       return (
         <div 
           key={item.code} 
+          data-code={item.code}
           // Toggle logic: if clicking the same one, turn it off (null), otherwise set to item.code
-          onClick={() => setHighlightedCode(isActive ? null : item.code)}
-          className={`p-2 border rounded-lg flex flex-col justify-between min-h-[60px] shadow-sm transition-all cursor-pointer ${
+          onClick={() => { setHighlightedCode(highlightedCode === item.code ? null : item.code); setFinanceHighlight(null); }}
+          className={`matrix-card p-2 border rounded-lg flex flex-col justify-between min-h-[60px] shadow-sm transition-all cursor-pointer ${
             isActive 
               ? 'border-blue-600 ring-2 ring-blue-100 bg-blue-50' 
               : 'border-slate-100 bg-white hover:border-blue-200'
@@ -1643,12 +1861,15 @@ const [showLabels, setShowLabels] = useState(true);
                 </tr>
                 {groupedLogsByDate[dateStr].map(e => {
                   // HIGHLIGHT LOGIC: Check if this row's code matches the clicked matrix code
-                  const isHighlighted = highlightedCode === e.code;
+                  const isHighlighted = highlightedCode === e.code || isEntryFinanceHighlighted(e);
                   
                   return (
                     <tr 
                       key={e.id} 
-                      className={`align-top transition-all duration-300 ${
+                      data-code={e.code}
+                      data-debit={e.debit || 0}
+                      data-credit={e.credit || 0}
+                      className={`log-row align-top transition-all duration-300 ${
                         isHighlighted 
                           ? 'bg-amber-50 ring-1 ring-inset ring-amber-200' 
                           : 'hover:bg-slate-50/50'
@@ -1792,13 +2013,15 @@ const [showLabels, setShowLabels] = useState(true);
 
       <style>{`
         @media print {
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
           .no-print { display: none !important; }
           body { 
             color: black !important;
             margin: 0 !important;
             padding: 0 !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
           }
           #printable-report { 
             box-shadow: none !important; 
@@ -1824,6 +2047,22 @@ const [showLabels, setShowLabels] = useState(true);
           }
           tr { page-break-inside: avoid !important; break-inside: avoid !important; }
           table { width: 100% !important; border-collapse: collapse !important; }
+
+          /* Keep CalendarView dark bg when printing */
+          #printable-report .bg-slate-800\\/80,
+          #printable-report .bg-slate-800\\/80 > .bg-white {
+            background-color: rgba(30,41,59,0.8) !important;
+            color: white !important;
+          }
+          #printable-report .bg-slate-800\\/80 h3,
+          #printable-report .bg-slate-800\\/80 button,
+          #printable-report .bg-slate-800\\/80 span {
+            color: white !important;
+          }
+          #printable-report .bg-slate-800\\/80 .text-gray-400 { color: #94a3b8 !important; }
+          #printable-report .bg-slate-800\\/80 .text-gray-700 { color: #cbd5e1 !important; }
+          #printable-report .bg-slate-800\\/80 .bg-blue-100 { background-color: rgba(30,58,138,0.4) !important; color: #93c5fd !important; }
+          #printable-report .bg-slate-800\\/80 .text-blue-600 { color: #93c5fd !important; }
         }
           .matrix-card.active {
   border: 2px solid #2563eb !important;

@@ -19,6 +19,18 @@ export default defineConfig(({ mode }) => {
         '@': path.resolve(__dirname, '.'),
       }
     },
-    assetsInclude: ['**/*.otf'], // <-- Add this line
+    assetsInclude: ['**/*.otf'],
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'vendor-pdf': ['html2canvas', 'jspdf'],
+            'vendor-dnd': ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities'],
+            'vendor-motion': ['motion'],
+            'vendor-qr': ['qrcode.react'],
+          },
+        },
+      },
+    },
   };
 });

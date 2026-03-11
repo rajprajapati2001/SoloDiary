@@ -10,14 +10,16 @@ interface LineGraphProps {
   }[];
   monthName: string;
   showGoalNames?: boolean;
-  variant?: 'dashboard' | 'stats'; // Identifies where the graph is being used
+  variant?: 'dashboard' | 'stats';
+  onPointClick?: (fullDate: string) => void;
 }
 
 const LineGraph: React.FC<LineGraphProps> = ({ 
   data, 
   monthName, 
   showGoalNames = true, 
-  variant = 'stats' 
+  variant = 'stats',
+  onPointClick 
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const hasScrolledRef = useRef<string>('');
@@ -66,6 +68,11 @@ const LineGraph: React.FC<LineGraphProps> = ({
     return `${x},${y}`;
   }).join(' ');
 
+  // Determine today's index (if viewing current month) for ripple animation
+  const today = new Date();
+  const isCurrentMonth = today.toLocaleString('default', { month: 'long' }) === monthName;
+  const todayIndex = isCurrentMonth ? data.findIndex(d => d.day === today.getDate()) : -1;
+
   return (
     <div  ref={containerRef} className="relative w-full overflow-x-auto overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] no-scrollbar">
       
@@ -100,8 +107,19 @@ const LineGraph: React.FC<LineGraphProps> = ({
           const hasGoals = d.achievedGoals && d.achievedGoals.length > 0;
 
           return (
-            <g key={i} className="group cursor-pointer">
+            <g key={i} className="group cursor-pointer" data-fulldate={d.fullDate || ''}
+              onClick={() => { if (d.fullDate && onPointClick) onPointClick(d.fullDate); }}>
               <circle cx={x} cy={y} r="4" fill={hasGoals ? "#10b981" : "#3b82f6"} />
+
+              {/* Today's radio-wave ripple animation */}
+              {i === todayIndex && (
+                <g>
+                  <circle cx={x} cy={y} r={6} stroke="#3b82f6" className="svg-ripple delay-2" />
+                  <circle cx={x} cy={y} r={6} stroke="#3b82f6" className="svg-ripple delay-1" />
+                  <circle cx={x} cy={y} r={6} stroke="#3b82f6" className="svg-ripple" />
+                  <circle cx={x} cy={y} r={4} fill="#3b82f6" className="svg-dot-pulse" />
+                </g>
+              )}
 
               {/* Point Value */}
               {(d.points > 0 || i % Math.ceil(data.length / 10) === 0) && (

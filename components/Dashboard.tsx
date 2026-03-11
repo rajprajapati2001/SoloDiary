@@ -1,10 +1,83 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import CalendarView from './CalendarView';
 import LineGraph from './LineGraph';
 import Footer from './Footer';
 import { ActivityEntry, Goal } from '../types';
 import { TrendingUp, Award, Clock, Edit2, Trash2, Star, Banknote, Eye, EyeOff, Target, Calendar, Paperclip,ChartLine, ScrollText, Check, X as CloseIcon, ChevronLeft, ChevronRight } from 'lucide-react';
-import { motion } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
+
+const LiveClock: React.FC = React.memo(() => {
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  return (
+    <div className="text-5xl font-digital leading-none tracking-widest text-gray-900 dark:text-white" style={{ fontFamily: "'DigitalDismay', monospace" }}>
+      {now.toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true
+      }).toUpperCase()}
+    </div>
+  );
+});
+
+interface TextFixingProps {
+  text: string;
+  className?: string;
+  speed?: number; // ms per character
+  loop?: boolean;
+}
+
+const TextFixing: React.FC<TextFixingProps> = ({ text, className = '', speed = 40, loop = false }) => {
+  const [index, setIndex] = useState(0);
+  const [displayCursor, setDisplayCursor] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    setIndex(0);
+    setDisplayCursor(true);
+
+    const tick = () => {
+      let i = 0;
+      const id = setInterval(() => {
+        if (!mounted) return clearInterval(id);
+        i += 1;
+        setIndex(i);
+        if (i >= text.length) {
+          clearInterval(id);
+          if (loop) {
+            setTimeout(() => {
+              if (mounted) tick();
+            }, 800);
+          } else {
+            // hide the blinking cursor once typing finished
+            setDisplayCursor(false);
+          }
+        }
+      }, speed);
+    };
+
+    // If text is empty, don't show cursor
+    if (!text || text.length === 0) {
+      setIndex(0);
+      setDisplayCursor(false);
+    } else {
+      tick();
+    }
+
+    return () => { mounted = false; };
+  }, [text, speed, loop]);
+
+  return (
+    <h2 className={className}>
+      {text.slice(0, index)}
+      {displayCursor && <span className="inline-block w-1 align-middle ml-1 bg-current animate-pulse" style={{height: '1em'}} />}
+    </h2>
+  );
+};
 
 interface DashboardProps {
   userName: string;
@@ -19,15 +92,9 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ userName, entries, selectedDate, onSelectDate, onEdit, onDelete, onUpdateUserName, goals = [], currentTimeClass }) => {
-  const [now, setNow] = useState(new Date());
   const [isEditingName, setIsEditingName] = useState(false);
   const [editNameValue, setEditNameValue] = useState(userName);
   const nameInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
 
     useEffect(() => {
     if (isEditingName && nameInputRef.current) {
@@ -70,30 +137,31 @@ const [showLabels, setShowLabels] = React.useState(true);
   const firstDayOfMonth = new Date(selectedYear, dateObj.getMonth(), 1);
   const lastDayOfMonth = new Date(selectedYear, dateObj.getMonth() + 1, 0);
   
-  const selectedDateEntries = entries
-    .filter(e => e.toDate === selectedDate)
-    .sort((a, b) => a.toTime.localeCompare(b.toTime));
+  const selectedDateEntries = useMemo(() => 
+    entries.filter(e => e.toDate === selectedDate).sort((a, b) => a.toTime.localeCompare(b.toTime)),
+    [entries, selectedDate]
+  );
 
-  const totalPointsSelectedDay = selectedDateEntries.reduce((sum, e) => sum + e.points, 0);
+  const totalPointsSelectedDay = useMemo(() => selectedDateEntries.reduce((sum, e) => sum + e.points, 0), [selectedDateEntries]);
   const dailyTarget = 100;
   const dailyProgressPercent = Math.min((totalPointsSelectedDay / dailyTarget) * 100, 100);
 
   const daysInMonth = lastDayOfMonth.getDate();
-  const monthTarget = daysInMonth * 100; // total month days * 100
+  const monthTarget = daysInMonth * 100;
   
-  const monthEntries = entries.filter(e => e.toDate.startsWith(selectedMonthStr));
-  const totalMonthPoints = monthEntries.reduce((sum, e) => sum + e.points, 0);
+  const monthEntries = useMemo(() => entries.filter(e => e.toDate.startsWith(selectedMonthStr)), [entries, selectedMonthStr]);
+  const totalMonthPoints = useMemo(() => monthEntries.reduce((sum, e) => sum + e.points, 0), [monthEntries]);
   const monthProgressPercent = (totalMonthPoints / monthTarget) * 100;
 
-  const totalMonthDebit = monthEntries.reduce((sum, e) => sum + (e.debit || 0), 0);
-  const totalMonthCredit = monthEntries.reduce((sum, e) => sum + (e.credit || 0), 0);
+  const totalMonthDebit = useMemo(() => monthEntries.reduce((sum, e) => sum + (e.debit || 0), 0), [monthEntries]);
+  const totalMonthCredit = useMemo(() => monthEntries.reduce((sum, e) => sum + (e.credit || 0), 0), [monthEntries]);
   const monthCashBalance = totalMonthCredit - totalMonthDebit;
 
-  const yearlyEntries = entries.filter(e => new Date(e.toDate).getFullYear() === selectedYear);
-  const totalYearlyPoints = yearlyEntries.reduce((s, e) => s + e.points, 0);
-  const yearlyGoalsAchieved = goals.filter(g => g.achievedAt && new Date(g.achievedAt).getFullYear() === selectedYear).length;
+  const yearlyEntries = useMemo(() => entries.filter(e => new Date(e.toDate).getFullYear() === selectedYear), [entries, selectedYear]);
+  const totalYearlyPoints = useMemo(() => yearlyEntries.reduce((s, e) => s + e.points, 0), [yearlyEntries]);
+  const yearlyGoalsAchieved = useMemo(() => goals.filter(g => g.achievedAt && new Date(g.achievedAt).getFullYear() === selectedYear).length, [goals, selectedYear]);
 
-  const getGraphData = () => {
+  const graphData = useMemo(() => {
     const data = [];
     let current = new Date(firstDayOfMonth);
     while (current <= lastDayOfMonth) {
@@ -109,7 +177,7 @@ const [showLabels, setShowLabels] = React.useState(true);
       current.setDate(current.getDate() + 1);
     }
     return data;
-  };
+  }, [entries, goals, firstDayOfMonth, lastDayOfMonth]);
 
   const monthName = dateObj.toLocaleString('default', { month: 'long' });
   const monthNameShort = dateObj.toLocaleString('default', { month: 'short' });
@@ -122,40 +190,63 @@ const [showLabels, setShowLabels] = React.useState(true);
       {/* Box with Gradient Background and Right-Aligned Time Card */}
       <div className={`flex flex-col md:flex-row items-center justify-between md:gap-6 gap-3 mb-4 bg-white dark:bg-slate-800 p-6 rounded-3xl border-0 border-gray-100 dark:border-slate-700 shadow-sm ${currentTimeClass}`}>
         <div className="text-center md:text-left  flex-1">
-                    {isEditingName ? (
-            <div className="flex items-center gap-2 justify-center md:justify-start">
-              <input
-                ref={nameInputRef}
-                type="text"
-                value={editNameValue}
-                onChange={(e) => setEditNameValue(e.target.value)}
-                onKeyDown={handleKeyDown}
-                className="text-2xl w-[70%] text-2xl font-black uppercase tracking-tight bg-white/20 dark:bg-black/20 border-b-2 border-blue-600 outline-none text-gray-900 dark:text-white px-2 py-1 rounded-t-lg"
-              />
-              <button onClick={handleSaveName} className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors">
-                <Check size={20} />
-              </button>
-              <button onClick={() => { setEditNameValue(userName); setIsEditingName(false); }} className="p-2 bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-white rounded-full hover:bg-gray-300 transition-colors">
-                <CloseIcon size={20} />
-              </button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-3 justify-center md:justify-start group">
-          <h2 className="text-3xl md:text-4xl font-black uppercase tracking-tight">
-            {userName}
-          </h2>
-          
-          <button 
-                onClick={() => setIsEditingName(true)} 
-                className="w-0 md:w-auto md:p-1.5 p-0 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-blue-500 transition-all focus:opacity-100"
-                aria-label="Edit name"
+          <AnimatePresence mode="wait" initial={false}>
+            {isEditingName ? (
+              <motion.div
+                key="editing"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.2, ease: 'easeOut' }}
+                className="flex items-center gap-2 justify-center md:justify-start"
               >
-                <Edit2 size={18} />
-              </button>
-            </div>
+                <input
+                  ref={nameInputRef}
+                  type="text"
+                  value={editNameValue}
+                  onChange={(e) => setEditNameValue(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  className="w-[70%] md:w-auto md:min-w-[320px] text-2xl font-black uppercase tracking-tight bg-white/20 dark:bg-black/20 border-b-2 border-blue-600 outline-none text-gray-900 dark:text-white px-2 py-1 rounded-t-lg"
+                />
+                <motion.button
+                  whileTap={{ scale: 0.92 }}
+                  onClick={handleSaveName}
+                  className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors"
+                  aria-label="Save name"
+                >
+                  <Check size={20} />
+                </motion.button>
+                <motion.button
+                  whileTap={{ scale: 0.92 }}
+                  onClick={() => { setEditNameValue(userName); setIsEditingName(false); }}
+                  className="p-2 bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-white rounded-full hover:bg-gray-300 transition-colors"
+                  aria-label="Cancel name edit"
+                >
+                  <CloseIcon size={20} />
+                </motion.button>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="viewing"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.2, ease: 'easeOut' }}
+                className="flex items-center gap-3 justify-center md:justify-start group"
+              >
+                <TextFixing text={userName} className="text-3xl md:text-4xl font-black uppercase tracking-tight" />
 
-
-          )}
+                <motion.button
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => setIsEditingName(true)}
+                  className="w-0 md:w-auto md:p-1.5 p-0 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-blue-500 transition-all focus:opacity-100"
+                  aria-label="Edit name"
+                >
+                  <Edit2 size={18} />
+                </motion.button>
+              </motion.div>
+            )}
+          </AnimatePresence>
           <p className="text-sm font-medium mt-2">
             <span  className="text-blue-600">Tracking data:</span>
             <span className="ml-2 font-bold">
@@ -177,14 +268,7 @@ const [showLabels, setShowLabels] = React.useState(true);
           transition-all duration-700
           hover:scale-105
         ">
-          <div className="text-5xl font-digital leading-none tracking-widest text-gray-900 dark:text-white" style={{ fontFamily: "'DigitalDismay', monospace" }}>
-            {now.toLocaleTimeString([], {
-              hour: '2-digit',
-              minute: '2-digit',
-              second: '2-digit',
-              hour12: true
-            }).toUpperCase()}
-          </div>
+          <LiveClock />
         </div>
       </div>
 
@@ -311,10 +395,10 @@ const [showLabels, setShowLabels] = React.useState(true);
   </div>
   
   <LineGraph 
-  data={getGraphData()} 
+  data={graphData} 
   monthName={monthName} 
   showGoalNames={showLabels} 
-  variant="dashboard" // This makes stroke 0
+  variant="dashboard"
 />
 </div>
           
@@ -355,11 +439,20 @@ const [showLabels, setShowLabels] = React.useState(true);
               {selectedDateEntries.length === 0 ? (
                 <div className="text-center py-10 text-gray-400 italic">No activities recorded.</div>
               ) : (
-                selectedDateEntries.map(entry => {
+                <AnimatePresence initial={false}>
+                {selectedDateEntries.map(entry => {
                   const isGoal = goals.some(g => g.code === entry.code && g.achievedAt === entry.toDate);
                   const isCash = !!(entry.debit || entry.credit);
                   return (
-                    <div key={entry.id} className="group md:p-4 p-3 rounded-2xl border border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50 hover:bg-white dark:hover:bg-slate-800 transition-all shadow-sm">
+                    <motion.div
+                      key={entry.id}
+                      initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -8, scale: 0.98 }}
+                      transition={{ duration: 0.28 }}
+                      layout
+                      className="group md:p-4 p-3 rounded-2xl border border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50 hover:bg-white dark:hover:bg-slate-800 transition-all shadow-sm"
+                    >
   {/* TOP SECTION */}
   <div className="flex items-start gap-3">
     {/* Icon Square */}
@@ -406,7 +499,7 @@ const [showLabels, setShowLabels] = React.useState(true);
 
   {/* FULL WIDTH DESCRIPTION */}
   {entry.description && (
-  <div className={`mt-4 w-full p-3 rounded-xl shadow-inner text-xs italic leading-relaxed border-l-4 ${
+  <div className={`md:mt-4 mt-2 w-full md:p-3 p-1 pl-3 rounded-xl shadow-inner text-xs italic leading-relaxed border-l-4 ${
     isGoal 
       ? 'bg-emerald-50/50 dark:bg-emerald-900/20 border-emerald-500 text-emerald-700 dark:text-emerald-300' 
       : 'bg-gray-100/50 dark:bg-slate-800/80 border-blue-500 text-gray-600 dark:text-gray-300'
@@ -428,9 +521,10 @@ const [showLabels, setShowLabels] = React.useState(true);
       </a>
     </div>
   )}
-</div>
+</motion.div>
                   );
-                })
+                })}
+                </AnimatePresence>
               )}
             </div>
           </div>
