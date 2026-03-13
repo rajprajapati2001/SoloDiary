@@ -50,88 +50,85 @@ const SortableItem: React.FC<SortableItemProps> = ({ t, toggleTemplate, onEdit, 
     transform: CSS.Transform.toString(transform),
     transition,
     zIndex: isDragging ? 10 : 1,
-    touchAction: 'none',
   };
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className={`group p-4 rounded-3xl border transition-all ${
+      className={`group px-3 py-3 rounded-2xl border transition-all ${
         t.isEnabled
           ? 'bg-white dark:bg-slate-900 border-gray-100 dark:border-slate-800 shadow-sm'
           : 'bg-gray-50 dark:bg-slate-950 border-transparent opacity-60'
       } ${isDragging ? 'shadow-2xl ring-2 ring-blue-500/50' : ''}`}
     >
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
         <button
           {...attributes}
           {...listeners}
-          className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-grab active:cursor-grabbing touch-none"
+          className="p-1 text-gray-300 dark:text-gray-600 hover:text-gray-500 cursor-grab active:cursor-grabbing touch-none shrink-0"
         >
-          <GripVertical size={20} />
+          <GripVertical size={18} />
         </button>
 
-        <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white font-black text-xs shadow-lg shrink-0">
+        <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-black text-[10px] shadow shrink-0">
           {t.code}
         </div>
 
         <div className="flex-1 min-w-0">
-          <h4 className="font-black text-gray-800 dark:text-white uppercase tracking-tight truncate">
+          <h4 className="font-bold text-sm text-gray-800 dark:text-white truncate leading-tight">
             {t.name}
           </h4>
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-            {t.isLongEvent ? `${t.fromTime} - ${t.toTime}` : t.toTime}
+          <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 tracking-wide">
+            {t.isLongEvent ? `${t.fromTime} – ${t.toTime}` : t.toTime}
           </p>
         </div>
 
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center gap-0.5 shrink-0">
           <button
             onClick={() => onEdit(t)}
-            className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
+            className="p-1.5 text-gray-400 hover:text-blue-500 rounded-lg hover:bg-blue-500/10 transition-colors"
           >
-            <Edit2 size={16} />
+            <Edit2 size={15} />
           </button>
           <button
             onClick={() => onDelete(t.id)}
-            className="p-2 text-gray-400 hover:text-red-600 transition-colors"
+            className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-500/10 transition-colors"
           >
-            <Trash2 size={16} />
+            <Trash2 size={15} />
           </button>
-          <div className="relative flex items-center">
-          <input
-            type="checkbox"
-            checked={t.isEnabled}
-            onChange={() => toggleTemplate(t)}
-            className="w-5 h-5 rounded-lg border-2 border-gray-200 checked:bg-blue-600 transition-all cursor-pointer appearance-none checked:border-blue-600"
-          />
-          {t.isEnabled && <Check size={14} className="absolute left-0.5 text-white pointer-events-none" />}
+          <div className="relative flex items-center ml-0.5">
+            <input
+              type="checkbox"
+              checked={t.isEnabled}
+              onChange={() => toggleTemplate(t)}
+              className="w-[18px] h-[18px] rounded-md border-2 border-gray-200 checked:bg-blue-600 transition-all cursor-pointer appearance-none checked:border-blue-600"
+            />
+            {t.isEnabled && <Check size={12} className="absolute left-[3px] text-white pointer-events-none" />}
           </div>
         </div>
       </div>
 
       {(t.description || t.points > 0) && (
-        <div className="mt-3 pl-12 space-y-2">
+        <div className="mt-2 ml-[42px] flex flex-wrap items-center gap-1.5">
           {t.description && (
-            <p className="text-xs text-gray-500 dark:text-gray-400 italic line-clamp-1">
+            <p className="text-[11px] text-gray-400 dark:text-gray-500 italic line-clamp-1 mr-1 basis-full">
               {t.description}
             </p>
           )}
-          <div className="flex flex-wrap gap-2">
-            <span className="px-2 py-1 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-[10px] font-bold uppercase">
-              +{t.points} pts
+          <span className="px-1.5 py-0.5 rounded-md bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-[10px] font-bold">
+            +{t.points} pts
+          </span>
+          {t.debit! > 0 && (
+            <span className="px-1.5 py-0.5 rounded-md bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-[10px] font-bold">
+              -{t.debit}₹
             </span>
-            {t.debit! > 0 && (
-              <span className="px-2 py-1 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-[10px] font-bold uppercase">
-                -{t.debit}₹
-              </span>
-            )}
-            {t.credit! > 0 && (
-              <span className="px-2 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold uppercase">
-                +{t.credit}₹
-              </span>
-            )}
-          </div>
+          )}
+          {t.credit! > 0 && (
+            <span className="px-1.5 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold">
+              +{t.credit}₹
+            </span>
+          )}
         </div>
       )}
     </div>

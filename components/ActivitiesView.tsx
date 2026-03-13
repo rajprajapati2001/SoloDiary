@@ -188,22 +188,22 @@ const ActivitiesView: React.FC<ActivitiesViewProps> = ({ templates, onAdd, onEdi
         {/* Mobile View */}
         <div className="block md:hidden divide-y divide-gray-100 dark:divide-slate-700">
           {sortedTemplates.map(t => (
-            <div key={t.id} className="p-4 flex flex-col gap-1">
-              <div className="flex justify-between items-center">
-                <span className="font-black text-blue-500 bg-blue-50 dark:bg-blue-900/20 px-3 py-1 rounded-lg uppercase tracking-wider text-xs border border-blue-500/20">
-                  {t.code}
-                </span>
-                <span className="font-black text-blue-500 text-lg">+{t.points}</span>
+            <div key={t.id} className="px-4 py-3.5 flex items-center gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Zap size={13} className="text-blue-400 shrink-0" />
+                    <span className="font-bold text-[15px] text-gray-900 dark:text-white truncate">{t.name}</span>
+                  </div>
+                  <span className="font-black text-blue-500 text-sm shrink-0">+{t.points}</span>
+                </div>
+                <div className="flex items-center gap-2 mt-1.5">
+                  <span className="font-black text-blue-500 bg-blue-50 dark:bg-blue-900/20 px-2 py-0.5 rounded-md uppercase tracking-wider text-[10px] border border-blue-500/20">{t.code}</span>
+                </div>
               </div>
-              <div className="flex justify-between items-center">
-                <div className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                  <Zap size={14} className="text-blue-400" />
-                  {t.name}
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={() => startEdit(t)} className="p-2 text-black dark:text-white hover:text-blue-500 transition-colors"><Edit2 size={18}/></button>
-                  <button onClick={() => onDelete(t.id)} className="p-2 text-black dark:text-white hover:text-red-500 transition-colors"><Trash2 size={18}/></button>
-                </div>
+              <div className="shrink-0 flex items-center gap-0.5">
+                <button onClick={() => startEdit(t)} className="p-1.5 text-gray-400 hover:text-blue-500 rounded-lg hover:bg-blue-500/10 transition-colors"><Edit2 size={16}/></button>
+                <button onClick={() => onDelete(t.id)} className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-500/10 transition-colors"><Trash2 size={16}/></button>
               </div>
             </div>
           ))}
@@ -219,31 +219,31 @@ const ActivitiesView: React.FC<ActivitiesViewProps> = ({ templates, onAdd, onEdi
           <table className="w-full text-left min-w-[500px]">
             <thead className="bg-gray-50 dark:bg-slate-900/50">
               <tr>
-                <th className="px-6 py-4 text-[10px] font-black uppercase text-gray-400 dark:text-slate-500">Code</th>
-                <th className="px-6 py-4 text-[10px] font-black uppercase text-gray-400 dark:text-slate-500">Activity Detail</th>
-                <th className="px-6 py-4 text-[10px] font-black uppercase text-gray-400 dark:text-slate-500">Pts Value</th>
-                <th className="px-6 py-4 text-[10px] font-black uppercase text-gray-400 dark:text-slate-500 text-right">Actions</th>
+                <th className="pl-5 pr-3 py-3 text-[10px] font-black uppercase text-gray-400 dark:text-slate-500 w-24">Code</th>
+                <th className="px-3 py-3 text-[10px] font-black uppercase text-gray-400 dark:text-slate-500">Activity</th>
+                <th className="px-3 py-3 text-[10px] font-black uppercase text-gray-400 dark:text-slate-500 w-20 text-center">Pts</th>
+                <th className="pl-3 pr-5 py-3 text-[10px] font-black uppercase text-gray-400 dark:text-slate-500 w-24 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
               {sortedTemplates.map(t => (
                 <tr key={t.id} className="hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-colors group">
-                  <td className="px-6 py-4">
-                    <span className="font-black text-blue-500 bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 rounded-lg uppercase tracking-wider text-sm border border-blue-500/20">{t.code}</span>
+                  <td className="pl-5 pr-3 py-3.5">
+                    <span className="font-black text-blue-500 bg-blue-50 dark:bg-blue-900/20 px-2.5 py-1 rounded-md uppercase tracking-wider text-xs border border-blue-500/20">{t.code}</span>
                   </td>
-                  <td className="px-6 py-4">
-                    <div className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                      <Zap size={14} className="text-blue-400" />
+                  <td className="px-3 py-3.5">
+                    <div className="font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
+                      <Zap size={13} className="text-blue-400 shrink-0" />
                       {t.name}
                     </div>
                   </td>
-                  <td className="px-6 py-4">
-                    <span className="font-black text-blue-500 text-lg">+{t.points}</span>
+                  <td className="px-3 py-3.5 text-center">
+                    <span className="font-black text-blue-500 text-base">+{t.points}</span>
                   </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex justify-end gap-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => startEdit(t)} className="p-2 text-black dark:text-white hover:text-blue-500 transition-colors"><Edit2 size={18}/></button>
-                      <button onClick={() => onDelete(t.id)} className="p-2 text-black dark:text-white hover:text-red-500 transition-colors"><Trash2 size={18}/></button>
+                  <td className="pl-3 pr-5 py-3.5 text-right">
+                    <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => startEdit(t)} className="p-1.5 text-gray-400 hover:text-blue-500 rounded-lg hover:bg-blue-500/10 transition-colors"><Edit2 size={16}/></button>
+                      <button onClick={() => onDelete(t.id)} className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-500/10 transition-colors"><Trash2 size={16}/></button>
                     </div>
                   </td>
                 </tr>

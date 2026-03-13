@@ -178,7 +178,7 @@ const DiaryView: React.FC<DiaryViewProps> = ({ entries, goals, onEdit, onDelete 
                           </div>
                         </div>
                         
-                        <p className="md:text-sm text-xs whitespace-pre-wrap leading-relaxed border-l-4 border-blue-500/30 dark:border-blue-400/20 pl-6 md:py-3 py-1 bg-gray-50 dark:bg-slate-900 rounded-r-xl dark:text-slate-300">
+                        <p className="md:text-sm text-xs whitespace-pre-wrap leading-relaxed border-l-4 border-blue-500/30 dark:border-blue-400/20 pl-3 md:py-3 py-1 bg-gray-50 dark:bg-slate-900 rounded-r-xl dark:text-slate-300">
                           {item.description}
                         </p>
 

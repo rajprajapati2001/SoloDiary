@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { Plus, Home, List, Target, BarChart3, Sun, Moon, BookText, Loader2, User, CalendarSync } from 'lucide-react';
 const Dashboard = lazy(() => import('./components/Dashboard'));
 import EntryForm from './components/EntryForm';
@@ -21,41 +21,74 @@ const PageLoader = () => (
   </div>
 );
 
-const NavItem = ({ icon: Icon, label, id, currentPage, isDarkMode, onNavigate }: { icon: any, label: string, id: Page, currentPage: Page, isDarkMode: boolean, onNavigate: (id: Page) => void }) => {
-  const isActive = currentPage === id;
+const PAGE_ORDER: Page[] = ['home', 'activities', 'goals', 'diary', 'auto', 'chart'];
 
-  const getTabColor = () => {
-    if (!isActive) return 'text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-slate-800';
-    switch (id) {
-      case 'home': return isDarkMode ? 'bg-white text-black shadow-[0_0_8px_rgba(255,255,255,0.8)]' : 'bg-black text-white shadow-[0_0_8px_rgba(0,0,0,0.8)]';
-      case 'activities': return 'bg-blue-500 text-white shadow-[0_0_8px_rgba(59,130,246,0.8)]';
-      case 'goals': return 'bg-green-500 text-white shadow-[0_0_8px_rgba(34,197,94,0.8)]';
-      case 'diary': return 'bg-pink-500 text-white shadow-[0_0_8px_rgba(236,72,153,0.8)]';
-      case 'auto': return 'bg-violet-500 text-white shadow-[0_0_8px_rgba(139,92,246,0.8)]';
-      case 'chart': return isDarkMode ? 'bg-white text-black shadow-[0_0_8px_rgba(255,255,255,0.8)]' : 'bg-black text-white shadow-[0_0_8px_rgba(0,0,0,0.8)]';
-      default: return '';
-    }
-  };
+const NAV_ITEMS: Array<{ id: Page; icon: any; label: string }>  = [
+  { id: 'home', icon: Home, label: 'Home' },
+  { id: 'activities', icon: List, label: 'Activities' },
+  { id: 'goals', icon: Target, label: 'Goals' },
+  { id: 'diary', icon: BookText, label: 'Diary' },
+  { id: 'auto', icon: CalendarSync, label: 'Auto' },
+  { id: 'chart', icon: BarChart3, label: 'Stats' },
+];
 
-  const getIconGlow = () => {
-    if (!isActive) return '';
-    switch (id) {
-      case 'home': return isDarkMode ? 'drop-shadow-[0_0_4px_rgba(255,255,255,0.8)]' : 'drop-shadow-[0_0_4px_rgba(0,0,0,0.8)]';
-      case 'activities': return 'drop-shadow-[0_0_4px_rgba(59,130,246,0.8)]';
-      case 'goals': return 'drop-shadow-[0_0_4px_rgba(34,197,94,0.8)]';
-      case 'diary': return 'drop-shadow-[0_0_4px_rgba(236,72,153,0.8)]';
-      case 'auto': return 'drop-shadow-[0_0_4px_rgba(139,92,246,0.8)]';
-      case 'chart': return isDarkMode ? 'drop-shadow-[0_0_4px_rgba(255,255,255,0.8)]' : 'drop-shadow-[0_0_4px_rgba(0,0,0,0.8)]';
-      default: return '';
-    }
-  };
+const getActivePillClass = (id: Page, isDarkMode: boolean) => {
+  switch (id) {
+    case 'home':
+      return isDarkMode ? 'bg-white shadow-[0_0_12px_rgba(255,255,255,0.7)]' : 'bg-black shadow-[0_0_12px_rgba(0,0,0,0.55)]';
+    case 'activities':
+      return 'bg-blue-500 shadow-[0_0_12px_rgba(59,130,246,0.8)]';
+    case 'goals':
+      return 'bg-green-500 shadow-[0_0_12px_rgba(34,197,94,0.8)]';
+    case 'diary':
+      return 'bg-pink-500 shadow-[0_0_12px_rgba(236,72,153,0.8)]';
+    case 'auto':
+      return 'bg-violet-500 shadow-[0_0_12px_rgba(139,92,246,0.8)]';
+    case 'chart':
+      return isDarkMode ? 'bg-white shadow-[0_0_12px_rgba(255,255,255,0.7)]' : 'bg-black shadow-[0_0_12px_rgba(0,0,0,0.55)]';
+    default:
+      return '';
+  }
+};
+
+const getActiveTextClass = (id: Page, isDarkMode: boolean) => {
+  if (id === 'home' || id === 'chart') {
+    return isDarkMode ? 'text-black' : 'text-white';
+  }
+  return 'text-white';
+};
+
+const getIconGlow = (id: Page, isDarkMode: boolean) => {
+  switch (id) {
+    case 'home':
+      return isDarkMode ? 'drop-shadow-[0_0_5px_rgba(0,0,0,0.45)]' : 'drop-shadow-[0_0_5px_rgba(255,255,255,0.6)]';
+    case 'activities':
+      return 'drop-shadow-[0_0_6px_rgba(59,130,246,0.85)]';
+    case 'goals':
+      return 'drop-shadow-[0_0_6px_rgba(34,197,94,0.85)]';
+    case 'diary':
+      return 'drop-shadow-[0_0_6px_rgba(236,72,153,0.85)]';
+    case 'auto':
+      return 'drop-shadow-[0_0_6px_rgba(139,92,246,0.85)]';
+    case 'chart':
+      return isDarkMode ? 'drop-shadow-[0_0_5px_rgba(0,0,0,0.45)]' : 'drop-shadow-[0_0_5px_rgba(255,255,255,0.6)]';
+    default:
+      return '';
+  }
+};
+
+const NavItem = ({ icon: Icon, label, id, isActive, isDarkMode, onNavigate }: { icon: any, label: string, id: Page, isActive: boolean, isDarkMode: boolean, onNavigate: (id: Page) => void }) => {
 
   return (
     <button
       onClick={() => onNavigate(id)}
-      className={`flex items-center gap-2 px-3 py-2 rounded-xl transition-all ${getTabColor()}`}
+      className={`relative z-10 w-full flex items-center justify-center gap-2 px-2 md:px-3 py-2 rounded-xl transition-all duration-300 ${
+        isActive
+          ? getActiveTextClass(id, isDarkMode)
+          : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100/80 dark:text-gray-400 dark:hover:text-gray-100 dark:hover:bg-slate-800/80'
+      }`}
     >
-      <Icon size={20} className={getIconGlow()} />
+      <Icon size={20} className={`transition-all duration-300 ${id === 'home' ? 'lg:scale-110' : ''} ${isActive ? getIconGlow(id, isDarkMode) : ''}`} />
       <span className="hidden lg:inline font-bold">{label}</span>
     </button>
   );
@@ -84,6 +117,19 @@ const App: React.FC = () => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   });
+  const [fabReady, setFabReady] = useState(false);
+  const [slideDir, setSlideDir] = useState<'left' | 'right' | 'initial'>('initial');
+  const touchStartX = useRef(0);
+  const touchStartY = useRef(0);
+
+  const navigateTo = useCallback((page: Page) => {
+    const oldIdx = PAGE_ORDER.indexOf(currentPage);
+    const newIdx = PAGE_ORDER.indexOf(page);
+    if (page !== currentPage) {
+      setSlideDir(newIdx > oldIdx ? 'left' : 'right');
+      setCurrentPage(page);
+    }
+  }, [currentPage]);
 
   useEffect(() => {
     window.location.hash = `#/${currentPage}`;
@@ -93,12 +139,12 @@ const App: React.FC = () => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#/', '') as Page;
       if (['home', 'activities', 'goals', 'diary', 'auto', 'chart'].includes(hash)) {
-        setCurrentPage(hash);
+        navigateTo(hash);
       }
     };
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
-  }, []);
+  }, [navigateTo]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -178,8 +224,32 @@ const App: React.FC = () => {
     root.style.colorScheme = isDarkMode ? 'dark' : 'light';
   }, [isDarkMode]);
 
+  // Swipe navigation
+  useEffect(() => {
+    const handleTouchStart = (e: TouchEvent) => {
+      touchStartX.current = e.touches[0].clientX;
+      touchStartY.current = e.touches[0].clientY;
+    };
+    const handleTouchEnd = (e: TouchEvent) => {
+      const dx = e.changedTouches[0].clientX - touchStartX.current;
+      const dy = e.changedTouches[0].clientY - touchStartY.current;
+      if (Math.abs(dx) < 60 || Math.abs(dy) > Math.abs(dx) * 0.7) return;
+      const idx = PAGE_ORDER.indexOf(currentPage);
+      if (dx < 0 && idx < PAGE_ORDER.length - 1) navigateTo(PAGE_ORDER[idx + 1]);
+      if (dx > 0 && idx > 0) navigateTo(PAGE_ORDER[idx - 1]);
+    };
+    document.addEventListener('touchstart', handleTouchStart, { passive: true });
+    document.addEventListener('touchend', handleTouchEnd, { passive: true });
+    return () => {
+      document.removeEventListener('touchstart', handleTouchStart);
+      document.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [currentPage, navigateTo]);
+
   useEffect(() => {
     setThemeReady(true);
+    const t = setTimeout(() => setFabReady(true), 100);
+    return () => clearTimeout(t);
   }, []);
 
   useEffect(() => {
@@ -264,6 +334,7 @@ const App: React.FC = () => {
   };
 
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const activeTabIndex = Math.max(0, PAGE_ORDER.indexOf(currentPage));
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -323,7 +394,7 @@ const App: React.FC = () => {
       <nav className="sticky top-0 z-40 bg-white-900/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-gray-100 dark:border-slate-800 shadow-sm no-print">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <div onClick={() => {
-            setCurrentPage('home');
+            navigateTo('home');
             window.location.hash = '#/home';
           }} className="flex items-center gap-3 cursor-pointer">
             <div className="w-11 h-11 rounded-full overflow-hidden bg-[#0A2647] flex items-center justify-center border-blue-400 shadow-xl group relative hidden sm:block">
@@ -331,13 +402,24 @@ const App: React.FC = () => {
             </div>
             <h1 className="text-xl font-black text-gray-900 dark:text-white tracking-tighter uppercase hidden sm:block">SOLODIARY</h1>
           </div>
-          <div className="flex items-center gap-1 md:gap-4 flex-1 justify-center sm:justify-end mr-2 md:ml-2 ml-0">
-            <NavItem id="home" icon={Home} label="Dashboard" currentPage={currentPage} isDarkMode={isDarkMode} onNavigate={setCurrentPage} />
-            <NavItem id="activities" icon={List} label="Activities" currentPage={currentPage} isDarkMode={isDarkMode} onNavigate={setCurrentPage} />
-            <NavItem id="goals" icon={Target} label="Goals" currentPage={currentPage} isDarkMode={isDarkMode} onNavigate={setCurrentPage} />
-            <NavItem id="diary" icon={BookText} label="Diary" currentPage={currentPage} isDarkMode={isDarkMode} onNavigate={setCurrentPage} />
-            <NavItem id="auto" icon={CalendarSync} label="Auto" currentPage={currentPage} isDarkMode={isDarkMode} onNavigate={setCurrentPage} />
-            <NavItem id="chart" icon={BarChart3} label="Stats" currentPage={currentPage} isDarkMode={isDarkMode} onNavigate={setCurrentPage} />
+          <div className="relative flex-1 max-w-[760px] ml-2 mr-2">
+            <div className="relative grid grid-cols-6 items-center gap-0 p-1 rounded-2xl bg-white/70 dark:bg-slate-900/70 border border-gray-200 dark:border-slate-700">
+              <div
+                className={`pointer-events-none absolute inset-y-1 left-1 w-[calc((100%-0.5rem)/6)] rounded-xl transition-[transform,background-color,box-shadow] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${getActivePillClass(currentPage, isDarkMode)}`}
+                style={{ transform: `translateX(${activeTabIndex * 100}%)` }}
+              />
+              {NAV_ITEMS.map((item) => (
+                <NavItem
+                  key={item.id}
+                  id={item.id}
+                  icon={item.icon}
+                  label={item.label}
+                  isActive={currentPage === item.id}
+                  isDarkMode={isDarkMode}
+                  onNavigate={navigateTo}
+                />
+              ))}
+            </div>
           </div>
           <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2.5 rounded-xl text-gray-500 dark:text-gray-400 hover:bg-gray-100 transition-colors">
             {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
@@ -345,8 +427,9 @@ const App: React.FC = () => {
         </div>
       </nav>
 
-      <main className="max-w-7xl mx-auto md:px-4 px-2.5 md:py-4 py-2 flex-1 print:p-0 print:m-0 print:max-w-none w-full">
+      <main className="max-w-7xl mx-auto md:px-4 px-2.5 md:py-4 py-2 flex-1 print:p-0 print:m-0 print:max-w-none w-full overflow-x-hidden">
         <Suspense fallback={<PageLoader />}>
+        <div key={currentPage} style={{ animation: `${slideDir === 'initial' ? 'slide-in-up' : slideDir === 'left' ? 'slide-in-left' : 'slide-in-right'} 0.3s ease-out both` }}>
         {currentPage === 'home' && (
           <Dashboard
             userName={userName || 'User'}
@@ -396,6 +479,7 @@ const App: React.FC = () => {
         {currentPage === 'chart' && (
           <StatsView userName={userName || 'User'} entries={entries} goals={goals} onRefresh={fetchData} />
         )}
+        </div>
         </Suspense>
       </main>
 
@@ -403,7 +487,7 @@ const App: React.FC = () => {
 
       <button
   onClick={() => { setEditingEntry(null); setIsFormOpen(true); }}
-  className="group fixed bottom-8 right-8 w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-700 text-white rounded-full shadow-[0_10px_25px_-5px_rgba(59,130,246,0.5)] flex items-center justify-center hover:scale-110 hover:shadow-[0_20px_35px_-5px_rgba(59,130,246,0.6)] active:scale-95 transition-all duration-300 z-40 no-print"
+  className={`group fixed bottom-4 right-4 w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-700 text-white rounded-full shadow-[0_10px_25px_-5px_rgba(59,130,246,0.5)] flex items-center justify-center hover:scale-110 hover:shadow-[0_20px_35px_-5px_rgba(59,130,246,0.6)] active:scale-95 transition-all duration-500 ease-out z-40 no-print ${fabReady && currentPage === 'home' ? 'translate-y-0 opacity-100' : 'translate-y-24 opacity-0 pointer-events-none'}`}
 >
   <Plus 
     size={32} 

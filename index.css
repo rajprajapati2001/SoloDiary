@@ -189,21 +189,36 @@ body {
 
 .desktop-view-active {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  margin: 0 !important;
+  padding: 0 !important;
   background: white;
   z-index: 9999;
   overflow: auto;
-  touch-action: manipulation;
+  touch-action: pan-x pan-y;
   -webkit-overflow-scrolling: touch;
+  animation: desktop-slide-up 0.35s ease-out both;
+}
+
+.desktop-view-closing {
+  animation: desktop-slide-down 0.3s ease-in both !important;
+}
+
+@keyframes desktop-slide-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+@keyframes desktop-slide-down {
+  from { transform: translateY(0); }
+  to { transform: translateY(100%); }
 }
 
 .desktop-view-active #printable-report {
   width: 1024px !important;
   min-width: 1024px;
-  transform: scale(0.35);
   transform-origin: top left;
 }
 
@@ -309,4 +324,29 @@ body {
   align-items: center;
   justify-content: center;
   box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes fab-enter {
+  from { transform: translateY(80px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes slide-in-left {
+  from { transform: translateX(40px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slide-in-right {
+  from { transform: translateX(-40px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slide-in-up {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
 }

@@ -4,7 +4,7 @@ import LineGraph from './LineGraph';
 import Footer from './Footer';
 import { ActivityEntry, Goal } from '../types';
 import { TrendingUp, Award, Clock, Edit2, Trash2, Star, Banknote, Eye, EyeOff, Target, Calendar, Paperclip,ChartLine, ScrollText, Check, X as CloseIcon, ChevronLeft, ChevronRight } from 'lucide-react';
-import { AnimatePresence, motion } from 'motion/react';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 
 const LiveClock: React.FC = React.memo(() => {
   const [now, setNow] = useState(new Date());
@@ -130,6 +130,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userName, entries, selectedDate, 
   };
   
 const [showLabels, setShowLabels] = React.useState(true);
+  const shouldReduceMotion = useReducedMotion();
   const dateObj = new Date(selectedDate);
   const selectedYear = dateObj.getFullYear();
   const selectedMonthStr = selectedDate.substring(0, 7);
@@ -416,8 +417,8 @@ const [showLabels, setShowLabels] = React.useState(true);
 </h3>
   <div className="flex gap-1">
                 <motion.button 
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
+                  whileHover={{ scale: 1.04 }}
+                  whileTap={{ scale: 0.96 }}
                   onClick={handlePrevDate}
                   className="p-2 rounded-xl bg-gray-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-700 text-gray-600 dark:text-gray-400 hover:bg-blue-500 hover:text-white transition-colors shadow-sm"
                   title="Previous Day"
@@ -425,8 +426,8 @@ const [showLabels, setShowLabels] = React.useState(true);
                   <ChevronLeft size={18} />
                 </motion.button>
                 <motion.button 
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
+                  whileHover={{ scale: 1.04 }}
+                  whileTap={{ scale: 0.96 }}
                   onClick={handleNextDate}
                   className="p-2 rounded-xl bg-gray-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-700 text-gray-600 dark:text-gray-400 hover:bg-blue-500 hover:text-white transition-colors shadow-sm"
                   title="Next Day"
@@ -439,19 +440,20 @@ const [showLabels, setShowLabels] = React.useState(true);
               {selectedDateEntries.length === 0 ? (
                 <div className="text-center py-10 text-gray-400 italic">No activities recorded.</div>
               ) : (
-                <AnimatePresence initial={false}>
+                <AnimatePresence initial={false} mode="popLayout">
                 {selectedDateEntries.map(entry => {
                   const isGoal = goals.some(g => g.code === entry.code && g.achievedAt === entry.toDate);
                   const isCash = !!(entry.debit || entry.credit);
                   return (
                     <motion.div
                       key={entry.id}
-                      initial={{ opacity: 0, y: 10, scale: 0.98 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -8, scale: 0.98 }}
-                      transition={{ duration: 0.28 }}
-                      layout
-                      className="group md:p-4 p-3 rounded-2xl border border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50 hover:bg-white dark:hover:bg-slate-800 transition-all shadow-sm"
+                      initial={shouldReduceMotion ? false : { opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -6 }}
+                      transition={shouldReduceMotion ? { duration: 0.15 } : { type: 'spring', stiffness: 460, damping: 34, mass: 0.65 }}
+                      layout="position"
+                      style={{ willChange: 'transform, opacity' }}
+                      className="group md:p-4 p-3 rounded-2xl border border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50 hover:bg-white dark:hover:bg-slate-800 transition-colors shadow-sm"
                     >
   {/* TOP SECTION */}
   <div className="flex items-start gap-3">

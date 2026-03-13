@@ -1,4 +1,5 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { ActivityEntry, Goal } from '../types';
 import { Printer, FileChartColumn, FileText, TrendingUp, Award, ImageDown,  Banknote,FileCode2, BadgeCheck , EyeOff, NotebookText, ChartLine, Landmark, ExternalLink, CheckCircle2, Zap, Target, ClipboardList, Star, Clock, DatabaseBackup, Download, Upload, X, Copy, Share2, Eye, Layout, Mail, Globe } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
@@ -463,14 +464,10 @@ const universalDownload = async (blob, filename, mimeType) => {
 
 // --- Updated Export Functions ---
 
-const handleDownload = () => {
+const handleDownload = async () => {
+    const fileName = `solodiary-export-${userName.replace(/\s+/g, '-').toLowerCase()}-${new Date().toISOString().split('T')[0]}.json`;
     const blob = new Blob([exportData], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `solodiary-export-${userName.replace(/\s+/g, '-').toLowerCase()}-${new Date().toISOString().split('T')[0]}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    await universalDownload(blob, fileName, 'application/json');
   };
 
 
@@ -749,43 +746,63 @@ const handlePrintReport = async () => {
   const cleanName = userName.replace(/[^a-z0-9]/gi, '_');
   const fileName = `SoloDiary-${cleanName}-${selectedMonth}${selectedYear}`;
   
-  // Detect mobile
-  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-  window.print();
-  
-if (isMobile) {
-  const userChoice = confirm(
-    '⚠️ This PDF may be corrupted!\n\n' +
-    'Please backup your JSON data and export to PC/laptop for better PDF quality, ' +
-    'or use desktop mode in web browser.\n\n' +
-    'Press OK to continue with PDF generation, or Cancel to abort.'
-  );
-  
-  if (!userChoice) {
-    // User clicked Cancel - abort operation
-    console.log('PDF generation cancelled by user');
-    return; // Exit the function
-  }
-}
+  // Android APK: Generate PDF, save to filesystem, open with system viewer
+  if (Capacitor.isNativePlatform()) {
+    try {
+      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+        import('html2canvas'),
+        import('jspdf')
+      ]);
 
-  try {
-    if (isMobile) {
-      // Mobile: Generate PDF and share/print
-      await generateMobilePDF(fileName);
-      window.print();
-    } else {
-      // Desktop: Use title hack for PDF filename
-      const originalTitle = document.title;
-      document.title = fileName;
-      window.print();
-      setTimeout(() => {
-        document.title = originalTitle;
-      }, 1000);
+      const element = document.getElementById('printable-report');
+      if (!element) { alert('Report element not found'); return; }
+
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        logging: false,
+        useCORS: true,
+        allowTaint: false,
+        backgroundColor: '#ffffff',
+        windowWidth: element.scrollWidth,
+        windowHeight: element.scrollHeight
+      });
+
+      const imgData = canvas.toDataURL('image/JPEG', 0.95);
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'px', format: 'a4' });
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+
+      const pdfBlob = pdf.output('blob');
+      const base64Data = await blobToBase64(pdfBlob);
+
+      const savedFile = await Filesystem.writeFile({
+        path: `${fileName}.pdf`,
+        data: base64Data as string,
+        directory: Directory.Documents,
+      });
+
+      await FileOpener.openFile({
+        path: savedFile.uri,
+        mimeType: 'application/pdf'
+      });
+    } catch (error) {
+      console.error('Android PDF generation failed:', error);
+      alert('PDF generation failed. Please try again.');
     }
+    return;
+  }
+
+  // Web: Use browser print with title hack for PDF filename
+  try {
+    const originalTitle = document.title;
+    document.title = fileName;
+    window.print();
+    setTimeout(() => {
+      document.title = originalTitle;
+    }, 1000);
   } catch (error) {
     console.error('Print failed:', error);
-    // Fallback
     window.print();
   }
 };
@@ -882,7 +899,48 @@ const handleImageReport = async () => {
 
     const fileName = `SoloDiary-${userName || 'User'}-${selectedMonth}${selectedYear}.png`;
 
-    // 2. Convert to Blob for modern Sharing/Downloading
+    // Android APK: Save to filesystem and share
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const pngDataUrl = canvas.toDataURL('image/png', 1.0);
+
+        const savedFile = await Filesystem.writeFile({
+          path: fileName,
+          data: pngDataUrl,
+          directory: Directory.Documents,
+        });
+
+        await Share.share({
+          title: 'SoloDiary Report',
+          text: `SoloDiary Report - ${monthLabelText} ${selectedYear}`,
+          url: savedFile.uri,
+          dialogTitle: 'Share or Save Report',
+        });
+      } catch (nativeErr: any) {
+        if (nativeErr?.message !== 'Share canceled') {
+          console.error('Android PNG share failed:', nativeErr);
+          // Fallback: open the file directly
+          try {
+            const pngDataUrl = canvas.toDataURL('image/png', 1.0);
+            const savedFile = await Filesystem.writeFile({
+              path: fileName,
+              data: pngDataUrl,
+              directory: Directory.Documents,
+            });
+            await FileOpener.openFile({
+              path: savedFile.uri,
+              mimeType: 'image/png'
+            });
+          } catch (fallbackErr) {
+            console.error('Android PNG fallback failed:', fallbackErr);
+            alert('Could not save image report.');
+          }
+        }
+      }
+      return;
+    }
+
+    // Web/PC: Use blob sharing or fallback download
     canvas.toBlob(async (blob) => {
       if (!blob) {
         console.error("Canvas to Blob conversion failed");
@@ -891,7 +949,6 @@ const handleImageReport = async () => {
 
       const file = new File([blob], fileName, { type: 'image/png' });
 
-      // 3. Logic for Android/iOS (Mobile Share Sheet)
       if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
         try {
           await navigator.share({
@@ -899,23 +956,15 @@ const handleImageReport = async () => {
             title: 'SoloDiary Report',
             text: `Check out my report for ${selectedMonth} ${selectedYear}`,
           });
-          console.log("Shared successfully");
         } catch (shareError) {
-          // If the user simply cancelled the share, do nothing.
-          // Otherwise, try the fallback download.
           if (shareError.name !== 'AbortError') {
-            console.warn("Share failed, trying download fallback", shareError);
             downloadFallback(canvas, fileName);
           }
         }
-      } 
-      // 4. Logic for Web/PC (Standard Download)
-      else {
+      } else {
         downloadFallback(canvas, fileName);
       }
-      
-      // Optional: Remove loading indicator here
-    }, 'image/png', 1.0); // 1.0 is the quality setting
+    }, 'image/png', 1.0);
 
   } catch (err) {
     console.error('Screenshot generation failed:', err);
@@ -968,11 +1017,12 @@ const handleWebReport = async () => {
     <head>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <link rel="icon" type="image/x-icon" href="https://raw.githubusercontent.com/rajprajapati2001/SoloDiary/main/assets/icons/solodiary_icon_512x512.png">
       <title>SoloDiary Report</title>
       <script src="https://cdn.tailwindcss.com"></script>
       <style>
         ${styles}
-        body { padding: 20px; background-color: #f3f4f6; }
+        body { background-color: #f3f4f6; }
         /* Force CalendarView dark bg in print & export */
         .bg-slate-800\/80,
         .bg-slate-800\/80 > div.bg-white {
@@ -1002,11 +1052,33 @@ const handleWebReport = async () => {
         [data-finance-toggle] { cursor: pointer; transition: all 0.3s ease; }
         [data-finance-toggle]:hover { transform: scale(1.02); }
         [data-finance-toggle].finance-active { outline: 3px solid #f59e0b !important; outline-offset: -3px; background: #fffbeb !important; }
+        .goal-labels-hidden .goal-label { display: none !important; }
+        [data-toggle-labels] { cursor: pointer; }
       </style>
     </head>
     <body>
       ${element.outerHTML}
       <script>
+        // Goal Labels Toggle (Eye button)
+        document.addEventListener('click', function(e) {
+          var toggleBtn = e.target.closest('[data-toggle-labels]');
+          if (toggleBtn) {
+            var container = toggleBtn.closest('.print-section');
+            if (!container) return;
+            var graphContainer = container.querySelector('.linegraph-container');
+            if (!graphContainer) return;
+            graphContainer.classList.toggle('goal-labels-hidden');
+            // Swap eye icon SVGs
+            var svgs = toggleBtn.querySelectorAll('svg');
+            var isHidden = graphContainer.classList.contains('goal-labels-hidden');
+            toggleBtn.title = isHidden ? 'Show Labels' : 'Hide Labels';
+            // Replace icon: show eye-off when hidden, eye when visible
+            toggleBtn.innerHTML = isHidden
+              ? '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"></path><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"></path><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"></path><line x1="2" x2="22" y1="2" y2="22"></line></svg>'
+              : '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
+          }
+        });
+
         // Date Highlighter
         document.addEventListener('click', (e) => {
           const btn = e.target.closest('button[data-date]');
@@ -1155,26 +1227,52 @@ const handleWebReport = async () => {
   const fileName = `SoloDiary-${userName || 'User'}-${selectedMonth}${selectedYear}.html`;
 
   try {
-    // 3. Logic for Android (Share API)
-    const blob = new Blob([htmlContent], { type: 'text/html' });
-    const file = new File([blob], fileName, { type: 'text/html' });
-
-    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+    // Android APK: Save HTML to filesystem and share
+    if (Capacitor.isNativePlatform()) {
       try {
-        await navigator.share({
-          files: [file],
-          title: 'SoloDiary HTML Report',
+        const blob = new Blob([htmlContent], { type: 'text/html' });
+        const base64Data = await blobToBase64(blob);
+
+        const savedFile = await Filesystem.writeFile({
+          path: fileName,
+          data: base64Data as string,
+          directory: Directory.Documents,
         });
-      } catch (shareError) {
-        if (shareError.name !== 'AbortError') {
-          htmlDownloadFallback(htmlContent, fileName);
+
+        // Let user share/save via system share sheet
+        await Share.share({
+          title: 'SoloDiary HTML Report',
+          text: `SoloDiary Report - ${monthLabelText} ${selectedYear}`,
+          url: savedFile.uri,
+          dialogTitle: 'Share or Save Report',
+        });
+      } catch (nativeErr: any) {
+        if (nativeErr?.message !== 'Share canceled') {
+          console.error('Android HTML export failed:', nativeErr);
+          // Fallback: open the saved file directly
+          try {
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const base64Data = await blobToBase64(blob);
+            const savedFile = await Filesystem.writeFile({
+              path: fileName,
+              data: base64Data as string,
+              directory: Directory.Documents,
+            });
+            await FileOpener.openFile({
+              path: savedFile.uri,
+              mimeType: 'text/html'
+            });
+          } catch (fallbackErr) {
+            console.error('Android HTML fallback failed:', fallbackErr);
+            alert('Could not save HTML report.');
+          }
         }
       }
+      return;
     }
-    // 4. Logic for Web/PC (Standard Blob Download)
-    else {
-      htmlDownloadFallback(htmlContent, fileName);
-    }
+
+    // Web/PC: Standard Blob Download
+    htmlDownloadFallback(htmlContent, fileName);
   } catch (err) {
     console.error('HTML Export failed:', err);
     htmlDownloadFallback(htmlContent, fileName);
@@ -1201,6 +1299,82 @@ const htmlDownloadFallback = (content, fileName) => {
 };
 
  const [isDesktop, setIsDesktop] = useState(false);
+ const [isClosingDesktop, setIsClosingDesktop] = useState(false);
+ const desktopViewRef = useRef<HTMLDivElement>(null);
+ const reportWrapperRef = useRef<HTMLDivElement>(null);
+ const printableReportRef = useRef<HTMLDivElement>(null);
+
+ const closeDesktop = useCallback(() => {
+   setIsClosingDesktop(true);
+   setTimeout(() => {
+     setIsDesktop(false);
+     setIsClosingDesktop(false);
+   }, 300);
+ }, []);
+
+ // Lock body scroll when fullscreen report is open
+ useEffect(() => {
+   if (isDesktop) {
+     document.body.style.overflow = 'hidden';
+   } else {
+     document.body.style.overflow = '';
+   }
+   return () => { document.body.style.overflow = ''; };
+ }, [isDesktop]);
+
+ // Move report DOM node into/out of portal
+ useLayoutEffect(() => {
+   const report = printableReportRef.current;
+   const portal = desktopViewRef.current;
+   const wrapper = reportWrapperRef.current;
+   if (isDesktop && report && portal) {
+     portal.appendChild(report);
+   } else if (!isDesktop && report && wrapper && !wrapper.contains(report)) {
+     wrapper.appendChild(report);
+   }
+ }, [isDesktop]);
+
+ // Pinch-to-zoom for Android APK desktop view
+ useEffect(() => {
+   if (!isDesktop) return;
+   const container = desktopViewRef.current;
+   if (!container) return;
+   const report = printableReportRef.current;
+   if (!report) return;
+
+   let currentScale = window.innerWidth / 1024;
+   report.style.transform = `scale(${currentScale})`;
+   let startDist = 0;
+   let startScale = currentScale;
+
+   const getDistance = (t1: Touch, t2: Touch) =>
+     Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+
+   const onTouchStart = (e: TouchEvent) => {
+     if (e.touches.length === 2) {
+       startDist = getDistance(e.touches[0], e.touches[1]);
+       startScale = currentScale;
+     }
+   };
+
+   const onTouchMove = (e: TouchEvent) => {
+     if (e.touches.length === 2) {
+       e.preventDefault();
+       const dist = getDistance(e.touches[0], e.touches[1]);
+       const ratio = dist / startDist;
+       currentScale = Math.min(Math.max(startScale * ratio, 0.15), 1.5);
+       report.style.transform = `scale(${currentScale})`;
+     }
+   };
+
+   container.addEventListener('touchstart', onTouchStart, { passive: true });
+   container.addEventListener('touchmove', onTouchMove, { passive: false });
+
+   return () => {
+     container.removeEventListener('touchstart', onTouchStart);
+     container.removeEventListener('touchmove', onTouchMove);
+   };
+ }, [isDesktop]);
  {/* Logic: Calculate the net balance */}
 const netAmount = totalCreditAmt - totalDebitAmt;
 const isNegative = netAmount < 0;
@@ -1441,34 +1615,43 @@ const [showLabels, setShowLabels] = useState(true);
 </div>
 
 
-      {/*Andorid Web View Report*/}
+      {/*Android Web View Report*/}
       
-      
-      <div className="lg:hidden max-w-[850px] mx-auto justify-items-center text-2xl bg-white dark:bg-slate-800 rounded-xl border-0 border-gray-100 dark:border-slate-700 shadow-sm no-print justify-items-center">
-      {/* 1. Normal Button to trigger the view */}
-      
+      <div className="lg:hidden max-w-[850px] mx-auto no-print">
       <button 
         onClick={() => setIsDesktop(true)}
-        className="flex items-center justify-center gap-2 h-40 w-full m-0 bg-[linear-gradient(45deg,rgb(251,202,136),rgb(239,105,173))] text-white dark:text-black p-2 rounded-xl transition-transform duration-300 hover:scale-[1.02] hover:brightness-110 cursor-pointer"
-      ><FileChartColumn size={30}/>
-        View PDF Report
+        className="group relative w-full h-40 overflow-hidden rounded-xl active:scale-[0.98] transition-all duration-200 border border-slate-200 dark:border-slate-700"
+      >
+        {/* Pattern background */}
+        <div className="absolute inset-0 bg-slate-50 dark:bg-slate-800">
+          <svg className="absolute inset-0 w-full h-full opacity-[0.08] dark:opacity-[0.06]" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <pattern id="grid-pattern" width="20" height="20" patternUnits="userSpaceOnUse">
+                <circle cx="1" cy="1" r="1" fill="currentColor" />
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#grid-pattern)" className="text-slate-900 dark:text-slate-300" />
+          </svg>
+        </div>
+        
+        {/* Shimmer sweep */}
+        <div className="absolute inset-0 -translate-x-full animate-[shimmer_3s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-white/40 dark:via-white/10 to-transparent" />
+        
+        {/* Content overlay */}
+        <div className="relative z-10 flex flex-col items-center justify-center h-full gap-2">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-xl shadow-blue-500/30 group-active:scale-90 transition-transform">
+            <FileChartColumn size={26} className="text-white" />
+          </div>
+          <p className="text-base font-black text-slate-800 dark:text-white uppercase tracking-tight">View PDF Report</p>
+          <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-[0.2em]">Tap to Explore more</p>
+        </div>
       </button>
       </div>
 
-<div className={isDesktop ? "desktop-view-active" : ""}>
-      {/* 2. Close Button (Only shows in Desktop Mode) */}
-      {isDesktop && (
-        <button 
-          onClick={() => setIsDesktop(false)}
-          className="close-desktop-btn"
-        >
-          <X size={20} />
-        </button>
-        )}
-
-
+<div ref={reportWrapperRef} className="max-w-[850px] mx-auto">
       {/* PRINTABLE TRANSCRIPT AREA */}
       <div 
+  ref={printableReportRef}
   id="printable-report" 
   className="antialiased font-medium bg-white p-10 text-slate-900 min-h-[297mm] w-[210mm] flex flex-col mx-auto shadow-lg border border-slate-100 overflow-hidden"
 >
@@ -1679,6 +1862,7 @@ const [showLabels, setShowLabels] = useState(true);
           e.preventDefault();
           setShowLabels(!showLabels);
         }}
+        data-toggle-labels
         className="w-8 flex justify-end text-slate-400 hover:text-blue-500 transition-colors"
         title={showLabels ? "Hide Labels" : "Show Labels"}
       >
@@ -2008,8 +2192,20 @@ const [showLabels, setShowLabels] = useState(true);
     </div>
         <span className="text-[6px] font-medium text-slate-300 text-center">&copy; {currentYearNum} • <span className="text-green-300">SoloDiary</span> @ <span className="text-blue-300">Raj Prajapati</span></span>
       </div>
-
 </div>
+
+{isDesktop && createPortal(
+<div ref={desktopViewRef} className={`desktop-view-active${isClosingDesktop ? ' desktop-view-closing' : ''}`}>
+      {/* Close Button */}
+        <button 
+          onClick={closeDesktop}
+          className="close-desktop-btn"
+        >
+          <X size={20} />
+        </button>
+</div>,
+document.body
+)}
 
       <style>{`
         @media print {

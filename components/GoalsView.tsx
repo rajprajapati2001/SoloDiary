@@ -234,38 +234,40 @@ const GoalsView: React.FC<GoalsViewProps> = ({ userName, goals, onAddGoal, onDel
         {/* Mobile View */}
         <div className="block md:hidden divide-y divide-white/10">
           {sortedGoals.map(goal => (
-            <div key={goal.id} className={`p-4 flex flex-col gap-1 ${goal.achievedAt ? 'opacity-60 bg-emerald-500/5' : ''}`}>
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-3">
-                  {goal.achievedAt ? <CheckCircle className="text-emerald-500" size={24} /> : <div className="w-6 h-6 rounded-full border-2 border-white/20" />}
-                  <span className="font-black text-blue-500 bg-blue-500/10 px-3 py-1 rounded-lg uppercase tracking-wider text-xs border border-blue-500/20">{goal.code}</span>
-                </div>
-                <span className="font-black text-blue-500 text-lg">+{goal.points}</span>
+            <div key={goal.id} className={`px-4 py-3.5 flex items-start gap-3 ${goal.achievedAt ? 'opacity-60 bg-emerald-500/5' : ''}`}>
+              <div className="pt-0.5 shrink-0">
+                {goal.achievedAt ? <CheckCircle className="text-emerald-500" size={22} /> : <div className="w-[22px] h-[22px] rounded-full border-2 border-white/20" />}
               </div>
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center gap-2">
-                  <Flag size={14} className={goal.achievedAt ? 'text-emerald-500' : 'text-blue-500'} />
-                  <div className={`font-bold text-base ${goal.achievedAt ? 'line-through text-gray-400' : 'text-gray-900 dark:text-white'}`}>
-                    {goal.name}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Flag size={13} className={`shrink-0 ${goal.achievedAt ? 'text-emerald-500' : 'text-blue-500'}`} />
+                    <span className={`font-bold text-[15px] truncate ${goal.achievedAt ? 'line-through text-gray-400' : 'text-gray-900 dark:text-white'}`}>
+                      {goal.name}
+                    </span>
                   </div>
+                  <span className="font-black text-blue-500 text-sm shrink-0">+{goal.points}</span>
                 </div>
-                <div className="text-[10px] font-black text-blue-500 uppercase tracking-widest">
-                  Expires: {goal.deadlineMonth} {goal.deadlineYear || currentYear}
+                <div className="flex items-center gap-2 mt-1.5">
+                  <span className="font-black text-blue-500 bg-blue-500/10 px-2 py-0.5 rounded-md uppercase tracking-wider text-[10px] border border-blue-500/20">{goal.code}</span>
+                  <span className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wide">
+                    {goal.deadlineMonth} {goal.deadlineYear || currentYear}
+                  </span>
                 </div>
                 {goal.achievedAt && (
-                  <div className="text-[10px] font-black text-emerald-500 uppercase bg-emerald-500/10 px-2 py-0.5 rounded self-start mt-1">
+                  <div className="text-[10px] font-black text-emerald-500 uppercase bg-emerald-500/10 px-2 py-0.5 rounded mt-1.5 inline-block">
                     Completed: {formatAchievedDate(goal.achievedAt)}
                   </div>
                 )}
               </div>
-              <div className="flex justify-end pt-2">
+              <div className="shrink-0 flex items-center gap-0.5 pt-0.5">
                 {!goal.achievedAt ? (
                   <>
-                    <button onClick={() => startEdit(goal)} className="p-2 text-gray-400 hover:text-blue-500"><Edit2 size={18} /></button>
-                    <button onClick={() => onDeleteGoal(goal.id)} className="p-2 text-gray-400 hover:text-red-500"><Trash2 size={18} /></button>
+                    <button onClick={() => startEdit(goal)} className="p-1.5 text-gray-400 hover:text-blue-500 rounded-lg hover:bg-blue-500/10 transition-colors"><Edit2 size={16} /></button>
+                    <button onClick={() => onDeleteGoal(goal.id)} className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-500/10 transition-colors"><Trash2 size={16} /></button>
                   </>
                 ) : (
-                  <span className="text-[10px] font-bold opacity-40 uppercase tracking-widest">Archived</span>
+                  <span className="text-[9px] font-bold opacity-40 uppercase tracking-widest">Archived</span>
                 )}
               </div>
             </div>
@@ -282,47 +284,47 @@ const GoalsView: React.FC<GoalsViewProps> = ({ userName, goals, onAddGoal, onDel
           <table className="w-full text-left min-w-[600px]">
             <thead className="bg-black/10">
               <tr>
-                <th className="px-6 py-4 text-[10px] font-black uppercase opacity-60 w-16 text-center">Done</th>
-                <th className="px-6 py-4 text-[10px] font-black uppercase opacity-60">ID Code</th>
-                <th className="px-6 py-4 text-[10px] font-black uppercase opacity-60">Task / Deadline</th>
-                <th className="px-6 py-4 text-[10px] font-black uppercase opacity-60">Pts</th>
-                <th className="px-6 py-4 text-[10px] font-black uppercase opacity-60 text-right">Action</th>
+                <th className="pl-5 pr-2 py-3 text-[10px] font-black uppercase opacity-60 w-12 text-center">Done</th>
+                <th className="px-3 py-3 text-[10px] font-black uppercase opacity-60 w-24">Code</th>
+                <th className="px-3 py-3 text-[10px] font-black uppercase opacity-60">Task / Deadline</th>
+                <th className="px-3 py-3 text-[10px] font-black uppercase opacity-60 w-16 text-center">Pts</th>
+                <th className="pl-3 pr-5 py-3 text-[10px] font-black uppercase opacity-60 w-24 text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
               {sortedGoals.map(goal => (
                 <tr key={goal.id} className={`${goal.achievedAt ? 'opacity-60 bg-emerald-500/5' : ''} hover:bg-white/5 transition-colors group`}>
-                  <td className="px-6 py-4 text-center">
-                    {goal.achievedAt ? <CheckCircle className="text-emerald-500 mx-auto" size={24} /> : <div className="w-6 h-6 rounded-full border-2 border-white/20 mx-auto" />}
+                  <td className="pl-5 pr-2 py-3.5 text-center align-top pt-4">
+                    {goal.achievedAt ? <CheckCircle className="text-emerald-500 mx-auto" size={20} /> : <div className="w-5 h-5 rounded-full border-2 border-white/20 mx-auto" />}
                   </td>
-                  <td className="px-6 py-4">
-                    <span className="font-black text-blue-500 bg-blue-500/10 px-3 py-1.5 rounded-lg uppercase tracking-wider text-sm border border-blue-500/20">{goal.code}</span>
+                  <td className="px-3 py-3.5 align-top pt-4">
+                    <span className="font-black text-blue-500 bg-blue-500/10 px-2.5 py-1 rounded-md uppercase tracking-wider text-xs border border-blue-500/20">{goal.code}</span>
                   </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <Flag size={14} className={goal.achievedAt ? 'text-emerald-500' : 'text-blue-500'} />
-                      <div className={`font-bold text-lg ${goal.achievedAt ? 'line-through text-gray-400' : 'text-gray-900 dark:text-white'}`}>
+                  <td className="px-3 py-3.5">
+                    <div className="flex items-center gap-1.5">
+                      <Flag size={13} className={`shrink-0 ${goal.achievedAt ? 'text-emerald-500' : 'text-blue-500'}`} />
+                      <span className={`font-bold text-base ${goal.achievedAt ? 'line-through text-gray-400' : 'text-gray-900 dark:text-white'}`}>
                         {goal.name}
-                      </div>
+                      </span>
                     </div>
-                    <div className="text-[10px] font-black text-blue-500 uppercase mt-0.5 tracking-widest">
+                    <div className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase mt-0.5 tracking-wide ml-[21px]">
                       Expires: {goal.deadlineMonth} {goal.deadlineYear || currentYear}
                     </div>
                     {goal.achievedAt && (
-                      <div className="text-[10px] font-black text-emerald-500 uppercase mt-1 bg-emerald-500/10 px-2 py-0.5 rounded inline-block">
+                      <div className="text-[10px] font-black text-emerald-500 uppercase mt-1 bg-emerald-500/10 px-2 py-0.5 rounded inline-block ml-[21px]">
                         Completed: {formatAchievedDate(goal.achievedAt)}
                       </div>
                     )}
                   </td>
-                  <td className="px-6 py-4 font-black text-blue-500 text-lg">+{goal.points}</td>
-                  <td className="px-6 py-4 text-right">
+                  <td className="px-3 py-3.5 font-black text-blue-500 text-base text-center align-top pt-4">+{goal.points}</td>
+                  <td className="pl-3 pr-5 py-3.5 text-right align-top pt-3">
                     {!goal.achievedAt ? (
-                      <div className="flex justify-end gap-2">
-                        <button onClick={() => startEdit(goal)} className="p-2 text-gray-400 hover:text-blue-500"><Edit2 size={18} /></button>
-                        <button onClick={() => onDeleteGoal(goal.id)} className="p-2 text-gray-400 hover:text-red-500"><Trash2 size={18} /></button>
+                      <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => startEdit(goal)} className="p-1.5 text-gray-400 hover:text-blue-500 rounded-lg hover:bg-blue-500/10 transition-colors"><Edit2 size={16} /></button>
+                        <button onClick={() => onDeleteGoal(goal.id)} className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-500/10 transition-colors"><Trash2 size={16} /></button>
                       </div>
                     ) : (
-                      <span className="text-[10px] font-bold opacity-40 uppercase tracking-widest">Archived</span>
+                      <span className="text-[9px] font-bold opacity-40 uppercase tracking-widest">Archived</span>
                     )}
                   </td>
                 </tr>

@@ -74,7 +74,7 @@ const LineGraph: React.FC<LineGraphProps> = ({
   const todayIndex = isCurrentMonth ? data.findIndex(d => d.day === today.getDate()) : -1;
 
   return (
-    <div  ref={containerRef} className="relative w-full overflow-x-auto overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] no-scrollbar">
+    <div ref={containerRef} className="linegraph-container relative w-full overflow-x-auto overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] no-scrollbar">
       
       {/* Legend - Only visible if NOT in dashboard */}
       {variant !== 'dashboard' && (
@@ -143,11 +143,10 @@ const LineGraph: React.FC<LineGraphProps> = ({
                       style={{ 
                         paintOrder: 'stroke', 
                         strokeLinejoin: 'round',
-                        // Logic: dashboard gets no border/stroke, stats gets 3px white border
                         stroke: variant === 'dashboard' ? 'none' : 'white',
                         strokeWidth: variant === 'dashboard' ? '0px' : '3px'
                       }}
-                      className="fill-emerald-600 dark:fill-emerald-500 text-[8px] font-bold tracking-tight"
+                      className="goal-label fill-emerald-600 dark:fill-emerald-500 text-[8px] font-bold tracking-tight"
                     >
                       {d.achievedGoals?.map(g => g.name).join(', ')}
                     </text>
