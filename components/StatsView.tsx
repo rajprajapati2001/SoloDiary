@@ -1,5 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { ActivityEntry, Goal } from '../types';
 import { Printer, FileChartColumn, FileText, TrendingUp, Award, ImageDown,  Banknote,FileCode2, BadgeCheck , EyeOff, NotebookText, ChartLine, Landmark, ExternalLink, CheckCircle2, Zap, Target, ClipboardList, Star, Clock, DatabaseBackup, Download, Upload, X, Copy, Share2, Eye, Layout, Mail, Globe } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
@@ -12,7 +11,7 @@ import AndroidIcon from "../assets/icons/android.png"
 import { Browser } from '@capacitor/browser';
 import { Share } from '@capacitor/share';
 import { Capacitor } from '@capacitor/core';
-import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { FileOpener } from '@capawesome-team/capacitor-file-opener';
 
 interface StatsViewProps {
@@ -20,9 +19,10 @@ interface StatsViewProps {
   entries: ActivityEntry[];
   goals: Goal[];
   onRefresh?: () => void;
+  onFullscreenChange?: (isFullscreen: boolean) => void;
 }
 
-const StatsView: React.FC<StatsViewProps> = ({ userName, entries, goals, onRefresh }) => {
+const StatsView: React.FC<StatsViewProps> = ({ userName, entries, goals, onRefresh, onFullscreenChange }) => {
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const d = new Date();
     return String(d.getMonth() + 1).padStart(2, '0');
@@ -148,7 +148,7 @@ const subject = encodeURIComponent(`SoloDiary Backup - ${userName}`);
         path: filename,
         data: exportData, // Your large JSON string
         directory: Directory.Cache, // Saves to temporary cache
-        encoding: 'utf8'
+        encoding: Encoding.UTF8
       });
 
       // 2. Share that specific file
@@ -409,11 +409,11 @@ const handleShare = async () => {
 // ============================================
 // ENHANCED DOWNLOAD FUNCTION
 // ============================================
-const blobToBase64 = (blob) => {
+const blobToBase64 = (blob: Blob): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = reject;
-    reader.onload = () => resolve(reader.result);
+    reader.onload = () => resolve(reader.result as string);
     reader.readAsDataURL(blob);
   });
 };
@@ -1300,7 +1300,6 @@ const htmlDownloadFallback = (content, fileName) => {
 
  const [isDesktop, setIsDesktop] = useState(false);
  const [isClosingDesktop, setIsClosingDesktop] = useState(false);
- const desktopViewRef = useRef<HTMLDivElement>(null);
  const reportWrapperRef = useRef<HTMLDivElement>(null);
  const printableReportRef = useRef<HTMLDivElement>(null);
 
@@ -1314,30 +1313,26 @@ const htmlDownloadFallback = (content, fileName) => {
 
  // Lock body scroll when fullscreen report is open
  useEffect(() => {
+   onFullscreenChange?.(isDesktop);
+
    if (isDesktop) {
      document.body.style.overflow = 'hidden';
+     document.body.dataset.disableSwipeNav = 'true';
    } else {
      document.body.style.overflow = '';
+     delete document.body.dataset.disableSwipeNav;
    }
-   return () => { document.body.style.overflow = ''; };
- }, [isDesktop]);
-
- // Move report DOM node into/out of portal
- useLayoutEffect(() => {
-   const report = printableReportRef.current;
-   const portal = desktopViewRef.current;
-   const wrapper = reportWrapperRef.current;
-   if (isDesktop && report && portal) {
-     portal.appendChild(report);
-   } else if (!isDesktop && report && wrapper && !wrapper.contains(report)) {
-     wrapper.appendChild(report);
-   }
- }, [isDesktop]);
+   return () => {
+     onFullscreenChange?.(false);
+     document.body.style.overflow = '';
+     delete document.body.dataset.disableSwipeNav;
+   };
+ }, [isDesktop, onFullscreenChange]);
 
  // Pinch-to-zoom for Android APK desktop view
  useEffect(() => {
    if (!isDesktop) return;
-   const container = desktopViewRef.current;
+   const container = reportWrapperRef.current;
    if (!container) return;
    const report = printableReportRef.current;
    if (!report) return;
@@ -1384,6 +1379,8 @@ const [showLabels, setShowLabels] = useState(true);
 
   return (
     <div className="space-y-4 animate-in fade-in duration-500 pb-20">
+{!isDesktop && (
+<>
 {/* SoloDiary Website Link Section */}
 {/* SoloDiary Branding Section */}
 <div className="max-w-[850px] mx-auto bg-white dark:bg-slate-900 p-2 md:p-3 rounded-2xl border border-gray-200/60 dark:border-slate-700/50 shadow-xl shadow-rose-500/5 no-print">
@@ -1648,7 +1645,15 @@ const [showLabels, setShowLabels] = useState(true);
       </button>
       </div>
 
-<div ref={reportWrapperRef} className="max-w-[850px] mx-auto">
+    </>
+    )}
+
+<div
+  ref={reportWrapperRef}
+  className={isDesktop
+    ? `desktop-view-active${isClosingDesktop ? ' desktop-view-closing' : ''}`
+    : 'max-w-[850px] mx-auto'}
+>
       {/* PRINTABLE TRANSCRIPT AREA */}
       <div 
   ref={printableReportRef}
@@ -2194,17 +2199,13 @@ const [showLabels, setShowLabels] = useState(true);
       </div>
 </div>
 
-{isDesktop && createPortal(
-<div ref={desktopViewRef} className={`desktop-view-active${isClosingDesktop ? ' desktop-view-closing' : ''}`}>
-      {/* Close Button */}
-        <button 
-          onClick={closeDesktop}
-          className="close-desktop-btn"
-        >
-          <X size={20} />
-        </button>
-</div>,
-document.body
+{isDesktop && (
+  <button
+    onClick={closeDesktop}
+    className="close-desktop-btn"
+  >
+    <X size={20} />
+  </button>
 )}
 
       <style>{`

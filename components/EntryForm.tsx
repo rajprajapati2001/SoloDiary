@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { ActivityEntry, ActivityTemplate, Goal } from '../types';
 import { X, NotebookTabs, Save, Banknote, Clock, Zap, Target, FileText, Calendar as CalendarIcon, Link as LinkIcon, ChevronDown, Code, Star, ArrowDownLeft, ArrowUpRight, NotebookPen, Activity,KeySquare } from 'lucide-react';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 
 interface EntryFormProps {
   onClose: () => void;
@@ -16,6 +17,7 @@ interface EntryFormProps {
 }
 
 const EntryForm: React.FC<EntryFormProps> = ({ onClose, onSave, initialData, templates, goals, disableDates, title, icon }) => {
+  const shouldReduceMotion = useReducedMotion();
   const [isVisible, setIsVisible] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -40,6 +42,7 @@ const EntryForm: React.FC<EntryFormProps> = ({ onClose, onSave, initialData, tem
   
   const nameSuggestionRef = useRef<HTMLDivElement>(null);
   const codeSuggestionRef = useRef<HTMLDivElement>(null);
+  const descriptionRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => setIsVisible(true));
@@ -73,6 +76,12 @@ const EntryForm: React.FC<EntryFormProps> = ({ onClose, onSave, initialData, tem
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (!isDescriptionOpen || !descriptionRef.current) return;
+    descriptionRef.current.style.height = 'auto';
+    descriptionRef.current.style.height = `${descriptionRef.current.scrollHeight}px`;
+  }, [description, isDescriptionOpen]);
 
   const nameSuggestions = React.useMemo(() => {
     if (!name.trim()) return [];
@@ -190,8 +199,8 @@ const [selectedGoalId, setSelectedGoalId] = useState("");
 
 
   const modalContent = (
-<div className={`text-black dark:text-white fixed inset-0 z-[100] flex items-center justify-center md:p-4 p-2 bg-black/80 backdrop-blur-xl transition-opacity duration-150 ${isVisible ? 'opacity-100' : 'opacity-0'}`}>
-  <div className={`bg-white dark:bg-slate-900 w-full max-w-lg md:rounded-[2.5rem] rounded-[1.5rem] shadow-2xl overflow-hidden max-h-[90vh] flex flex-col border border-white/10 transform transition-all duration-200 ease-out ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'} ${isClosing ? 'duration-150 ease-in' : ''}`}>
+<div className={`text-black dark:text-white fixed inset-0 z-[100] flex items-center justify-center md:p-4 p-2 bg-black/80 backdrop-blur-xl transition-opacity ${isClosing ? 'duration-150 ease-in' : 'duration-250 ease-out'} ${isVisible ? 'opacity-100' : 'opacity-0'}`}>
+  <div className={`bg-white dark:bg-slate-900 w-full max-w-lg md:rounded-[2.5rem] rounded-[1.5rem] shadow-2xl overflow-hidden max-h-[90vh] flex flex-col border border-white/10 transform-gpu will-change-transform transition-all ${isClosing ? 'duration-150 ease-in' : 'duration-300 ease-out'} ${isVisible ? 'translate-y-0 opacity-100 scale-100' : 'translate-y-6 opacity-0 scale-[0.985]'}`}>
         <div className="px-6 py-4 border-b border-gray-100 dark:border-white/10 flex justify-between items-center bg-white dark:bg-slate-900 z-10">
           <div className="flex items-center gap-3">
             {icon || (title?.toLowerCase().includes('key') || title?.toLowerCase().includes('auto') ? (
@@ -255,8 +264,16 @@ const [selectedGoalId, setSelectedGoalId] = useState("");
           </div>
 
 {/* Row 3: From Date | From Time (Conditional) */}
+<AnimatePresence initial={false}>
 {isLongEvent && (
-  <div className="grid grid-cols-2 gap-4 animate-in slide-in-from-top-2 duration-200">
+  <motion.div
+    key="long-event"
+    initial={shouldReduceMotion ? false : { opacity: 0, height: 0, y: -6 }}
+    animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, height: 'auto', y: 0 }}
+    exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, height: 0, y: -4 }}
+    transition={{ duration: shouldReduceMotion ? 0.12 : 0.22, ease: 'easeOut' }}
+    className="grid grid-cols-2 gap-4 overflow-hidden"
+  >
     {/* FROM DATE */}
 {!disableDates && (
 <div className="space-y-1">
@@ -303,8 +320,9 @@ const [selectedGoalId, setSelectedGoalId] = useState("");
         <Clock size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500 pointer-events-none" />
       </div>
     </div>
-  </div>
+  </motion.div>
 )}
+ </AnimatePresence>
 
 {/* Row 2: To Date | To Time */}
 <div className="grid grid-cols-2 gap-4">
@@ -478,8 +496,16 @@ const [selectedGoalId, setSelectedGoalId] = useState("");
           </div>
 
           {/* Row 7: Debit | Credit (Conditional) */}
+          <AnimatePresence initial={false}>
           {isCashTransaction && (
-            <div className="grid grid-cols-2 gap-4 animate-in slide-in-from-top-2 duration-200">
+            <motion.div
+              key="cash-fields"
+              initial={shouldReduceMotion ? false : { opacity: 0, height: 0, y: -6 }}
+              animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, height: 'auto', y: 0 }}
+              exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, height: 0, y: -4 }}
+              transition={{ duration: shouldReduceMotion ? 0.12 : 0.22, ease: 'easeOut' }}
+              className="grid grid-cols-2 gap-4 overflow-hidden"
+            >
               <div className="space-y-1">
                 <label className="inline-flex gap-1 text-[10px] font-black text-red-500 uppercase"><ArrowDownLeft size={12} /> Debit ( - )</label>
                 <input type="number" value={debit} onChange={e => setDebit(Number(e.target.value))} className="w-full px-4 py-2.5 rounded-xl border border-red-500/30 text-red-600 font-bold dark:bg-red-500/10" />
@@ -488,20 +514,30 @@ const [selectedGoalId, setSelectedGoalId] = useState("");
                 <label className="inline-flex gap-1 text-[10px] font-black text-emerald-500 uppercase"><ArrowUpRight size={12} /> Credit ( + )</label>
                 <input type="number" value={credit} onChange={e => setCredit(Number(e.target.value))} className="w-full px-4 py-2.5 rounded-xl border border-emerald-500/30 text-emerald-600 font-bold dark:bg-emerald-500/10" />
               </div>
-            </div>
+            </motion.div>
           )}
+          </AnimatePresence>
 
           {/* Row 8 & 9: Description & Attachment (Conditional) */}
+          <AnimatePresence initial={false}>
           {isDescriptionOpen && (
-            <div className="space-y-4 animate-in slide-in-from-top-2 duration-200">
+            <motion.div
+              key="description-fields"
+              initial={shouldReduceMotion ? false : { opacity: 0, height: 0, y: -6 }}
+              animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, height: 'auto', y: 0 }}
+              exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, height: 0, y: -4 }}
+              transition={{ duration: shouldReduceMotion ? 0.12 : 0.22, ease: 'easeOut' }}
+              className="space-y-4 overflow-hidden"
+            >
               <div className="space-y-1">
                 <label className="inline-flex gap-1 text-[10px] font-black uppercase opacity-60 text-black dark:text-white"><NotebookPen size={12}/>Activity Notes...</label>
                 <textarea 
+                  ref={descriptionRef}
                   value={description} 
                   onChange={e => setDescription(e.target.value)} 
                   placeholder="Tell your story..." 
                   rows={3} 
-                  className="w-full px-4 py-3 rounded-2xl border border-gray-200 dark:bg-black/20 dark:border-white/10 text-black dark:text-white text-sm" 
+                  className="w-full px-4 py-3 rounded-2xl border border-gray-200 dark:bg-black/20 dark:border-white/10 text-black dark:text-white text-sm resize-none overflow-hidden" 
                 />
               </div>
               
@@ -517,8 +553,9 @@ const [selectedGoalId, setSelectedGoalId] = useState("");
                   className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:bg-black/20 dark:border-white/10 text-black dark:text-white text-sm" 
                 />
               </div>
-            </div>
+            </motion.div>
           )}
+          </AnimatePresence>
 
           {/* Footer Actions - Non-floating */}
           <div className="flex gap-3 pt-6">

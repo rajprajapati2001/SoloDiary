@@ -395,12 +395,17 @@ const [showLabels, setShowLabels] = React.useState(true);
     </button>
   </div>
   
-  <LineGraph 
-  data={graphData} 
-  monthName={monthName} 
-  showGoalNames={showLabels} 
-  variant="dashboard"
-/>
+  <div
+    onTouchStartCapture={(e) => e.stopPropagation()}
+    onTouchEndCapture={(e) => e.stopPropagation()}
+  >
+    <LineGraph 
+      data={graphData} 
+      monthName={monthName} 
+      showGoalNames={showLabels} 
+      variant="dashboard"
+    />
+  </div>
 </div>
           
           <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 md:p-6 p-0">
@@ -440,7 +445,7 @@ const [showLabels, setShowLabels] = React.useState(true);
               {selectedDateEntries.length === 0 ? (
                 <div className="text-center py-10 text-gray-400 italic">No activities recorded.</div>
               ) : (
-                <AnimatePresence initial={false} mode="popLayout">
+                <AnimatePresence initial={false} mode="sync">
                 {selectedDateEntries.map(entry => {
                   const isGoal = goals.some(g => g.code === entry.code && g.achievedAt === entry.toDate);
                   const isCash = !!(entry.debit || entry.credit);
@@ -450,9 +455,8 @@ const [showLabels, setShowLabels] = React.useState(true);
                       initial={shouldReduceMotion ? false : { opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -6 }}
-                      transition={shouldReduceMotion ? { duration: 0.15 } : { type: 'spring', stiffness: 460, damping: 34, mass: 0.65 }}
-                      layout="position"
-                      style={{ willChange: 'transform, opacity' }}
+                      transition={shouldReduceMotion ? { duration: 0.15 } : { type: 'spring', stiffness: 320, damping: 30, mass: 0.7 }}
+                      layout
                       className="group md:p-4 p-3 rounded-2xl border border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50 hover:bg-white dark:hover:bg-slate-800 transition-colors shadow-sm"
                     >
   {/* TOP SECTION */}

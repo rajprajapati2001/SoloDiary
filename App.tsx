@@ -119,6 +119,7 @@ const App: React.FC = () => {
   });
   const [fabReady, setFabReady] = useState(false);
   const [slideDir, setSlideDir] = useState<'left' | 'right' | 'initial'>('initial');
+  const [isStatsFullscreen, setIsStatsFullscreen] = useState(false);
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
 
@@ -227,10 +228,12 @@ const App: React.FC = () => {
   // Swipe navigation
   useEffect(() => {
     const handleTouchStart = (e: TouchEvent) => {
+      if (document.body.dataset.disableSwipeNav === 'true') return;
       touchStartX.current = e.touches[0].clientX;
       touchStartY.current = e.touches[0].clientY;
     };
     const handleTouchEnd = (e: TouchEvent) => {
+      if (document.body.dataset.disableSwipeNav === 'true') return;
       const dx = e.changedTouches[0].clientX - touchStartX.current;
       const dy = e.changedTouches[0].clientY - touchStartY.current;
       if (Math.abs(dx) < 60 || Math.abs(dy) > Math.abs(dx) * 0.7) return;
@@ -391,6 +394,7 @@ const App: React.FC = () => {
         </div>
       )}
 
+      {!isStatsFullscreen && (
       <nav className="sticky top-0 z-40 bg-white-900/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-gray-100 dark:border-slate-800 shadow-sm no-print">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <div onClick={() => {
@@ -426,8 +430,9 @@ const App: React.FC = () => {
           </button>
         </div>
       </nav>
+      )}
 
-      <main className="max-w-7xl mx-auto md:px-4 px-2.5 md:py-4 py-2 flex-1 print:p-0 print:m-0 print:max-w-none w-full overflow-x-hidden">
+      <main className={`${isStatsFullscreen ? 'w-full max-w-none p-0 m-0' : 'max-w-7xl mx-auto md:px-4 px-2.5 md:py-4 py-2'} flex-1 print:p-0 print:m-0 print:max-w-none w-full overflow-x-hidden`}>
         <Suspense fallback={<PageLoader />}>
         <div key={currentPage} style={{ animation: `${slideDir === 'initial' ? 'slide-in-up' : slideDir === 'left' ? 'slide-in-left' : 'slide-in-right'} 0.3s ease-out both` }}>
         {currentPage === 'home' && (
@@ -477,13 +482,19 @@ const App: React.FC = () => {
           />
         )}
         {currentPage === 'chart' && (
-          <StatsView userName={userName || 'User'} entries={entries} goals={goals} onRefresh={fetchData} />
+          <StatsView
+            userName={userName || 'User'}
+            entries={entries}
+            goals={goals}
+            onRefresh={fetchData}
+            onFullscreenChange={setIsStatsFullscreen}
+          />
         )}
         </div>
         </Suspense>
       </main>
 
-      <Footer isFull={currentPage === 'home' || currentPage === 'chart'} />
+      {!isStatsFullscreen && <Footer isFull={currentPage === 'home' || currentPage === 'chart'} />}
 
       <button
   onClick={() => { setEditingEntry(null); setIsFormOpen(true); }}
