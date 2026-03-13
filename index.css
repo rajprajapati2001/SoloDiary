@@ -24,31 +24,71 @@ body {
   letter-spacing: 0.1em;
 }
 
-/* ===== 24-Hour Sky Gradients ===== */
-.sky-00 { background: linear-gradient(to bottom, #020111, #1b1f3b) !important; color: white !important; }
-.sky-01 { background: linear-gradient(to bottom, #03031a, #242a52) !important; color: white !important; }
-.sky-02 { background: linear-gradient(to bottom, #05051f, #2f3564) !important; color: white !important; }
-.sky-03 { background: linear-gradient(to bottom, #0a0d2e, #3f4b78) !important; color: white !important; }
-.sky-04 { background: linear-gradient(to bottom, #1b1e3a, #5f7fa6) !important; color: white !important; }
-.sky-05 { background: linear-gradient(to bottom, #2c3e6e, #9db7d5) !important; color: white !important; }
-.sky-06 { background: linear-gradient(to bottom, #ffb56b, #6a82fb) !important; color: #1e293b !important; }
-.sky-07 { background: linear-gradient(to bottom, #ffcc88, #b7dcff) !important; color: #1e293b !important; }
-.sky-08 { background: linear-gradient(to bottom, #87ceeb, #e6f7ff) !important; color: #1e293b !important; }
-.sky-09 { background: linear-gradient(to bottom, #6ec6ff, #f0fbff) !important; color: #1e293b !important; }
-.sky-10 { background: linear-gradient(to bottom, #59b7ff, #e0f4ff) !important; color: #1e293b !important; }
-.sky-11 { background: linear-gradient(to bottom, #4aaeff, #d9f0ff) !important; color: #1e293b !important; }
-.sky-12 { background: linear-gradient(to bottom, #3fa9ff, #bde4ff) !important; color: #1e293b !important; }
-.sky-13 { background: linear-gradient(to bottom, #48b0ff, #d4f1ff) !important; color: #1e293b !important; }
-.sky-14 { background: linear-gradient(to bottom, #55b8ff, #e2f6ff) !important; color: #1e293b !important; }
-.sky-15 { background: linear-gradient(to bottom, #66c2ff, #f0fbff) !important; color: #1e293b !important; }
-.sky-16 { background: linear-gradient(to bottom, #7acbff, #ffffff) !important; color: #1e293b !important; }
-.sky-17 { background: linear-gradient(to bottom, #ffb46b, #ffd699) !important; color: #1e293b !important; }
-.sky-18 { background: linear-gradient(to bottom, #ff9966, #ffcc70) !important; color: white !important; }
-.sky-19 { background: linear-gradient(to bottom, #ff7043, #3a3a6a) !important; color: white !important; }
-.sky-20 { background: linear-gradient(to bottom, #ff512f, #1b2735) !important; color: white !important; }
-.sky-21 { background: linear-gradient(to bottom, #2c3e50, #0f1724) !important; color: white !important; }
-.sky-22 { background: linear-gradient(to bottom, #16222a, #0b1320) !important; color: white !important; }
-.sky-23 { background: linear-gradient(to bottom, #0f2027, #2c5364) !important; color: white !important; }
+/* ===== Dynamic Sky Gradients (30-minute steps) ===== */
+:where([class^='sky-'], [class*=' sky-']) {
+  background: linear-gradient(to bottom, var(--sky-top), var(--sky-bottom)) !important;
+  color: var(--sky-text, #0f172a) !important;
+  --sky-text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2), 0 0 1px rgba(255, 255, 255, 0.25);
+  transition: background 0.9s linear, color 0.25s ease;
+}
+
+/* Keep nested text readable on all sky shades */
+:where([class^='sky-'], [class*=' sky-']) :is(h1, h2, h3, h4, h5, h6, p, span, strong, b, small, label) {
+  color: inherit !important;
+  text-shadow: var(--sky-text-shadow);
+}
+
+/* Hourly anchors (kept for backward compatibility) */
+.sky-00, .sky-00-00 { --sky-top: #020111; --sky-bottom: #1b1f3b; --sky-text: white; }
+.sky-01, .sky-01-00 { --sky-top: #03031a; --sky-bottom: #242a52; --sky-text: white; }
+.sky-02, .sky-02-00 { --sky-top: #05051f; --sky-bottom: #2f3564; --sky-text: white; }
+.sky-03, .sky-03-00 { --sky-top: #0a0d2e; --sky-bottom: #3f4b78; --sky-text: white; }
+.sky-04, .sky-04-00 { --sky-top: #1b1e3a; --sky-bottom: #5f7fa6; --sky-text: white; }
+.sky-05, .sky-05-00 { --sky-top: #2c3e6e; --sky-bottom: #9db7d5; --sky-text: white; }
+.sky-06, .sky-06-00 { --sky-top: #ffb56b; --sky-bottom: #6a82fb; --sky-text: #1e293b; }
+.sky-07, .sky-07-00 { --sky-top: #ffcc88; --sky-bottom: #b7dcff; --sky-text: #1e293b; }
+.sky-08, .sky-08-00 { --sky-top: #87ceeb; --sky-bottom: #e6f7ff; --sky-text: #1e293b; }
+.sky-09, .sky-09-00 { --sky-top: #6ec6ff; --sky-bottom: #f0fbff; --sky-text: #1e293b; }
+.sky-10, .sky-10-00 { --sky-top: #59b7ff; --sky-bottom: #e0f4ff; --sky-text: #1e293b; }
+.sky-11, .sky-11-00 { --sky-top: #4aaeff; --sky-bottom: #d9f0ff; --sky-text: #1e293b; }
+.sky-12, .sky-12-00 { --sky-top: #3fa9ff; --sky-bottom: #bde4ff; --sky-text: #1e293b; }
+.sky-13, .sky-13-00 { --sky-top: #48b0ff; --sky-bottom: #d4f1ff; --sky-text: #1e293b; }
+.sky-14, .sky-14-00 { --sky-top: #55b8ff; --sky-bottom: #e2f6ff; --sky-text: #1e293b; }
+.sky-15, .sky-15-00 { --sky-top: #66c2ff; --sky-bottom: #f0fbff; --sky-text: #1e293b; }
+.sky-16, .sky-16-00 { --sky-top: #7acbff; --sky-bottom: #ffffff; --sky-text: #1e293b; }
+.sky-17, .sky-17-00 { --sky-top: #ffb46b; --sky-bottom: #ffd699; --sky-text: #1e293b; }
+.sky-18, .sky-18-00 { --sky-top: #ff9966; --sky-bottom: #ffcc70; --sky-text: white; }
+.sky-19, .sky-19-00 { --sky-top: #ff7043; --sky-bottom: #3a3a6a; --sky-text: white; }
+.sky-20, .sky-20-00 { --sky-top: #ff512f; --sky-bottom: #1b2735; --sky-text: white; }
+.sky-21, .sky-21-00 { --sky-top: #2c3e50; --sky-bottom: #0f1724; --sky-text: white; }
+.sky-22, .sky-22-00 { --sky-top: #16222a; --sky-bottom: #0b1320; --sky-text: white; }
+.sky-23, .sky-23-00 { --sky-top: #0f2027; --sky-bottom: #2c5364; --sky-text: white; }
+
+/* Half-hour blends between consecutive hours */
+.sky-00-30 { --sky-top: color-mix(in srgb, #020111 50%, #03031a 50%); --sky-bottom: color-mix(in srgb, #1b1f3b 50%, #242a52 50%); --sky-text: white; }
+.sky-01-30 { --sky-top: color-mix(in srgb, #03031a 50%, #05051f 50%); --sky-bottom: color-mix(in srgb, #242a52 50%, #2f3564 50%); --sky-text: white; }
+.sky-02-30 { --sky-top: color-mix(in srgb, #05051f 50%, #0a0d2e 50%); --sky-bottom: color-mix(in srgb, #2f3564 50%, #3f4b78 50%); --sky-text: white; }
+.sky-03-30 { --sky-top: color-mix(in srgb, #0a0d2e 50%, #1b1e3a 50%); --sky-bottom: color-mix(in srgb, #3f4b78 50%, #5f7fa6 50%); --sky-text: white; }
+.sky-04-30 { --sky-top: color-mix(in srgb, #1b1e3a 50%, #2c3e6e 50%); --sky-bottom: color-mix(in srgb, #5f7fa6 50%, #9db7d5 50%); --sky-text: white; }
+.sky-05-30 { --sky-top: color-mix(in srgb, #2c3e6e 50%, #ffb56b 50%); --sky-bottom: color-mix(in srgb, #9db7d5 50%, #6a82fb 50%); --sky-text: #1e293b; }
+.sky-06-30 { --sky-top: color-mix(in srgb, #ffb56b 50%, #ffcc88 50%); --sky-bottom: color-mix(in srgb, #6a82fb 50%, #b7dcff 50%); --sky-text: #1e293b; }
+.sky-07-30 { --sky-top: color-mix(in srgb, #ffcc88 50%, #87ceeb 50%); --sky-bottom: color-mix(in srgb, #b7dcff 50%, #e6f7ff 50%); --sky-text: #1e293b; }
+.sky-08-30 { --sky-top: color-mix(in srgb, #87ceeb 50%, #6ec6ff 50%); --sky-bottom: color-mix(in srgb, #e6f7ff 50%, #f0fbff 50%); --sky-text: #1e293b; }
+.sky-09-30 { --sky-top: color-mix(in srgb, #6ec6ff 50%, #59b7ff 50%); --sky-bottom: color-mix(in srgb, #f0fbff 50%, #e0f4ff 50%); --sky-text: #1e293b; }
+.sky-10-30 { --sky-top: color-mix(in srgb, #59b7ff 50%, #4aaeff 50%); --sky-bottom: color-mix(in srgb, #e0f4ff 50%, #d9f0ff 50%); --sky-text: #1e293b; }
+.sky-11-30 { --sky-top: color-mix(in srgb, #4aaeff 50%, #3fa9ff 50%); --sky-bottom: color-mix(in srgb, #d9f0ff 50%, #bde4ff 50%); --sky-text: #1e293b; }
+.sky-12-30 { --sky-top: color-mix(in srgb, #3fa9ff 50%, #48b0ff 50%); --sky-bottom: color-mix(in srgb, #bde4ff 50%, #d4f1ff 50%); --sky-text: #1e293b; }
+.sky-13-30 { --sky-top: color-mix(in srgb, #48b0ff 50%, #55b8ff 50%); --sky-bottom: color-mix(in srgb, #d4f1ff 50%, #e2f6ff 50%); --sky-text: #1e293b; }
+.sky-14-30 { --sky-top: color-mix(in srgb, #55b8ff 50%, #66c2ff 50%); --sky-bottom: color-mix(in srgb, #e2f6ff 50%, #f0fbff 50%); --sky-text: #1e293b; }
+.sky-15-30 { --sky-top: color-mix(in srgb, #66c2ff 50%, #7acbff 50%); --sky-bottom: color-mix(in srgb, #f0fbff 50%, #ffffff 50%); --sky-text: #1e293b; }
+.sky-16-30 { --sky-top: color-mix(in srgb, #7acbff 50%, #ffb46b 50%); --sky-bottom: color-mix(in srgb, #ffffff 50%, #ffd699 50%); --sky-text: #1e293b; }
+.sky-17-30 { --sky-top: color-mix(in srgb, #ffb46b 50%, #ff9966 50%); --sky-bottom: color-mix(in srgb, #ffd699 50%, #ffcc70 50%); --sky-text: white; }
+.sky-18-30 { --sky-top: color-mix(in srgb, #ff9966 50%, #ff7043 50%); --sky-bottom: color-mix(in srgb, #ffcc70 50%, #3a3a6a 50%); --sky-text: white; }
+.sky-19-30 { --sky-top: color-mix(in srgb, #ff7043 50%, #ff512f 50%); --sky-bottom: color-mix(in srgb, #3a3a6a 50%, #1b2735 50%); --sky-text: white; }
+.sky-20-30 { --sky-top: color-mix(in srgb, #ff512f 50%, #2c3e50 50%); --sky-bottom: color-mix(in srgb, #1b2735 50%, #0f1724 50%); --sky-text: white; }
+.sky-21-30 { --sky-top: color-mix(in srgb, #2c3e50 50%, #16222a 50%); --sky-bottom: color-mix(in srgb, #0f1724 50%, #0b1320 50%); --sky-text: white; }
+.sky-22-30 { --sky-top: color-mix(in srgb, #16222a 50%, #0f2027 50%); --sky-bottom: color-mix(in srgb, #0b1320 50%, #2c5364 50%); --sky-text: white; }
+.sky-23-30 { --sky-top: color-mix(in srgb, #0f2027 50%, #020111 50%); --sky-bottom: color-mix(in srgb, #2c5364 50%, #1b1f3b 50%); --sky-text: white; }
 
 #root {
   min-height: 100vh;

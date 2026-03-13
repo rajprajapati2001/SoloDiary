@@ -3,7 +3,7 @@ import CalendarView from './CalendarView';
 import LineGraph from './LineGraph';
 import Footer from './Footer';
 import { ActivityEntry, Goal } from '../types';
-import { TrendingUp, Award, Clock, Edit2, Trash2, Star, Banknote, Eye, EyeOff, Target, Calendar, Paperclip,ChartLine, ScrollText, Check, X as CloseIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { TrendingUp, Award, Clock, Edit2, Trash2, Star, Banknote, Eye, EyeOff, Target, Calendar, Paperclip, ChartLine, ScrollText, Check, X as CloseIcon, ChevronLeft, ChevronRight, Sun, MoonStar, CloudSun, CloudMoon, Cloud, CloudFog, CloudDrizzle, CloudRain, CloudSnow, CloudLightning, CloudHail, Wind, type LucideIcon } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 
 const LiveClock: React.FC = React.memo(() => {
@@ -91,10 +91,28 @@ interface DashboardProps {
   currentTimeClass: string;
 }
 
+const weatherIconFromCode = (code: number | null, isDay: boolean): LucideIcon => {
+  if (code === 0) return isDay ? Sun : MoonStar;
+  if (code === 1) return isDay ? CloudSun : CloudMoon;
+  if (code === 2) return isDay ? CloudSun : CloudMoon;
+  if (code === 3) return isDay ? Cloud : CloudMoon;
+  if ([45, 48].includes(code)) return Wind;
+  if ([51, 53, 55, 56, 57].includes(code)) return CloudDrizzle;
+  if ([61, 63, 65, 80, 81, 82].includes(code)) return CloudRain;
+  if ([66, 67].includes(code)) return CloudHail;
+  if ([71, 73, 75, 77, 85, 86].includes(code)) return CloudSnow;
+  if (code === 95) return CloudLightning;
+  if ([96, 99].includes(code)) return CloudHail;
+  return Cloud;
+};
+
 const Dashboard: React.FC<DashboardProps> = ({ userName, entries, selectedDate, onSelectDate, onEdit, onDelete, onUpdateUserName, goals = [], currentTimeClass }) => {
   const [isEditingName, setIsEditingName] = useState(false);
   const [editNameValue, setEditNameValue] = useState(userName);
+  const [weatherCode, setWeatherCode] = useState<number | null>(null);
+  const [isDayWeather, setIsDayWeather] = useState(true);
   const nameInputRef = useRef<HTMLInputElement>(null);
+  const coordsRef = useRef<{ latitude: number; longitude: number } | null>(null);
 
     useEffect(() => {
     if (isEditingName && nameInputRef.current) {
@@ -185,11 +203,86 @@ const [showLabels, setShowLabels] = React.useState(true);
   const formattedTrackingDate = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
   const formattedActivitiesDate = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' });
   const formattedFullActivitiesDate = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+  const WeatherIcon = weatherIconFromCode(weatherCode, isDayWeather);
+  const fallbackHour = new Date().getHours();
+  const fallbackMinuteBucket = Math.floor(new Date().getMinutes() / 15) % 3;
+  const fallbackIsDay = fallbackHour >= 6 && fallbackHour < 18;
+  const fallbackIcon: LucideIcon = fallbackIsDay
+    ? (fallbackMinuteBucket === 0 ? Sun : fallbackMinuteBucket === 1 ? CloudSun : Cloud)
+    : (fallbackMinuteBucket === 0 ? MoonStar : fallbackMinuteBucket === 1 ? CloudMoon : Cloud);
+  const DisplayWeatherIcon = weatherCode === null ? fallbackIcon : WeatherIcon;
+
+  useEffect(() => {
+    let disposed = false;
+
+    const fetchWeather = async (latitude: number, longitude: number) => {
+      try {
+        const weatherRes = await fetch(
+          `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=weather_code,is_day&timezone=auto`
+        );
+        if (!weatherRes.ok) throw new Error('Weather request failed');
+        const weatherData = await weatherRes.json();
+        const current = weatherData?.current;
+        if (disposed || !current) return;
+
+        setWeatherCode(typeof current.weather_code === 'number' ? current.weather_code : null);
+        setIsDayWeather(current.is_day === 1);
+      } catch {
+        if (!disposed) setWeatherCode(null);
+      }
+    };
+
+    const fetchCoordsByIP = async () => {
+      try {
+        const ipRes = await fetch('https://ipapi.co/json/');
+        if (!ipRes.ok) throw new Error('IP lookup failed');
+        const ipData = await ipRes.json();
+        const latitude = Number(ipData?.latitude);
+        const longitude = Number(ipData?.longitude);
+        if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) throw new Error('Invalid coordinates');
+        coordsRef.current = { latitude, longitude };
+        await fetchWeather(latitude, longitude);
+      } catch {
+        if (!disposed) setWeatherCode(null);
+      }
+    };
+
+    const refresh = () => {
+      if (coordsRef.current) {
+        fetchWeather(coordsRef.current.latitude, coordsRef.current.longitude);
+        return;
+      }
+      fetchCoordsByIP();
+    };
+
+    refresh();
+    const timer = setInterval(refresh, 30 * 60 * 1000);
+    return () => {
+      disposed = true;
+      clearInterval(timer);
+    };
+  }, []);
 
   return (
     <div className="md:space-y-6 space-y-2.5">
       {/* Box with Gradient Background and Right-Aligned Time Card */}
-      <div className={`flex flex-col md:flex-row items-center justify-between md:gap-6 gap-3 mb-4 bg-white dark:bg-slate-800 p-6 rounded-3xl border-0 border-gray-100 dark:border-slate-700 shadow-sm ${currentTimeClass}`}>
+      <div className={`relative flex flex-col md:flex-row items-center justify-between md:gap-6 gap-3 mb-4 bg-white dark:bg-slate-800 p-6 rounded-3xl border-0 border-gray-100 dark:border-slate-700 shadow-sm ${currentTimeClass}`}>
+        <div className="md:hidden absolute top-2.5 right-2.5 z-10">
+          <AnimatePresence mode="wait" initial={false}>
+            {!isEditingName && (
+              <motion.div
+                key="weather-viewing"
+                initial={{ y: -14, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: -14, opacity: 0 }}
+                transition={{ duration: 0.22, ease: 'easeOut' }}
+                className="w-8 h-8 rounded-xl backdrop-blur-xl border border-white/45 dark:border-white/20 shadow-lg shadow-black/10 flex items-center justify-center"
+              >
+                <DisplayWeatherIcon size={16} className="opacity-95" />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
         <div className="text-center md:text-left  flex-1">
           <AnimatePresence mode="wait" initial={false}>
             {isEditingName ? (
@@ -257,19 +350,23 @@ const [showLabels, setShowLabels] = React.useState(true);
         </div>
 
         {/* Right — Time Card (Hidden on Mobile) */}
-        <div className="
-          hidden md:block
-          p-2 pr-5 pl-5 rounded-2xl 
-          min-w-[230px]
-          text-center
-          bg-white/20 dark:bg-black/20
-          backdrop-blur-lg
-          border border-white/30 dark:border-white/10
-          shadow-xl
-          transition-all duration-700
-          hover:scale-105
-        ">
-          <LiveClock />
+        <div className="hidden md:flex items-center gap-3">
+          <div className="w-12 h-12 rounded-2xl backdrop-blur-2xl border border-white/50 dark:border-white/20 shadow-xl shadow-black/15 flex items-center justify-center">
+            <DisplayWeatherIcon size={22} className="opacity-95" />
+          </div>
+          <div className="
+            p-2 pr-5 pl-5 rounded-2xl 
+            min-w-[230px]
+            text-center
+            bg-white/20 dark:bg-black/20
+            backdrop-blur-lg
+            border border-white/30 dark:border-white/10
+            shadow-xl
+            transition-all duration-700
+            hover:scale-105
+          ">
+            <LiveClock />
+          </div>
         </div>
       </div>
 

@@ -1,11 +1,12 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { ActivityEntry, ActivityTemplate, Goal } from '../types';
 import { X, NotebookTabs, Save, Banknote, Clock, Zap, Target, FileText, Calendar as CalendarIcon, Link as LinkIcon, ChevronDown, Code, Star, ArrowDownLeft, ArrowUpRight, NotebookPen, Activity,KeySquare } from 'lucide-react';
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
+import { useReducedMotion } from 'motion/react';
 
 interface EntryFormProps {
+  isOpen: boolean;
   onClose: () => void;
   onSave: (entry: ActivityEntry) => void | Promise<void>;
   initialData?: ActivityEntry | null;
@@ -16,8 +17,48 @@ interface EntryFormProps {
   icon?: React.ReactNode;
 }
 
-const EntryForm: React.FC<EntryFormProps> = ({ onClose, onSave, initialData, templates, goals, disableDates, title, icon }) => {
+type SuggestionItem = {
+  type: 'activity' | 'goal';
+  code: string;
+  name: string;
+  points: number;
+};
+
+const SuggestionList = React.memo(({ list, onSelect }: { list: SuggestionItem[]; onSelect: (s: SuggestionItem) => void }) => (
+  <div className="absolute z-[100] left-0 right-0 top-full mt-1 bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-xl shadow-2xl max-h-48 overflow-y-auto">
+    {list.map((s, idx) => (
+      <button
+        key={`${s.type}-${s.code}-${idx}`}
+        type="button"
+        onClick={() => onSelect(s)}
+        className="w-full px-4 py-3 text-left hover:bg-blue-50 dark:hover:bg-slate-700/50 flex items-center justify-between group transition-colors border-b border-gray-50 dark:border-slate-700/30 last:border-0"
+      >
+        <div className="flex items-center gap-2">
+          {s.type === 'activity' ? <Zap size={14} className="text-blue-500" /> : <Target size={14} className="text-emerald-500" />}
+          <div className="flex flex-col">
+            <span className="text-xs font-bold text-black dark:text-white leading-tight">{s.name}</span>
+            <span className="text-[9px] font-black uppercase opacity-40 text-black dark:text-white tracking-wider">Ref: {s.code}</span>
+          </div>
+        </div>
+        <span className="text-[10px] font-black text-blue-600 dark:text-blue-400">+{s.points}p</span>
+      </button>
+    ))}
+  </div>
+));
+
+const getNowDefaults = () => {
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const currentTime = now.toTimeString().slice(0, 5);
+  return { today, currentTime };
+};
+
+const EntryForm: React.FC<EntryFormProps> = ({ isOpen, onClose, onSave, initialData, templates, goals, disableDates, title, icon }) => {
   const shouldReduceMotion = useReducedMotion();
+  const nowDefaults = useMemo(() => getNowDefaults(), []);
+  const [shouldRender, setShouldRender] = useState(false);
+  const [isBodyReady, setIsBodyReady] = useState(false);
+  const [isHeavyUiReady, setIsHeavyUiReady] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -25,10 +66,10 @@ const EntryForm: React.FC<EntryFormProps> = ({ onClose, onSave, initialData, tem
   const [isCashTransaction, setIsCashTransaction] = useState(!!(initialData?.debit || initialData?.credit));
   const [isDescriptionOpen, setIsDescriptionOpen] = useState(!!(initialData?.description || initialData?.attachment));
   
-  const [fromDate, setFromDate] = useState(initialData?.fromDate ?? '');
-  const [fromTime, setFromTime] = useState(initialData?.fromTime ?? '');
-  const [toDate, setToDate] = useState(initialData?.toDate ?? '');
-  const [toTime, setToTime] = useState(initialData?.toTime ?? '');
+  const [fromDate, setFromDate] = useState(initialData?.fromDate ?? (isLongEvent ? nowDefaults.today : ''));
+  const [fromTime, setFromTime] = useState(initialData?.fromTime ?? (isLongEvent ? nowDefaults.currentTime : ''));
+  const [toDate, setToDate] = useState(initialData?.toDate ?? nowDefaults.today);
+  const [toTime, setToTime] = useState(initialData?.toTime ?? nowDefaults.currentTime);
   const [code, setCode] = useState(initialData?.code ?? '');
   const [name, setName] = useState(initialData?.name ?? '');
   const [points, setPoints] = useState(initialData?.points ?? 0);
@@ -39,30 +80,120 @@ const EntryForm: React.FC<EntryFormProps> = ({ onClose, onSave, initialData, tem
   
   const [showNameSuggestions, setShowNameSuggestions] = useState(false);
   const [showCodeSuggestions, setShowCodeSuggestions] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState('');
+  const [selectedGoalId, setSelectedGoalId] = useState('');
   
   const nameSuggestionRef = useRef<HTMLDivElement>(null);
   const codeSuggestionRef = useRef<HTMLDivElement>(null);
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    const frame = window.requestAnimationFrame(() => setIsVisible(true));
-    return () => window.cancelAnimationFrame(frame);
-  }, []);
+    if (!isOpen) return;
+    setShouldRender(true);
+  }, [isOpen]);
 
   useEffect(() => {
-    const now = new Date();
-    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    const currentTime = now.toTimeString().slice(0, 5);
-    
-    if (!initialData) {
-      setToDate(today);
-      setToTime(currentTime);
-      if (isLongEvent) {
-        setFromDate(today);
-        setFromTime(currentTime);
-      }
+    if (!shouldRender) return;
+
+    let frame: number | null = null;
+    let closeTimer: number | null = null;
+
+    if (isOpen) {
+      setIsClosing(false);
+      setIsVisible(false);
+      frame = window.requestAnimationFrame(() => setIsVisible(true));
+    } else {
+      setIsClosing(true);
+      setIsVisible(false);
+      closeTimer = window.setTimeout(() => {
+        setShouldRender(false);
+        setIsClosing(false);
+      }, 180);
     }
-  }, [isLongEvent, initialData]);
+
+    return () => {
+      if (frame !== null) window.cancelAnimationFrame(frame);
+      if (closeTimer !== null) window.clearTimeout(closeTimer);
+    };
+  }, [isOpen, shouldRender]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setIsBodyReady(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setIsBodyReady(true), shouldReduceMotion ? 0 : 110);
+    return () => window.clearTimeout(timer);
+  }, [isOpen, shouldReduceMotion]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    let idleId: number | null = null;
+    let timeoutId: number | null = null;
+
+    setIsHeavyUiReady(false);
+
+    const warmHeavyUi = () => {
+      if (!cancelled) setIsHeavyUiReady(true);
+    };
+
+    const idleWindow = window as Window & {
+      requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+
+    if (idleWindow.requestIdleCallback) {
+      idleId = idleWindow.requestIdleCallback(warmHeavyUi, { timeout: 180 });
+    } else {
+      timeoutId = window.setTimeout(warmHeavyUi, 120);
+    }
+
+    return () => {
+      cancelled = true;
+      if (idleId !== null && idleWindow.cancelIdleCallback) {
+        idleWindow.cancelIdleCallback(idleId);
+      }
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const { today, currentTime } = getNowDefaults();
+    const nextLongEvent = initialData?.isLongEvent ?? false;
+
+    setIsSubmitting(false);
+    setIsLongEvent(nextLongEvent);
+    setIsCashTransaction(!!(initialData?.debit || initialData?.credit));
+    setIsDescriptionOpen(!!(initialData?.description || initialData?.attachment));
+    setFromDate(initialData?.fromDate ?? (nextLongEvent ? today : ''));
+    setFromTime(initialData?.fromTime ?? (nextLongEvent ? currentTime : ''));
+    setToDate(initialData?.toDate ?? today);
+    setToTime(initialData?.toTime ?? currentTime);
+    setCode(initialData?.code ?? '');
+    setName(initialData?.name ?? '');
+    setPoints(initialData?.points ?? 0);
+    setDebit(initialData?.debit ?? 0);
+    setCredit(initialData?.credit ?? 0);
+    setDescription(initialData?.description ?? '');
+    setAttachment(initialData?.attachment ?? '');
+    setSelectedTemplateId('');
+    setSelectedGoalId('');
+    setShowNameSuggestions(false);
+    setShowCodeSuggestions(false);
+  }, [isOpen, initialData]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (!initialData && isLongEvent && (!fromDate || !fromTime)) {
+      setFromDate(prev => prev || nowDefaults.today);
+      setFromTime(prev => prev || nowDefaults.currentTime);
+    }
+  }, [isOpen, isLongEvent, initialData, fromDate, fromTime, nowDefaults]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -83,39 +214,61 @@ const EntryForm: React.FC<EntryFormProps> = ({ onClose, onSave, initialData, tem
     descriptionRef.current.style.height = `${descriptionRef.current.scrollHeight}px`;
   }, [description, isDescriptionOpen]);
 
-  const nameSuggestions = React.useMemo(() => {
-    if (!name.trim()) return [];
+  const activeGoals = useMemo(() => (isHeavyUiReady ? goals.filter(g => !g.achievedAt) : []), [goals, isHeavyUiReady]);
+
+  const templateSearchIndex = useMemo(
+    () => (isHeavyUiReady ? templates.map(t => ({ ...t, lowerName: t.name.toLowerCase(), lowerCode: t.code.toLowerCase() })) : []),
+    [templates, isHeavyUiReady]
+  );
+
+  const goalSearchIndex = useMemo(
+    () => (isHeavyUiReady ? activeGoals.map(g => ({ ...g, lowerName: g.name.toLowerCase(), lowerCode: g.code.toLowerCase() })) : []),
+    [activeGoals, isHeavyUiReady]
+  );
+
+  const selectedTemplate = useMemo(
+    () => templates.find(t => t.id === selectedTemplateId),
+    [templates, selectedTemplateId]
+  );
+
+  const selectedGoal = useMemo(
+    () => goals.find(g => g.id === selectedGoalId),
+    [goals, selectedGoalId]
+  );
+
+  const nameSuggestions = useMemo(() => {
+    if (!showNameSuggestions || !name.trim()) return [];
     const search = name.toLowerCase();
-    const templateMatches = templates
-      .filter(t => t.name.toLowerCase().includes(search))
-      .map(t => ({ ...t, type: 'activity' as const }));
-    const goalMatches = goals
-      .filter(g => !g.achievedAt && g.name.toLowerCase().includes(search))
-      .map(g => ({ ...g, type: 'goal' as const }));
+    const templateMatches = templateSearchIndex
+      .filter(t => t.lowerName.includes(search))
+      .map(t => ({ type: 'activity' as const, code: t.code, name: t.name, points: t.points }));
+    const goalMatches = goalSearchIndex
+      .filter(g => g.lowerName.includes(search))
+      .map(g => ({ type: 'goal' as const, code: g.code, name: g.name, points: g.points }));
     return [...templateMatches, ...goalMatches].slice(0, 8);
-  }, [name, templates, goals]);
+  }, [name, showNameSuggestions, templateSearchIndex, goalSearchIndex]);
 
-  const codeSuggestions = React.useMemo(() => {
-    if (!code.trim()) return [];
+  const codeSuggestions = useMemo(() => {
+    if (!showCodeSuggestions || !code.trim()) return [];
     const search = code.toLowerCase();
-    const templateMatches = templates
-      .filter(t => t.code.toLowerCase().includes(search))
-      .map(t => ({ ...t, type: 'activity' as const }));
-    const goalMatches = goals
-      .filter(g => !g.achievedAt && g.code.toLowerCase().includes(search))
-      .map(g => ({ ...g, type: 'goal' as const }));
+    const templateMatches = templateSearchIndex
+      .filter(t => t.lowerCode.includes(search))
+      .map(t => ({ type: 'activity' as const, code: t.code, name: t.name, points: t.points }));
+    const goalMatches = goalSearchIndex
+      .filter(g => g.lowerCode.includes(search))
+      .map(g => ({ type: 'goal' as const, code: g.code, name: g.name, points: g.points }));
     return [...templateMatches, ...goalMatches].slice(0, 8);
-  }, [code, templates, goals]);
+  }, [code, showCodeSuggestions, templateSearchIndex, goalSearchIndex]);
 
-  const handleSelectSuggestion = (s: { code: string, name: string, points: number }) => {
+  const handleSelectSuggestion = useCallback((s: SuggestionItem) => {
     setCode(s.code);
     setName(s.name);
     setPoints(s.points);
     setShowNameSuggestions(false);
     setShowCodeSuggestions(false);
-  };
+  }, []);
 
-  const handleSelectTemplate = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  const handleSelectTemplate = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
     const val = e.target.value;
     const template = templates.find(t => t.id === val);
     if (template) {
@@ -123,13 +276,11 @@ const EntryForm: React.FC<EntryFormProps> = ({ onClose, onSave, initialData, tem
       setName(template.name);
       setPoints(template.points);
     }
-  };
+  }, [templates]);
 
   const handleCloseWithAnimation = () => {
-    if (isClosing) return;
-    setIsClosing(true);
-    setIsVisible(false);
-    window.setTimeout(() => onClose(), 180);
+    if (isClosing || isSubmitting) return;
+    onClose();
   };
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -162,28 +313,6 @@ const EntryForm: React.FC<EntryFormProps> = ({ onClose, onSave, initialData, tem
     }, 160);
   };
 
-  const SuggestionList = ({ list, onSelect }: { list: any[], onSelect: (s: any) => void }) => (
-    <div className="absolute z-[100] left-0 right-0 top-full mt-1 bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-xl shadow-2xl max-h-48 overflow-y-auto">
-      {list.map((s, idx) => (
-        <button
-          key={idx}
-          type="button"
-          onClick={() => onSelect(s)}
-          className="w-full px-4 py-3 text-left hover:bg-blue-50 dark:hover:bg-slate-700/50 flex items-center justify-between group transition-colors border-b border-gray-50 dark:border-slate-700/30 last:border-0"
-        >
-          <div className="flex items-center gap-2">
-            {s.type === 'activity' ? <Zap size={14} className="text-blue-500" /> : <Target size={14} className="text-emerald-500" />}
-            <div className="flex flex-col">
-              <span className="text-xs font-bold text-black dark:text-white leading-tight">{s.name}</span>
-              <span className="text-[9px] font-black uppercase opacity-40 text-black dark:text-white tracking-wider">Ref: {s.code}</span>
-            </div>
-          </div>
-          <span className="text-[10px] font-black text-blue-600 dark:text-blue-400">+{s.points}p</span>
-        </button>
-      ))}
-    </div>
-  );
-
   const formatMobileDate = (dateString: string) => {
   if (!dateString) return 'Select Date';
   const date = new Date(dateString);
@@ -194,13 +323,11 @@ const EntryForm: React.FC<EntryFormProps> = ({ onClose, onSave, initialData, tem
   }).replace(/ /g, ' '); // Returns "02 Feb 26"
 };
 
-  const [selectedTemplateId, setSelectedTemplateId] = useState("");
-const [selectedGoalId, setSelectedGoalId] = useState("");
-
+  if (!shouldRender) return null;
 
   const modalContent = (
-<div className={`text-black dark:text-white fixed inset-0 z-[100] flex items-center justify-center md:p-4 p-2 bg-black/80 backdrop-blur-xl transition-opacity ${isClosing ? 'duration-150 ease-in' : 'duration-250 ease-out'} ${isVisible ? 'opacity-100' : 'opacity-0'}`}>
-  <div className={`bg-white dark:bg-slate-900 w-full max-w-lg md:rounded-[2.5rem] rounded-[1.5rem] shadow-2xl overflow-hidden max-h-[90vh] flex flex-col border border-white/10 transform-gpu will-change-transform transition-all ${isClosing ? 'duration-150 ease-in' : 'duration-300 ease-out'} ${isVisible ? 'translate-y-0 opacity-100 scale-100' : 'translate-y-6 opacity-0 scale-[0.985]'}`}>
+<div className={`text-black dark:text-white fixed inset-0 z-[100] flex items-center justify-center md:p-4 p-2 bg-black/70 backdrop-blur-[1px] transition-opacity ${isClosing ? 'duration-150 ease-in' : 'duration-220 ease-out'} ${isVisible ? 'opacity-100' : 'opacity-0'}`}>
+  <div className={`bg-white dark:bg-slate-900 w-full max-w-lg md:rounded-[2.5rem] rounded-[1.5rem] shadow-xl overflow-hidden max-h-[90vh] flex flex-col border border-white/10 transform-gpu will-change-transform transition-all ${isClosing ? 'duration-150 ease-in' : 'duration-240 ease-out'} ${isVisible ? 'translate-y-0 opacity-100 scale-100' : 'translate-y-4 opacity-0 scale-[0.99]'}`}>
         <div className="px-6 py-4 border-b border-gray-100 dark:border-white/10 flex justify-between items-center bg-white dark:bg-slate-900 z-10">
           <div className="flex items-center gap-3">
             {icon || (title?.toLowerCase().includes('key') || title?.toLowerCase().includes('auto') ? (
@@ -217,6 +344,7 @@ const [selectedGoalId, setSelectedGoalId] = useState("");
           </button>
         </div>
 
+        {isBodyReady ? (
         <form onSubmit={handleSubmit} className="md:pl-6 md:pr-6 p-3 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] space-y-4">
           {/* Top Toggles Row */}
           <div className="grid grid-cols-3 gap-2">
@@ -264,16 +392,8 @@ const [selectedGoalId, setSelectedGoalId] = useState("");
           </div>
 
 {/* Row 3: From Date | From Time (Conditional) */}
-<AnimatePresence initial={false}>
 {isLongEvent && (
-  <motion.div
-    key="long-event"
-    initial={shouldReduceMotion ? false : { opacity: 0, height: 0, y: -6 }}
-    animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, height: 'auto', y: 0 }}
-    exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, height: 0, y: -4 }}
-    transition={{ duration: shouldReduceMotion ? 0.12 : 0.22, ease: 'easeOut' }}
-    className="grid grid-cols-2 gap-4 overflow-hidden"
-  >
+  <div className="grid grid-cols-2 gap-4 overflow-hidden">
     {/* FROM DATE */}
 {!disableDates && (
 <div className="space-y-1">
@@ -320,9 +440,8 @@ const [selectedGoalId, setSelectedGoalId] = useState("");
         <Clock size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500 pointer-events-none" />
       </div>
     </div>
-  </motion.div>
+  </div>
 )}
- </AnimatePresence>
 
 {/* Row 2: To Date | To Time */}
 <div className="grid grid-cols-2 gap-4">
@@ -383,21 +502,22 @@ const [selectedGoalId, setSelectedGoalId] = useState("");
   <div className="flex items-center gap-1.5 min-w-0 pointer-events-none">
     <Activity size={14} className="text-blue-500 shrink-0" />
     <span className="text-slate-700 dark:text-slate-200 font-bold text-[11px] truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-      {templates.find(t => t.id === selectedTemplateId)?.name || "Activities"}
+      {isHeavyUiReady ? (selectedTemplate?.name || "Activities") : "Loading Activities..."}
     </span>
   </div>
   <ChevronDown size={12} className="text-slate-400 group-hover:text-blue-500 transition-colors shrink-0 pointer-events-none" />
 
   <select
     value={selectedTemplateId}
+    disabled={!isHeavyUiReady}
     onChange={(e) => {
       setSelectedTemplateId(e.target.value);
       handleSelectTemplate(e);
     }}
     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer appearance-none custom-scrollbar"
   >
-    <option value="" className="overflow-auto no-scrollbar dark:bg-slate-900 px-2 text-slate-400">Activities</option>
-    {templates.map(t => (
+    <option value="" className="overflow-auto no-scrollbar dark:bg-slate-900 px-2 text-slate-400">{isHeavyUiReady ? 'Activities' : 'Loading...'}</option>
+    {isHeavyUiReady && templates.map(t => (
       <option key={t.id} value={t.id} className="dark:bg-slate-900 px-2 text-slate-200">
         {t.name}
       </option>
@@ -423,13 +543,14 @@ const [selectedGoalId, setSelectedGoalId] = useState("");
     <div className="flex items-center gap-1.5 min-w-0 pointer-events-none">
       <Target size={14} className="text-emerald-500 shrink-0" />
       <span className="text-slate-700 dark:text-slate-200 font-bold text-[11px] truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-        {goals.find(g => g.id === selectedGoalId)?.name || "Goals List"}
+        {isHeavyUiReady ? (selectedGoal?.name || "Goals List") : "Loading Goals..."}
       </span>
     </div>
     <ChevronDown size={12} className="text-slate-400 group-hover:text-emerald-500 transition-colors shrink-0 pointer-events-none" />
     
     <select 
       value={selectedGoalId}
+      disabled={!isHeavyUiReady}
       onChange={(e) => {
         const g = goals.find(x => x.id === e.target.value);
         if (g) { 
@@ -443,8 +564,8 @@ const [selectedGoalId, setSelectedGoalId] = useState("");
       }} 
       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer appearance-none"
     >
-      <option value="" className="dark:bg-slate-900 px-2 text-slate-400">Goals List</option>
-      {goals.filter(g => !g.achievedAt).map(g => (
+      <option value="" className="dark:bg-slate-900 px-2 text-slate-400">{isHeavyUiReady ? 'Goals List' : 'Loading...'}</option>
+      {isHeavyUiReady && activeGoals.map(g => (
         <option key={g.id} value={g.id} className="dark:bg-slate-900 px-2 text-slate-200">
           {g.name}
         </option>
@@ -496,16 +617,8 @@ const [selectedGoalId, setSelectedGoalId] = useState("");
           </div>
 
           {/* Row 7: Debit | Credit (Conditional) */}
-          <AnimatePresence initial={false}>
           {isCashTransaction && (
-            <motion.div
-              key="cash-fields"
-              initial={shouldReduceMotion ? false : { opacity: 0, height: 0, y: -6 }}
-              animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, height: 'auto', y: 0 }}
-              exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, height: 0, y: -4 }}
-              transition={{ duration: shouldReduceMotion ? 0.12 : 0.22, ease: 'easeOut' }}
-              className="grid grid-cols-2 gap-4 overflow-hidden"
-            >
+            <div className="grid grid-cols-2 gap-4 overflow-hidden">
               <div className="space-y-1">
                 <label className="inline-flex gap-1 text-[10px] font-black text-red-500 uppercase"><ArrowDownLeft size={12} /> Debit ( - )</label>
                 <input type="number" value={debit} onChange={e => setDebit(Number(e.target.value))} className="w-full px-4 py-2.5 rounded-xl border border-red-500/30 text-red-600 font-bold dark:bg-red-500/10" />
@@ -514,21 +627,12 @@ const [selectedGoalId, setSelectedGoalId] = useState("");
                 <label className="inline-flex gap-1 text-[10px] font-black text-emerald-500 uppercase"><ArrowUpRight size={12} /> Credit ( + )</label>
                 <input type="number" value={credit} onChange={e => setCredit(Number(e.target.value))} className="w-full px-4 py-2.5 rounded-xl border border-emerald-500/30 text-emerald-600 font-bold dark:bg-emerald-500/10" />
               </div>
-            </motion.div>
+            </div>
           )}
-          </AnimatePresence>
 
           {/* Row 8 & 9: Description & Attachment (Conditional) */}
-          <AnimatePresence initial={false}>
           {isDescriptionOpen && (
-            <motion.div
-              key="description-fields"
-              initial={shouldReduceMotion ? false : { opacity: 0, height: 0, y: -6 }}
-              animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, height: 'auto', y: 0 }}
-              exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, height: 0, y: -4 }}
-              transition={{ duration: shouldReduceMotion ? 0.12 : 0.22, ease: 'easeOut' }}
-              className="space-y-4 overflow-hidden"
-            >
+            <div className="space-y-4 overflow-hidden">
               <div className="space-y-1">
                 <label className="inline-flex gap-1 text-[10px] font-black uppercase opacity-60 text-black dark:text-white"><NotebookPen size={12}/>Activity Notes...</label>
                 <textarea 
@@ -553,9 +657,8 @@ const [selectedGoalId, setSelectedGoalId] = useState("");
                   className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:bg-black/20 dark:border-white/10 text-black dark:text-white text-sm" 
                 />
               </div>
-            </motion.div>
+            </div>
           )}
-          </AnimatePresence>
 
           {/* Footer Actions - Non-floating */}
           <div className="flex gap-3 pt-6">
@@ -576,6 +679,14 @@ const [selectedGoalId, setSelectedGoalId] = useState("");
             </button>
           </div>
         </form>
+        ) : (
+          <div className="md:pl-6 md:pr-6 p-4 space-y-3">
+            <div className="h-10 rounded-xl bg-gray-100 dark:bg-slate-800 animate-pulse" />
+            <div className="h-10 rounded-xl bg-gray-100 dark:bg-slate-800 animate-pulse" />
+            <div className="h-10 rounded-xl bg-gray-100 dark:bg-slate-800 animate-pulse" />
+            <div className="h-36 rounded-2xl bg-gray-100 dark:bg-slate-800 animate-pulse" />
+          </div>
+        )}
       </div>
     </div>
   );

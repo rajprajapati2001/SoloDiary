@@ -109,9 +109,10 @@ const App: React.FC = () => {
     const saved = localStorage.getItem('solo_diary_theme');
     return saved ? saved === 'dark' : true;
   });
+  const [hasBootedForm] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<ActivityEntry | null>(null);
-  const [currentTimeClass, setCurrentTimeClass] = useState('sky-12');
+  const [currentTimeClass, setCurrentTimeClass] = useState('sky-12-00');
   const [themeReady, setThemeReady] = useState(false);
   const [selectedDate, setSelectedDate] = useState(() => {
     const d = new Date();
@@ -255,10 +256,22 @@ const App: React.FC = () => {
     return () => clearTimeout(t);
   }, []);
 
+  const openEntryForm = useCallback((entry: ActivityEntry | null) => {
+    setEditingEntry(entry);
+    setIsFormOpen(true);
+  }, []);
+
+  const closeEntryForm = useCallback(() => {
+    setIsFormOpen(false);
+    setEditingEntry(null);
+  }, []);
+
   useEffect(() => {
     const updateTimeClass = () => {
-      const hour = new Date().getHours();
-      const timeClass = `sky-${hour.toString().padStart(2, '0')}`;
+      const now = new Date();
+      const hour = now.getHours();
+      const minuteSlot = now.getMinutes() < 30 ? '00' : '30';
+      const timeClass = `sky-${hour.toString().padStart(2, '0')}-${minuteSlot}`;
       setCurrentTimeClass(timeClass);
     };
     updateTimeClass();
@@ -441,7 +454,7 @@ const App: React.FC = () => {
             entries={entries}
             selectedDate={selectedDate}
             onSelectDate={setSelectedDate}
-            onEdit={entry => { setEditingEntry(entry); setIsFormOpen(true); }}
+            onEdit={(entry) => openEntryForm(entry)}
             onDelete={handleDeleteEntry}
             onUpdateUserName={handleUpdateUserName}
             goals={goals}
@@ -469,7 +482,7 @@ const App: React.FC = () => {
           <DiaryView
             entries={entries}
             goals={goals}
-            onEdit={entry => { setEditingEntry(entry); setIsFormOpen(true); }}
+            onEdit={(entry) => openEntryForm(entry)}
             onDelete={handleDeleteEntry}
           />
         )}
@@ -497,7 +510,7 @@ const App: React.FC = () => {
       {!isStatsFullscreen && <Footer isFull={currentPage === 'home' || currentPage === 'chart'} />}
 
       <button
-  onClick={() => { setEditingEntry(null); setIsFormOpen(true); }}
+  onClick={() => openEntryForm(null)}
   className={`group fixed bottom-4 right-4 w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-700 text-white rounded-full shadow-[0_10px_25px_-5px_rgba(59,130,246,0.5)] flex items-center justify-center hover:scale-110 hover:shadow-[0_20px_35px_-5px_rgba(59,130,246,0.6)] active:scale-95 transition-all duration-500 ease-out z-40 no-print ${fabReady && currentPage === 'home' ? 'translate-y-0 opacity-100' : 'translate-y-24 opacity-0 pointer-events-none'}`}
 >
   <Plus 
@@ -507,9 +520,10 @@ const App: React.FC = () => {
   />
 </button>
 
-      {isFormOpen && (
+      {hasBootedForm && (
         <EntryForm
-          onClose={() => { setIsFormOpen(false); setEditingEntry(null); }}
+          isOpen={isFormOpen}
+          onClose={closeEntryForm}
           onSave={handleSaveEntry}
           initialData={editingEntry}
           templates={templates}
