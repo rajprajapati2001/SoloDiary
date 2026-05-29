@@ -10,7 +10,7 @@ SoloDiary is a high-fidelity, tracking web application designed for individuals 
 ![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
 ![Android](https://img.shields.io/badge/Android-APK_Supported-green?style=for-the-badge&logo=android)
 ![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
-![IndexedDB](https://img.shields.io/badge/IndexedDB-Local_First-emerald?style=for-the-badge)
+![Dexie.js](https://img.shields.io/badge/Dexie.js-black?style=for-the-badge&logo=Database+Database&logoColor=FFFFFF)
 
 
 🌐 Web App: [solo-diary-khaki.vercel.app](https://solo-diary-khaki.vercel.app/)
@@ -35,7 +35,7 @@ SoloDiary is a high-fidelity, tracking web application designed for individuals 
 | :--------------- | :------------------------------------------- |
 | **Frontend**     | React.js + Vite + TypeScript                 |
 | **Styling**      | Tailwind CSS with custom "Digital" typography|
-| **Database**     | IndexedDB (via idb library) — 100% offline   |
+| **Database**     | Dexie.js (via dexie library) — 100% offline  |
 | **Icons**        | Lucide React                                 |
 | **Reporting**    | html2canvas + jsPDF                          |
 | **Mobile**       | Capacitor (for Android APK conversion)       |
@@ -63,7 +63,7 @@ SoloDiary/
 ├── constants/           
 │   └── constants.ts         # Initial activity templates (Sleep, Meals, etc.)
 ├── db/                  
-│   └── db.ts                # IndexedDB schema (entries, goals, templates, settings)
+│   └── db.ts                # Dexie.js schema (entries, goals, templates, settings)
 ├── types/               
 │   └── types.ts             # Global TypeScript interfaces (ActivityEntry, Goal)
 ├── App.tsx              # Core logic, hash-routing, and theme management

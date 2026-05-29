@@ -3,7 +3,7 @@ import CalendarView from './CalendarView';
 import LineGraph from './LineGraph';
 import QuickPopData from './QuickPopData';
 import { ActivityEntry, Goal } from '../types';
-import { TrendingUp, Award, Clock, Edit2, Trash2, Star, Banknote, Eye, EyeOff, Target, Calendar, Paperclip, ChartLine, ScrollText, Check, X as CloseIcon, ChevronLeft, ChevronRight, Sun, MoonStar, CloudSun, CloudMoon, Cloud, Wind, CloudDrizzle, CloudRain, CloudHail, CloudSnow, CloudLightning, type LucideIcon } from 'lucide-react';
+import { TrendingUp, Award, Clock, Edit2, Trash2, Star, Banknote, Eye, EyeOff, Target, Calendar, Paperclip, Snowflake , ChartLine, ScrollText, Check, X as CloseIcon, ChevronLeft, ChevronRight, Sun, MoonStar, CloudSun, CloudMoon, Cloud, Wind, CloudDrizzle, CloudRain, CloudHail, CloudSnow, CloudLightning, Moon, Bubbles , type LucideIcon, ThermometerSun, Cloudy, Droplets } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 
 const LiveClock: React.FC = React.memo(() => {
@@ -143,13 +143,13 @@ const Dashboard: React.FC<DashboardProps> = ({ userName, entries, selectedDate, 
 
   const [popDataConfig, setPopDataConfig] = useState<{
     isOpen: boolean;
-    type: 'daily' | 'monthly_pts' | 'yearly_pts' | 'yearly_goals' | 'financial';
+    type: 'daily' | 'monthly_pts' | 'yearly_pts' | 'yearly_goals' | 'financial' | 'profile';
   }>({
     isOpen: false,
     type: 'daily'
   });
 
-  const openQuickPop = (type: 'daily' | 'monthly_pts' | 'yearly_pts' | 'yearly_goals' | 'financial') => {
+  const openQuickPop = (type: 'daily' | 'monthly_pts' | 'yearly_pts' | 'yearly_goals' | 'financial' | 'profile') => {
     setPopDataConfig({ isOpen: true, type });
   };
 
@@ -300,24 +300,74 @@ const Dashboard: React.FC<DashboardProps> = ({ userName, entries, selectedDate, 
 
   return (
     <div className="md:space-y-6 space-y-2.5">
-      <div className={`relative flex flex-col md:flex-row items-center justify-between md:gap-6 gap-3 mb-4 bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm ${currentTimeClass}`}>
-        <div className="md:hidden absolute top-2.5 right-2.5 z-10">
-          <AnimatePresence mode="wait" initial={false}>
-            {!isEditingName && (
-              <motion.div
-                key="weather-viewing"
-                initial={{ y: -14, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                exit={{ y: -14, opacity: 0 }}
-                transition={{ duration: 0.22, ease: 'easeOut' }}
-                className="w-8 h-8 rounded-xl backdrop-blur-xl border border-white/45 dark:border-white/20 shadow-lg flex items-center justify-center"
-              >
-                <DisplayWeatherIcon size={16} className="opacity-95" />
-              </motion.div>
-            )}
-          </AnimatePresence>
+{/* 1. Moved onClick to the main wrapper div so clicking the layout or bg triggers the profile popup.
+        2. Added 'overflow-hidden' to ensure the background icon patch doesn't break rounded corners.
+        3. Added 'cursor-pointer group/card' to signal a clickable section.
+      */}
+      <div 
+        onClick={() => openQuickPop('profile')}
+        className={`relative flex flex-col md:flex-row items-center justify-between md:gap-6 gap-3 mb-4 bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm overflow-hidden cursor-pointer group/card transition-all duration-300 hover:shadow-md ${currentTimeClass}`}
+      >
+        
+        {/* AMBIENT BACKGROUND WEATHER ENVIRONMENT */}
+        <div className="absolute inset-0 pointer-events-none select-none z-0">
+          
+          {/* ==================== RIGHT SIDE: MAIN ICON (SIMPLE FADE IN AFTER 2s) ==================== */}
+          {/* Only this main icon has a gentle fade-in transition after 2 seconds */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 1.0, delay: 2, ease: "linear" }}
+            className="absolute right-6 top-1/2 -translate-y-1/2 opacity-15 text-slate-400 dark:text-slate-500 transition-transform duration-700 group-hover/card:scale-110 group-hover/card:rotate-6"
+          >
+            <DisplayWeatherIcon size={120} className="w-auto h-auto" />
+          </motion.div>
+
+          {/* ==================== COMPLETELY STATIC CANVAS ELEMENTS (INSTANT / RANDOMIZED) ==================== */}
+          {/* These icons load instantly, have no animations, and are distributed across the layout with varying scales */}
+          
+          {/* Top-Left: Bright Sun Element */}
+          <div className="absolute left-[5%] top-[5%] opacity-25 dark:opacity-45 text-amber-500 dark:text-amber-400 scale-[1.15] transition-transform duration-700 group-hover/card:rotate-12">
+            <Sun size={40} />
+          </div>
+
+          {/* Lower Mid-Left: Small Cozy Moon */}
+          <div className="absolute left-[30%] bottom-[7%] opacity-20 dark:opacity-15 text-indigo-400 dark:text-indigo-300 scale-[0.85] transition-transform duration-1000 group-hover/card:-translate-y-0.5">
+            <Wind size={35} />
+          </div>
+          
+          <div className="absolute right-[0%] bottom-[0%] opacity-15 dark:opacity-15 text-indigo-400 dark:text-indigo-300 scale-[0.85] transition-transform duration-1000 group-hover/card:-translate-y-0.5">
+            <Droplets size={35} />
+          </div>
+          
+          {/* Lower Mid-Left: Small Cozy Moon */}
+          <div className="absolute left-[-5%] bottom-[-20%] opacity-20 dark:opacity-15 text-indigo-400 dark:text-indigo-300 scale-[0.85] transition-transform duration-1000 group-hover/card:-translate-y-0.5">
+            <CloudMoon size={90} />
+          </div>
+
+          {/* Upper Center-Left: Large Ambient Cloud */}
+          <div className="absolute left-[45%] top-[18%] opacity-25 dark:opacity-45 text-slate-400 dark:text-slate-500 scale-[1.3] transition-transform duration-700 group-hover/card:translate-x-2">
+            <Snowflake size={44} />
+          </div>
+
+          {/* Top Far-Right: Medium Cloud Patch */}
+          <div className="absolute right-[32%] top-[8%] opacity-20 dark:opacity-10 text-slate-400 dark:text-slate-500 scale-[0.95]">
+            <Cloudy size={32} />
+          </div>
+          
+          {/* Top Far-Right: Medium Cloud Patch */}
+          <div className="absolute right-[0%] top-[0%] opacity-20 dark:opacity-10 text-slate-400 dark:text-slate-500 scale-[0.95]">
+            <ThermometerSun size={50} />
+          </div>
+
+          {/* Bottom Near-Right: Small Rain Element near the main background track */}
+          <div className="absolute right-[22%] bottom-[10%] opacity-15 dark:opacity-[0.07] text-slate-400 dark:text-slate-500 scale-[0.75]">
+            <CloudRain size={28} />
+          </div>
         </div>
-        <div className="text-center md:text-left flex-1">
+
+        {/* Text Container - Brought forward with z-10 so it sits nicely over the background icons */}
+        <div className="text-center md:text-left flex-1 z-10 w-full">
           <AnimatePresence mode="wait" initial={false}>
             {isEditingName ? (
               <motion.div
@@ -326,6 +376,8 @@ const Dashboard: React.FC<DashboardProps> = ({ userName, entries, selectedDate, 
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.2, ease: 'easeOut' }}
+                // stopPropagation prevents opening the profile popup while trying to type inside the input
+                onClick={(e) => e.stopPropagation()}
                 className="flex items-center gap-2 justify-center md:justify-start"
               >
                 <input
@@ -336,33 +388,60 @@ const Dashboard: React.FC<DashboardProps> = ({ userName, entries, selectedDate, 
                   onKeyDown={handleKeyDown}
                   className="w-[70%] md:w-auto md:min-w-[320px] text-2xl font-black uppercase tracking-tight bg-white/20 dark:bg-black/20 border-b-2 border-blue-600 outline-none text-gray-900 dark:text-white px-2 py-1 rounded-t-lg"
                 />
-                <motion.button whileTap={{ scale: 0.92 }} onClick={handleSaveName} className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors">
+                <motion.button 
+                  whileTap={{ scale: 0.92 }} 
+                  onClick={(e) => { e.stopPropagation(); handleSaveName(); }} 
+                  className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors"
+                >
                   <Check size={20} />
                 </motion.button>
-                <motion.button whileTap={{ scale: 0.92 }} onClick={() => { setEditNameValue(userName); setIsEditingName(false); }} className="p-2 bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-white rounded-full hover:bg-gray-300 transition-colors">
+                <motion.button 
+                  whileTap={{ scale: 0.92 }} 
+                  onClick={(e) => { e.stopPropagation(); setEditNameValue(userName); setIsEditingName(false); }} 
+                  className="p-2 bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-white rounded-full hover:bg-gray-300 transition-colors"
+                >
                   <CloseIcon size={20} />
                 </motion.button>
               </motion.div>
             ) : (
-              <motion.div key="viewing" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2, ease: 'easeOut' }} className="flex items-center gap-3 justify-center md:justify-start group">
-                <TextFixing text={userName} className="text-3xl md:text-4xl font-black uppercase tracking-tight" />
-                <motion.button whileTap={{ scale: 0.9 }} onClick={() => setIsEditingName(true)} className="w-0 md:w-auto md:p-1.5 p-0 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-blue-500 transition-all focus:opacity-100">
+              <motion.div 
+                key="viewing" 
+                initial={{ opacity: 0, y: 8 }} 
+                animate={{ opacity: 1, y: 0 }} 
+                exit={{ opacity: 0, y: -8 }} 
+                transition={{ duration: 0.2, ease: 'easeOut' }} 
+                className="flex items-center gap-3 justify-center md:justify-start group text-left"
+              >
+                <div className="text-left select-none">
+                  <TextFixing text={userName} className="text-3xl md:text-4xl font-black uppercase tracking-tight group-hover/card:underline decoration-dotted decoration-2 text-gray-900 dark:text-white" />
+                </div>
+                
+                <motion.button 
+                  whileTap={{ scale: 0.9 }} 
+                  onClick={(e) => { e.stopPropagation(); setIsEditingName(true); }} 
+                  className="w-0 md:w-auto md:p-1.5 p-0 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-blue-500 transition-all focus:opacity-100" 
+                  title="Edit name"
+                >
                   <Edit2 size={18} />
                 </motion.button>
               </motion.div>
             )}
           </AnimatePresence>
           <p className="text-sm font-medium mt-2">
-            <span className="text-blue-600">Tracking data:</span>
-            <span className="ml-2 font-bold">{formattedTrackingDate}</span>
+            <span className="text-blue-600 dark:text-blue-400 font-bold">Tracking data:</span>
+            <span className="ml-2 font-bold text-gray-700 dark:text-gray-300">{formattedTrackingDate}</span>
           </p>
         </div>
 
-        <div className="hidden md:flex items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl backdrop-blur-2xl border border-white/50 dark:border-white/20 shadow-xl flex items-center justify-center">
-            <DisplayWeatherIcon size={22} className="opacity-95" />
-          </div>
-          <div className="p-2 pr-5 pl-5 rounded-2xl min-w-[230px] text-center bg-white/20 dark:bg-black/20 backdrop-blur-lg border border-white/30 dark:border-white/10 shadow-xl transition-all duration-700 hover:scale-105">
+        {/* Right column: Live Clock wrapper
+          - Hidden entirely on mobile screens (hidden) and turns visible on desktops/tablets (md:block)
+          - Brought forward with z-10 to retain high visual stacking placement over background icons
+        */}
+        <div className="hidden md:block z-10 w-full md:w-auto text-center md:text-right">
+          <div 
+            onClick={(e) => e.stopPropagation()} // Prevents clock interaction from firing the parent card's popup action
+            className="p-2 pr-5 pl-5 rounded-2xl min-w-[230px] text-center bg-white/20 dark:bg-black/20 backdrop-blur-lg border border-white/30 dark:border-white/10 shadow-xl transition-all duration-700 hover:scale-105"
+          >
             <LiveClock />
           </div>
         </div>
@@ -587,6 +666,8 @@ const Dashboard: React.FC<DashboardProps> = ({ userName, entries, selectedDate, 
           activitiesSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }}
         scrollToActivity={scrollToActivity}
+        userName={userName}
+        currentTimeClass={currentTimeClass}
       />
     </div>
   );
