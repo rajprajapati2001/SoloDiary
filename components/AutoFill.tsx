@@ -375,6 +375,7 @@ const AutoFill: React.FC<AutoFillProps> = ({ onAddEntries, templates: activityTe
 
       {isFormOpen && (
         <EntryForm
+          isOpen={isFormOpen} // ADD THIS LINE
           title={editingTemplate ? 'Edit Auto Key' : 'New Auto Key'}
           onClose={() => { setIsFormOpen(false); setEditingTemplate(null); }}
           onSave={handleSaveTemplate}

@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import CalendarView from './CalendarView';
 import LineGraph from './LineGraph';
-import Footer from './Footer';
+import QuickPopData from './QuickPopData';
 import { ActivityEntry, Goal } from '../types';
-import { TrendingUp, Award, Clock, Edit2, Trash2, Star, Banknote, Eye, EyeOff, Target, Calendar, Paperclip, ChartLine, ScrollText, Check, X as CloseIcon, ChevronLeft, ChevronRight, Sun, MoonStar, CloudSun, CloudMoon, Cloud, CloudFog, CloudDrizzle, CloudRain, CloudSnow, CloudLightning, CloudHail, Wind, type LucideIcon } from 'lucide-react';
+import { TrendingUp, Award, Clock, Edit2, Trash2, Star, Banknote, Eye, EyeOff, Target, Calendar, Paperclip, ChartLine, ScrollText, Check, X as CloseIcon, ChevronLeft, ChevronRight, Sun, MoonStar, CloudSun, CloudMoon, Cloud, Wind, CloudDrizzle, CloudRain, CloudHail, CloudSnow, CloudLightning, type LucideIcon } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 
 const LiveClock: React.FC = React.memo(() => {
@@ -27,7 +27,7 @@ const LiveClock: React.FC = React.memo(() => {
 interface TextFixingProps {
   text: string;
   className?: string;
-  speed?: number; // ms per character
+  speed?: number;
   loop?: boolean;
 }
 
@@ -53,14 +53,12 @@ const TextFixing: React.FC<TextFixingProps> = ({ text, className = '', speed = 4
               if (mounted) tick();
             }, 800);
           } else {
-            // hide the blinking cursor once typing finished
             setDisplayCursor(false);
           }
         }
       }, speed);
     };
 
-    // If text is empty, don't show cursor
     if (!text || text.length === 0) {
       setIndex(0);
       setDisplayCursor(false);
@@ -74,7 +72,7 @@ const TextFixing: React.FC<TextFixingProps> = ({ text, className = '', speed = 4
   return (
     <h2 className={className}>
       {text.slice(0, index)}
-      {displayCursor && <span className="inline-block w-1 align-middle ml-1 bg-current animate-pulse" style={{height: '1em'}} />}
+      <span className={`inline-block w-1 align-middle ml-1 bg-current ${displayCursor ? 'animate-pulse' : 'opacity-0'}`} style={{ height: '1em' }} />
     </h2>
   );
 };
@@ -93,16 +91,14 @@ interface DashboardProps {
 
 const weatherIconFromCode = (code: number | null, isDay: boolean): LucideIcon => {
   if (code === 0) return isDay ? Sun : MoonStar;
-  if (code === 1) return isDay ? CloudSun : CloudMoon;
-  if (code === 2) return isDay ? CloudSun : CloudMoon;
+  if (code === 1 || code === 2) return isDay ? CloudSun : CloudMoon;
   if (code === 3) return isDay ? Cloud : CloudMoon;
-  if ([45, 48].includes(code)) return Wind;
-  if ([51, 53, 55, 56, 57].includes(code)) return CloudDrizzle;
-  if ([61, 63, 65, 80, 81, 82].includes(code)) return CloudRain;
-  if ([66, 67].includes(code)) return CloudHail;
-  if ([71, 73, 75, 77, 85, 86].includes(code)) return CloudSnow;
+  if ([45, 48].includes(code || -1)) return Wind;
+  if ([51, 53, 55, 56, 57].includes(code || -1)) return CloudDrizzle;
+  if ([61, 63, 65, 80, 81, 82].includes(code || -1)) return CloudRain;
+  if ([66, 67, 96, 99].includes(code || -1)) return CloudHail;
+  if ([71, 73, 75, 77, 85, 86].includes(code || -1)) return CloudSnow;
   if (code === 95) return CloudLightning;
-  if ([96, 99].includes(code)) return CloudHail;
   return Cloud;
 };
 
@@ -113,8 +109,51 @@ const Dashboard: React.FC<DashboardProps> = ({ userName, entries, selectedDate, 
   const [isDayWeather, setIsDayWeather] = useState(true);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const coordsRef = useRef<{ latitude: number; longitude: number } | null>(null);
+  const activitiesSectionRef = useRef<HTMLDivElement>(null);
+  const activityRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const [showLabels, setShowLabels] = useState(true);
+  const shouldReduceMotion = useReducedMotion();
 
-    useEffect(() => {
+  const scrollToActivity = (entryId: string, date?: string) => {
+    if (date) {
+      onSelectDate(date);
+
+      setTimeout(() => {
+        activitiesSectionRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start'
+        });
+
+        setTimeout(() => {
+          activityRefs.current?.[entryId]?.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center'
+          });
+        }, 400);
+      }, 300);
+
+      return;
+    }
+
+    activityRefs.current?.[entryId]?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'center'
+    });
+  };
+
+  const [popDataConfig, setPopDataConfig] = useState<{
+    isOpen: boolean;
+    type: 'daily' | 'monthly_pts' | 'yearly_pts' | 'yearly_goals' | 'financial';
+  }>({
+    isOpen: false,
+    type: 'daily'
+  });
+
+  const openQuickPop = (type: 'daily' | 'monthly_pts' | 'yearly_pts' | 'yearly_goals' | 'financial') => {
+    setPopDataConfig({ isOpen: true, type });
+  };
+
+  useEffect(() => {
     if (isEditingName && nameInputRef.current) {
       nameInputRef.current.focus();
     }
@@ -135,7 +174,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userName, entries, selectedDate, 
     }
   };
 
-    const handlePrevDate = () => {
+  const handlePrevDate = () => {
     const d = new Date(selectedDate);
     d.setDate(d.getDate() - 1);
     onSelectDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
@@ -146,17 +185,12 @@ const Dashboard: React.FC<DashboardProps> = ({ userName, entries, selectedDate, 
     d.setDate(d.getDate() + 1);
     onSelectDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
   };
-  
-const [showLabels, setShowLabels] = React.useState(true);
-  const shouldReduceMotion = useReducedMotion();
-  const dateObj = new Date(selectedDate);
+
+  const dateObj = useMemo(() => new Date(selectedDate), [selectedDate]);
   const selectedYear = dateObj.getFullYear();
   const selectedMonthStr = selectedDate.substring(0, 7);
-  
-  const firstDayOfMonth = new Date(selectedYear, dateObj.getMonth(), 1);
-  const lastDayOfMonth = new Date(selectedYear, dateObj.getMonth() + 1, 0);
-  
-  const selectedDateEntries = useMemo(() => 
+
+  const selectedDateEntries = useMemo(() =>
     entries.filter(e => e.toDate === selectedDate).sort((a, b) => a.toTime.localeCompare(b.toTime)),
     [entries, selectedDate]
   );
@@ -165,9 +199,9 @@ const [showLabels, setShowLabels] = React.useState(true);
   const dailyTarget = 100;
   const dailyProgressPercent = Math.min((totalPointsSelectedDay / dailyTarget) * 100, 100);
 
-  const daysInMonth = lastDayOfMonth.getDate();
+  const daysInMonth = useMemo(() => new Date(selectedYear, dateObj.getMonth() + 1, 0).getDate(), [selectedYear, dateObj]);
   const monthTarget = daysInMonth * 100;
-  
+
   const monthEntries = useMemo(() => entries.filter(e => e.toDate.startsWith(selectedMonthStr)), [entries, selectedMonthStr]);
   const totalMonthPoints = useMemo(() => monthEntries.reduce((sum, e) => sum + e.points, 0), [monthEntries]);
   const monthProgressPercent = (totalMonthPoints / monthTarget) * 100;
@@ -180,29 +214,34 @@ const [showLabels, setShowLabels] = React.useState(true);
   const totalYearlyPoints = useMemo(() => yearlyEntries.reduce((s, e) => s + e.points, 0), [yearlyEntries]);
   const yearlyGoalsAchieved = useMemo(() => goals.filter(g => g.achievedAt && new Date(g.achievedAt).getFullYear() === selectedYear).length, [goals, selectedYear]);
 
+  // Optimized graphData dependency calculation
   const graphData = useMemo(() => {
     const data = [];
-    let current = new Date(firstDayOfMonth);
-    while (current <= lastDayOfMonth) {
+    const firstDay = new Date(selectedYear, dateObj.getMonth(), 1);
+    const lastDay = new Date(selectedYear, dateObj.getMonth() + 1, 0);
+    const current = new Date(firstDay);
+
+    while (current <= lastDay) {
       const dStr = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
       const pts = entries.filter(e => e.toDate === dStr).reduce((sum, e) => sum + e.points, 0);
       const achievedInDay = goals.filter(g => g.achievedAt === dStr);
-      data.push({ 
-        day: current.getDate(), 
-        points: pts, 
+      data.push({
+        day: current.getDate(),
+        points: pts,
         fullDate: dStr,
-        achievedGoals: achievedInDay 
+        achievedGoals: achievedInDay
       });
       current.setDate(current.getDate() + 1);
     }
     return data;
-  }, [entries, goals, firstDayOfMonth, lastDayOfMonth]);
+  }, [entries, goals, selectedMonthStr, selectedYear, dateObj]);
 
   const monthName = dateObj.toLocaleString('default', { month: 'long' });
   const monthNameShort = dateObj.toLocaleString('default', { month: 'short' });
   const formattedTrackingDate = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
   const formattedActivitiesDate = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' });
   const formattedFullActivitiesDate = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+
   const WeatherIcon = weatherIconFromCode(weatherCode, isDayWeather);
   const fallbackHour = new Date().getHours();
   const fallbackMinuteBucket = Math.floor(new Date().getMinutes() / 15) % 3;
@@ -214,17 +253,13 @@ const [showLabels, setShowLabels] = React.useState(true);
 
   useEffect(() => {
     let disposed = false;
-
     const fetchWeather = async (latitude: number, longitude: number) => {
       try {
-        const weatherRes = await fetch(
-          `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=weather_code,is_day&timezone=auto`
-        );
+        const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=weather_code,is_day&timezone=auto`);
         if (!weatherRes.ok) throw new Error('Weather request failed');
         const weatherData = await weatherRes.json();
         const current = weatherData?.current;
         if (disposed || !current) return;
-
         setWeatherCode(typeof current.weather_code === 'number' ? current.weather_code : null);
         setIsDayWeather(current.is_day === 1);
       } catch {
@@ -265,8 +300,7 @@ const [showLabels, setShowLabels] = React.useState(true);
 
   return (
     <div className="md:space-y-6 space-y-2.5">
-      {/* Box with Gradient Background and Right-Aligned Time Card */}
-      <div className={`relative flex flex-col md:flex-row items-center justify-between md:gap-6 gap-3 mb-4 bg-white dark:bg-slate-800 p-6 rounded-3xl border-0 border-gray-100 dark:border-slate-700 shadow-sm ${currentTimeClass}`}>
+      <div className={`relative flex flex-col md:flex-row items-center justify-between md:gap-6 gap-3 mb-4 bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm ${currentTimeClass}`}>
         <div className="md:hidden absolute top-2.5 right-2.5 z-10">
           <AnimatePresence mode="wait" initial={false}>
             {!isEditingName && (
@@ -276,14 +310,14 @@ const [showLabels, setShowLabels] = React.useState(true);
                 animate={{ y: 0, opacity: 1 }}
                 exit={{ y: -14, opacity: 0 }}
                 transition={{ duration: 0.22, ease: 'easeOut' }}
-                className="w-8 h-8 rounded-xl backdrop-blur-xl border border-white/45 dark:border-white/20 shadow-lg shadow-black/10 flex items-center justify-center"
+                className="w-8 h-8 rounded-xl backdrop-blur-xl border border-white/45 dark:border-white/20 shadow-lg flex items-center justify-center"
               >
                 <DisplayWeatherIcon size={16} className="opacity-95" />
               </motion.div>
             )}
           </AnimatePresence>
         </div>
-        <div className="text-center md:text-left  flex-1">
+        <div className="text-center md:text-left flex-1">
           <AnimatePresence mode="wait" initial={false}>
             {isEditingName ? (
               <motion.div
@@ -302,77 +336,40 @@ const [showLabels, setShowLabels] = React.useState(true);
                   onKeyDown={handleKeyDown}
                   className="w-[70%] md:w-auto md:min-w-[320px] text-2xl font-black uppercase tracking-tight bg-white/20 dark:bg-black/20 border-b-2 border-blue-600 outline-none text-gray-900 dark:text-white px-2 py-1 rounded-t-lg"
                 />
-                <motion.button
-                  whileTap={{ scale: 0.92 }}
-                  onClick={handleSaveName}
-                  className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors"
-                  aria-label="Save name"
-                >
+                <motion.button whileTap={{ scale: 0.92 }} onClick={handleSaveName} className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors">
                   <Check size={20} />
                 </motion.button>
-                <motion.button
-                  whileTap={{ scale: 0.92 }}
-                  onClick={() => { setEditNameValue(userName); setIsEditingName(false); }}
-                  className="p-2 bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-white rounded-full hover:bg-gray-300 transition-colors"
-                  aria-label="Cancel name edit"
-                >
+                <motion.button whileTap={{ scale: 0.92 }} onClick={() => { setEditNameValue(userName); setIsEditingName(false); }} className="p-2 bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-white rounded-full hover:bg-gray-300 transition-colors">
                   <CloseIcon size={20} />
                 </motion.button>
               </motion.div>
             ) : (
-              <motion.div
-                key="viewing"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.2, ease: 'easeOut' }}
-                className="flex items-center gap-3 justify-center md:justify-start group"
-              >
+              <motion.div key="viewing" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2, ease: 'easeOut' }} className="flex items-center gap-3 justify-center md:justify-start group">
                 <TextFixing text={userName} className="text-3xl md:text-4xl font-black uppercase tracking-tight" />
-
-                <motion.button
-                  whileTap={{ scale: 0.9 }}
-                  onClick={() => setIsEditingName(true)}
-                  className="w-0 md:w-auto md:p-1.5 p-0 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-blue-500 transition-all focus:opacity-100"
-                  aria-label="Edit name"
-                >
+                <motion.button whileTap={{ scale: 0.9 }} onClick={() => setIsEditingName(true)} className="w-0 md:w-auto md:p-1.5 p-0 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-blue-500 transition-all focus:opacity-100">
                   <Edit2 size={18} />
                 </motion.button>
               </motion.div>
             )}
           </AnimatePresence>
           <p className="text-sm font-medium mt-2">
-            <span  className="text-blue-600">Tracking data:</span>
-            <span className="ml-2 font-bold">
-              {formattedTrackingDate}
-            </span>
+            <span className="text-blue-600">Tracking data:</span>
+            <span className="ml-2 font-bold">{formattedTrackingDate}</span>
           </p>
         </div>
 
-        {/* Right — Time Card (Hidden on Mobile) */}
         <div className="hidden md:flex items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl backdrop-blur-2xl border border-white/50 dark:border-white/20 shadow-xl shadow-black/15 flex items-center justify-center">
+          <div className="w-12 h-12 rounded-2xl backdrop-blur-2xl border border-white/50 dark:border-white/20 shadow-xl flex items-center justify-center">
             <DisplayWeatherIcon size={22} className="opacity-95" />
           </div>
-          <div className="
-            p-2 pr-5 pl-5 rounded-2xl 
-            min-w-[230px]
-            text-center
-            bg-white/20 dark:bg-black/20
-            backdrop-blur-lg
-            border border-white/30 dark:border-white/10
-            shadow-xl
-            transition-all duration-700
-            hover:scale-105
-          ">
+          <div className="p-2 pr-5 pl-5 rounded-2xl min-w-[230px] text-center bg-white/20 dark:bg-black/20 backdrop-blur-lg border border-white/30 dark:border-white/10 shadow-xl transition-all duration-700 hover:scale-105">
             <LiveClock />
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 md:gap-6 gap-3">
-      {/* Daily 100pt Progress Section */}
-        <div className="bg-white dark:bg-slate-800 md:p-6 p-3 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700">
+        <div onClick={() => openQuickPop('daily')} className="bg-white dark:bg-slate-800 md:p-6 p-3 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 cursor-pointer hover:border-emerald-500/40 transition-all">
           <div className="flex justify-between items-center mb-4">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-emerald-500/10"><Target className="text-emerald-500" size={20} /></div>
@@ -387,12 +384,11 @@ const [showLabels, setShowLabels] = React.useState(true);
             </div>
           </div>
           <div className="w-full h-4 bg-gray-100 dark:bg-slate-900 rounded-full overflow-hidden p-1 border border-gray-200 dark:border-slate-700 shadow-inner">
-            <div className={`h-full bg-gradient-to-r from-emerald-600 to-emerald-400 rounded-full transition-all duration-1000 shadow-lg`} style={{ width: `${dailyProgressPercent}%` }} />
+            <div className="h-full bg-gradient-to-r from-emerald-600 to-emerald-400 rounded-full transition-all duration-1000 shadow-lg" style={{ width: `${dailyProgressPercent}%` }} />
           </div>
         </div>
-        
-        {/* Total Month Progress */}
-        <div className="bg-white dark:bg-slate-800 md:p-6 p-3 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700">
+
+        <div onClick={() => openQuickPop('monthly_pts')} className="bg-white dark:bg-slate-800 md:p-6 p-3 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 cursor-pointer hover:border-blue-500/40 transition-all">
           <div className="flex justify-between items-center mb-4">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-blue-500/10"><Calendar className="text-blue-500" size={20} /></div>
@@ -410,12 +406,10 @@ const [showLabels, setShowLabels] = React.useState(true);
             <div className="h-full bg-gradient-to-r from-blue-600 via-blue-400 to-emerald-400 rounded-full transition-all duration-1000 shadow-lg" style={{ width: `${Math.min(monthProgressPercent, 100)}%` }} />
           </div>
         </div>
-
-        
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 md:gap-4 gap-3">
-        <div className="bg-white dark:bg-slate-800 md:p-5 p-2.5 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 flex flex-col justify-between">
+        <div onClick={() => openQuickPop('yearly_pts')} className="bg-white dark:bg-slate-800 md:p-5 p-2.5 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 flex flex-col justify-between cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all">
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2 rounded-lg bg-blue-500/10"><TrendingUp className="text-blue-500" size={18} /></div>
             <p className="text-[10px] font-bold uppercase text-gray-400">Yearly Points ({selectedYear})</p>
@@ -423,7 +417,7 @@ const [showLabels, setShowLabels] = React.useState(true);
           <p className="text-2xl font-black text-gray-800 dark:text-white">{totalYearlyPoints.toLocaleString()}</p>
         </div>
 
-        <div className="bg-white dark:bg-slate-800 md:p-5 p-2.5 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 flex flex-col justify-between">
+        <div onClick={() => openQuickPop('yearly_goals')} className="bg-white dark:bg-slate-800 md:p-5 p-2.5 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 flex flex-col justify-between cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all">
           <div className="flex items-center gap-3 mb-2">
             <div className="p-2 rounded-lg bg-purple-500/10"><Award className="text-purple-500" size={18} /></div>
             <p className="text-[10px] font-bold uppercase text-gray-400">Yearly Goals ({selectedYear})</p>
@@ -431,13 +425,13 @@ const [showLabels, setShowLabels] = React.useState(true);
           <p className="text-2xl font-black text-gray-800 dark:text-white">{yearlyGoalsAchieved}</p>
         </div>
 
-        <div className="bg-white dark:bg-slate-800 md:p-5 p-2.5 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 flex flex-col justify-between col-span-2 lg:col-span-2">
+        <div onClick={() => openQuickPop('financial')} className="bg-white dark:bg-slate-800 md:p-5 p-2.5 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 flex flex-col justify-between col-span-2 lg:col-span-2 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-emerald-500/10"><Banknote className="text-emerald-500" size={18} /></div>
               <p className="text-[10px] font-bold uppercase text-gray-400">Transaction of {monthName}</p>
             </div>
-            <div className="text-right">
+            <div>
               <p className={`text-xl font-black ${monthCashBalance >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
                 {monthCashBalance.toLocaleString()} ₹
               </p>
@@ -458,181 +452,142 @@ const [showLabels, setShowLabels] = React.useState(true);
 
       <div className="grid grid-cols-1 lg:grid-cols-3 md:gap-6 gap-3">
         <div className="lg:col-span-1">
-          <CalendarView 
-            entries={entries} 
-            goals={goals} 
-            selectedDate={selectedDate} 
-            onSelectDate={onSelectDate} 
-            onMonthChange={(m, y) => {
-              onSelectDate(`${y}-${m}-01`);
-            }}
-          />
+          <CalendarView entries={entries} goals={goals} selectedDate={selectedDate} onSelectDate={onSelectDate} onMonthChange={(m, y) => onSelectDate(`${y}-${m}-01`)} />
         </div>
-        
-        <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white dark:bg-slate-800 md:p-6 p-3 pl-2 pr-2 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 relative">
-  <div className="flex justify-between items-start">
-    <h3 className="inline-flex items-center gap-5 pl-4 pr-4 text-lg font-bold uppercase tracking-tighter mb-6 text-gray-800 dark:text-white">
-      <ChartLine className="text-green-500 shrink-0" size={30}/>
-      <span>
-        <span className="hidden sm:inline">Point </span>
-        Trends of
-        <span className="hidden sm:inline"> {monthName} {selectedYear}</span> 
-        <span className="md:hidden md:inline"> {monthNameShort} {String(selectedYear).slice(-2)}</span>
-      </span>
-    </h3>
 
-    {/* Toggle Button */}
-    <button 
-      onClick={() => setShowLabels(!showLabels)}
-      className="p-2 mr-4 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors text-slate-600 dark:text-slate-300"
-      title={showLabels ? "Hide Goal Names" : "Show Goal Names"}
-    >
-      {showLabels ? <Eye size={18} /> : <EyeOff size={18} />}
-    </button>
-  </div>
-  
-  <div
-    onTouchStartCapture={(e) => e.stopPropagation()}
-    onTouchEndCapture={(e) => e.stopPropagation()}
-  >
-    <LineGraph 
-      data={graphData} 
-      monthName={monthName} 
-      showGoalNames={showLabels} 
-      variant="dashboard"
-    />
-  </div>
-</div>
-          
+        <div className="lg:col-span-2 space-y-6">
+          <div ref={activitiesSectionRef} className="bg-white dark:bg-slate-800 md:p-6 p-3 pl-2 pr-2 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 relative">
+            <div className="flex justify-between items-start">
+              <h3 className="inline-flex items-center gap-5 pl-4 pr-4 text-lg font-bold uppercase tracking-tighter mb-6 text-gray-800 dark:text-white">
+                <ChartLine className="text-green-500 shrink-0" size={30} />
+                <span>
+                  <span className="hidden sm:inline">Point </span>Trends of
+                  <span className="hidden sm:inline"> {monthName} {selectedYear}</span>
+                  <span className="md:hidden md:inline"> {monthNameShort} {String(selectedYear).slice(-2)}</span>
+                </span>
+              </h3>
+              <button onClick={() => setShowLabels(!showLabels)} className="p-2 mr-4 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors text-slate-600 dark:text-slate-300" title={showLabels ? "Hide Goal Names" : "Show Goal Names"}>
+                {showLabels ? <Eye size={18} /> : <EyeOff size={18} />}
+              </button>
+            </div>
+            <div onTouchStartCapture={(e) => e.stopPropagation()} onTouchEndCapture={(e) => e.stopPropagation()}>
+              <LineGraph data={graphData} monthName={monthName} showGoalNames={showLabels} variant="dashboard" />
+            </div>
+          </div>
+
           <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 md:p-6 p-0">
-            {/*notebook-text*/}
-<div className="flex items-center justify-between md:p-0 p-3 pb-0">
-            <h3 className="inline-flex items-center md:gap-5 gap-2 text-lg font-bold mb-6 text-gray-800 dark:text-white uppercase tracking-tighter">
-  <ScrollText className="text-pink-500 shrink-0" size={30}/>
-  
-  {/* Mobile: Shows "Activities" | Desktop: Shows "Activities for [Date]" */}
-  <span>
-    Activities <span className="hidden sm:inline">for {formattedFullActivitiesDate}</span>
-    <span className="sm:hidden"> {formattedActivitiesDate}</span>
-  </span>
-</h3>
-  <div className="flex gap-1">
-                <motion.button 
-                  whileHover={{ scale: 1.04 }}
-                  whileTap={{ scale: 0.96 }}
-                  onClick={handlePrevDate}
-                  className="p-2 rounded-xl bg-gray-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-700 text-gray-600 dark:text-gray-400 hover:bg-blue-500 hover:text-white transition-colors shadow-sm"
-                  title="Previous Day"
-                >
+            <div className="flex items-center justify-between md:p-0 p-3 pb-0">
+              <h3 className="inline-flex items-center md:gap-5 gap-2 text-lg font-bold mb-6 text-gray-800 dark:text-white uppercase tracking-tighter">
+                <ScrollText className="text-pink-500 shrink-0" size={30} />
+                <span>
+                  Activities <span className="hidden sm:inline">for {formattedFullActivitiesDate}</span>
+                  <span className="sm:hidden"> {formattedActivitiesDate}</span>
+                </span>
+              </h3>
+              <div className="flex gap-1">
+                <motion.button whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }} onClick={handlePrevDate} className="p-2 rounded-xl bg-gray-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-700 text-gray-600 dark:text-gray-400 hover:bg-blue-500 hover:text-white transition-colors shadow-sm">
                   <ChevronLeft size={18} />
                 </motion.button>
-                <motion.button 
-                  whileHover={{ scale: 1.04 }}
-                  whileTap={{ scale: 0.96 }}
-                  onClick={handleNextDate}
-                  className="p-2 rounded-xl bg-gray-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-700 text-gray-600 dark:text-gray-400 hover:bg-blue-500 hover:text-white transition-colors shadow-sm"
-                  title="Next Day"
-                >
+                <motion.button whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }} onClick={handleNextDate} className="p-2 rounded-xl bg-gray-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-700 text-gray-600 dark:text-gray-400 hover:bg-blue-500 hover:text-white transition-colors shadow-sm">
                   <ChevronRight size={18} />
                 </motion.button>
               </div>
-</div>
+            </div>
             <div className="md:space-y-3 space-y-1.5 md:p-0 p-1">
               {selectedDateEntries.length === 0 ? (
                 <div className="text-center py-10 text-gray-400 italic">No activities recorded.</div>
               ) : (
                 <AnimatePresence initial={false} mode="sync">
-                {selectedDateEntries.map(entry => {
-                  const isGoal = goals.some(g => g.code === entry.code && g.achievedAt === entry.toDate);
-                  const isCash = !!(entry.debit || entry.credit);
-                  return (
-                    <motion.div
-                      key={entry.id}
-                      initial={shouldReduceMotion ? false : { opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -6 }}
-                      transition={shouldReduceMotion ? { duration: 0.15 } : { type: 'spring', stiffness: 320, damping: 30, mass: 0.7 }}
-                      layout
-                      className="group md:p-4 p-3 rounded-2xl border border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50 hover:bg-white dark:hover:bg-slate-800 transition-colors shadow-sm"
-                    >
-  {/* TOP SECTION */}
-  <div className="flex items-start gap-3">
-    {/* Icon Square */}
-    <div className={`md:w-12 md:h-12 w-10 h-10 rounded-xl flex items-center justify-center font-black md:text-xs text-[10px] shrink-0 ${isGoal ? 'bg-emerald-600' : 'bg-blue-600'} text-white shadow-lg`}>
-      {entry.code}
-    </div>
+                  {selectedDateEntries.map(entry => {
+                    const isGoal = goals.some(g => g.code === entry.code && g.achievedAt === entry.toDate);
+                    const isCash = !!(entry.debit || entry.credit);
+                    return (
+                      <motion.div
+                        ref={(el) => {
+                          activityRefs.current[entry.id] = el;
+                        }}
+                        key={entry.id}
+                        initial={shouldReduceMotion ? false : { opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -6 }}
+                        transition={shouldReduceMotion ? { duration: 0.15 } : { type: 'spring', stiffness: 320, damping: 30, mass: 0.7 }}
+                        layout
+                        className="group md:p-4 p-3 rounded-2xl border border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50 hover:bg-white dark:hover:bg-slate-800 transition-colors shadow-sm"
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className={`md:w-12 md:h-12 w-10 h-10 rounded-xl flex items-center justify-center font-black md:text-xs text-[10px] shrink-0 ${isGoal ? 'bg-emerald-600' : 'bg-blue-600'} text-white shadow-lg`}>
+                            {entry.code}
+                          </div>
 
-    {/* Title and Time Badge */}
-    <div className="flex-1 min-w-0">
-      <div className="flex items-center gap-2">
-        <h4 className="font-bold text-gray-800 dark:text-white truncate">{entry.name}</h4>
-        {isGoal && <Star size={14} className="text-emerald-500" fill="currentColor" />}
-        {isCash && <Banknote size={14} className="text-emerald-500" />}
-      </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-bold text-gray-800 dark:text-white truncate">{entry.name}</h4>
+                              {isGoal && <Star size={14} className="text-emerald-500" fill="currentColor" />}
+                              {isCash && <Banknote size={14} className="text-emerald-500" />}
+                            </div>
 
-      {/* Time Badge with Border/Radius */}
-      <div className="inline-flex items-center gap-2 mt-1.5 px-2 py-1 rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 text-[10px] font-bold text-gray-500 dark:text-gray-400 shadow-sm">
-        <Clock size={10} />
-        <span>{entry.isLongEvent ? `${entry.fromTime} — ${entry.toTime}` : entry.toTime}</span>
-        {isCash && (
-          <div className="flex gap-2 ml-1 border-l pl-2 border-gray-200 dark:border-slate-700">
-            {entry.debit > 0 && <span className="text-red-500">-{entry.debit}₹</span>}
-            {entry.credit > 0 && <span className="text-emerald-500">+{entry.credit}₹</span>}
-          </div>
-        )}
-      </div>
-    </div>
+                            <div className="inline-flex items-center gap-2 mt-1.5 px-2 py-1 rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 text-[10px] font-bold text-gray-500 dark:text-gray-400 shadow-sm">
+                              <Clock size={10} />
+                              <span>{entry.isLongEvent ? `${entry.fromTime} — ${entry.toTime}` : entry.toTime}</span>
+                              {isCash && (
+                                <div className="flex gap-2 ml-1 border-l pl-2 border-gray-200 dark:border-slate-700">
+                                  {entry.debit > 0 && <span className="text-red-500">-{entry.debit}₹</span>}
+                                  {entry.credit > 0 && <span className="text-emerald-500">+{entry.credit}₹</span>}
+                                </div>
+                              )}
+                            </div>
+                          </div>
 
-    {/* Points and Actions */}
-    <div className="flex items-center gap-3 shrink-0">
-      <span className={`text-lg font-black ${isGoal ? 'text-emerald-500' : 'text-blue-600'}`}>
-        +{entry.points}
-      </span>
-      <div className="flex flex-col border-l border-gray-200 dark:border-slate-700 pl-2 gap-1 md:opacity-0 group-hover:opacity-100 transition-opacity">
-        <button onClick={() => onEdit(entry)} className="p-1 text-gray-400 hover:text-blue-500 transition-colors">
-          <Edit2 size={15}/>
-        </button>
-        <button onClick={() => onDelete(entry.id)} className="p-1 text-gray-400 hover:text-red-600 transition-colors">
-          <Trash2 size={15}/>
-        </button>
-      </div>
-    </div>
-  </div>
+                          <div className="flex items-center gap-3 shrink-0">
+                            <span className={`text-lg font-black ${isGoal ? 'text-emerald-500' : 'text-blue-600'}`}>
+                              +{entry.points}
+                            </span>
+                            <div className="flex flex-col border-l border-gray-200 dark:border-slate-700 pl-2 gap-1 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button onClick={() => onEdit(entry)} className="p-1 text-gray-400 hover:text-blue-500 transition-colors">
+                                <Edit2 size={15} />
+                              </button>
+                              <button onClick={() => onDelete(entry.id)} className="p-1 text-gray-400 hover:text-red-600 transition-colors">
+                                <Trash2 size={15} />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
 
-  {/* FULL WIDTH DESCRIPTION */}
-  {entry.description && (
-  <div className={`md:mt-4 mt-2 w-full md:p-3 p-1 pl-3 rounded-xl shadow-inner text-xs italic leading-relaxed border-l-4 ${
-    isGoal 
-      ? 'bg-emerald-50/50 dark:bg-emerald-900/20 border-emerald-500 text-emerald-700 dark:text-emerald-300' 
-      : 'bg-gray-100/50 dark:bg-slate-800/80 border-blue-500 text-gray-600 dark:text-gray-300'
-  }`}>
-    {entry.description}
-  </div>
-)}
+                        {entry.description && (
+                          <div className={`md:mt-4 mt-2 w-full md:p-3 p-1 pl-3 rounded-xl whitespace-pre-wrap shadow-inner text-xs italic leading-relaxed border-l-4 ${isGoal ? 'bg-emerald-50/50 dark:bg-emerald-900/20 border-emerald-500 text-emerald-700 dark:text-emerald-300' : 'bg-gray-100/50 dark:bg-slate-800/80 border-blue-500 text-gray-600 dark:text-gray-300'}`}>
+                            {entry.description}
+                          </div>
+                        )}
 
-  {/* Attachment Link */}
-  {entry.attachment && (
-    <div className="mt-3">
-      <a 
-        href={entry.attachment} 
-        target="_blank" 
-        rel="noreferrer" 
-        className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-blue-500 dark:text-blue-400 bg-blue-500/5 px-3 py-1.5 rounded-xl hover:bg-blue-500/10 transition-all border border-blue-500/20 shadow-sm"
-      >
-        <Paperclip size={12} /> View Attachment
-      </a>
-    </div>
-  )}
-</motion.div>
-                  );
-                })}
+                        {entry.attachment && (
+                          <div className="mt-3">
+                            <a href={entry.attachment} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-blue-500 dark:text-blue-400 bg-blue-500/5 px-3 py-1.5 rounded-xl hover:bg-blue-500/10 transition-all border border-blue-500/20 shadow-sm">
+                              <Paperclip size={12} /> View Attachment
+                            </a>
+                          </div>
+                        )}
+                      </motion.div>
+                    );
+                  })}
                 </AnimatePresence>
               )}
             </div>
           </div>
         </div>
       </div>
+      <QuickPopData
+        isOpen={popDataConfig.isOpen}
+        onClose={() => setPopDataConfig(prev => ({ ...prev, isOpen: false }))}
+        type={popDataConfig.type}
+        entries={entries}
+        goals={goals}
+        selectedDate={selectedDate}
+        onSelectDate={onSelectDate}
+        scrollToActivities={() => {
+          activitiesSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }}
+        scrollToActivity={scrollToActivity}
+      />
     </div>
   );
 };

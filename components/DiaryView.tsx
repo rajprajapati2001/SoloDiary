@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ActivityEntry, Goal } from '../types';
-import { Trash2, Edit2, Clock, Paperclip, Calendar, Star, Banknote, NotebookPen, Search, ArrowUpDown } from 'lucide-react';
+import { Trash2, Edit2, Clock, Paperclip, Calendar, Star, Banknote, NotebookPen, Search, ArrowUpDown, FileText, FileX, ArrowDownRight, ArrowUpRight } from 'lucide-react';
 
 interface DiaryViewProps {
   entries: ActivityEntry[];
@@ -8,6 +8,9 @@ interface DiaryViewProps {
   onEdit: (entry: ActivityEntry) => void;
   onDelete: (id: string) => void;
 }
+
+// Updated type to handle granular cash filter views
+type ViewType = 'all' | 'transactions' | 'debit' | 'credit';
 
 const DiaryView: React.FC<DiaryViewProps> = ({ entries, goals, onEdit, onDelete }) => {
   // Search state
@@ -20,24 +23,46 @@ const DiaryView: React.FC<DiaryViewProps> = ({ entries, goals, onEdit, onDelete 
   });
 
   const [sortAsc, setSortAsc] = useState(false); // Default: Descending (latest first)
+  const [seeAllMonths, setSeeAllMonths] = useState(false); // Default: false
+  const [viewType, setViewType] = useState<ViewType>('all'); 
+  
+  // Description sorting filter: 'all' | 'with-desc' | 'no-desc'
+  const [descFilter, setDescFilter] = useState<'all' | 'with-desc' | 'no-desc'>('all');
 
-  // Filter logic: Matches Month + Search Term (Name, Code, or Description)
+  const isGoalEntry = (entry: ActivityEntry) => goals.some(g => g.code === entry.code && g.achievedAt === entry.toDate);
+  const isCashEntry = (entry: ActivityEntry) => !!(entry.debit || entry.credit);
+
+  // Filter logic: Matches Month + Search Term + View Type + Description Presence
   const diaryEntries = entries
     .filter(e => {
-      const matchesMonth = e.description && e.toDate.startsWith(selectedMonth);
+      // 1. Month validation
+      const matchesMonth = seeAllMonths ? true : (e.toDate && e.toDate.startsWith(selectedMonth));
+      
+      // 2. Search term validation
       const searchLower = searchTerm.toLowerCase();
       const matchesSearch = 
         e.name.toLowerCase().includes(searchLower) ||
         e.code.toLowerCase().includes(searchLower) ||
-        e.description?.toLowerCase().includes(searchLower);
+        (e.description && e.description.toLowerCase().includes(searchLower));
       
-      return matchesMonth && matchesSearch;
+      // 3. View type validation (Expanded for granular Cash filters)
+      let matchesViewType = true;
+      if (viewType === 'transactions') matchesViewType = isCashEntry(e);
+      if (viewType === 'debit') matchesViewType = !!(e.debit && e.debit > 0);
+      if (viewType === 'credit') matchesViewType = !!(e.credit && e.credit > 0);
+      
+      // 4. Description filter validation
+      const hasDesc = e.description && e.description.trim() !== "";
+      let matchesDesc = true;
+      if (descFilter === 'with-desc') matchesDesc = !!hasDesc;
+      if (descFilter === 'no-desc') matchesDesc = !hasDesc;
+      
+      return matchesMonth && matchesSearch && matchesViewType && matchesDesc;
     })
     .sort((a, b) => {
-  const dateCompare = sortAsc ? a.toDate.localeCompare(b.toDate) : b.toDate.localeCompare(a.toDate);
-  // Keep time sorting consistent (earliest to latest within the day)
-  return dateCompare || a.toTime.localeCompare(b.toTime);
-});
+      const dateCompare = sortAsc ? a.toDate.localeCompare(b.toDate) : b.toDate.localeCompare(a.toDate);
+      return dateCompare || a.toTime.localeCompare(b.toTime);
+    });
 
   const groupedEntries = diaryEntries.reduce((acc, entry) => {
     if (!acc[entry.toDate]) acc[entry.toDate] = [];
@@ -45,90 +70,188 @@ const DiaryView: React.FC<DiaryViewProps> = ({ entries, goals, onEdit, onDelete 
     return acc;
   }, {} as Record<string, ActivityEntry[]>);
 
-  const isGoalEntry = (entry: ActivityEntry) => goals.some(g => g.code === entry.code && g.achievedAt === entry.toDate);
-  const isCashEntry = (entry: ActivityEntry) => !!(entry.debit || entry.credit);
+  const monthDisplay = seeAllMonths 
+    ? "All Time" 
+    : new Date(selectedMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
-  const monthDisplay = new Date(selectedMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  // Cycle description filter through states: all -> with-desc -> no-desc -> all
+  const handleDescFilterCycle = () => {
+    if (descFilter === 'all') setDescFilter('with-desc');
+    else if (descFilter === 'with-desc') setDescFilter('no-desc');
+    else setDescFilter('all');
+  };
+
+  // Cycle cash view states: all -> transactions -> debit -> credit -> all
+  const handleCashFilterCycle = () => {
+    if (viewType === 'all') setViewType('transactions');
+    else if (viewType === 'transactions') setViewType('debit');
+    else if (viewType === 'debit') setViewType('credit');
+    else setViewType('all');
+  };
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-        <div>
-          <h2 className="text-3xl font-black uppercase tracking-tighter dark:text-white">Personal Diary</h2>
+      {/* --- COMPACT CONSOLIDATED ROW: TITLE, SEARCH, AND BUTTONS IN ONE LINE ON DESKTOP --- */}
+      <div className="grid grid-cols-1 lg:grid-cols-[auto_1fr_auto] gap-4 items-center w-full">
+        
+        {/* Title Block - whitespace-nowrap prevents text wrapping */}
+        <div className="shrink-0 whitespace-nowrap">
+          <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tighter dark:text-white">Personal Diary</h2>
           <p className="text-sm font-bold text-gray-600 dark:text-slate-400">Records for {monthDisplay}</p>
         </div>
         
-        <div className="flex flex-row sm:flex-row items-center gap-3 w-full lg:w-auto no-print">
-  {/* --- SEARCH INPUT --- */}
-  <div className="relative flex-1 sm:w-64 group">
-    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
-    <input 
-      type="text"
-      placeholder="Search logs..."
-      value={searchTerm}
-      onChange={(e) => setSearchTerm(e.target.value)}
-      className="w-full pl-10 pr-4 py-2.5 bg-white/10 dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 dark:text-white text-sm font-bold outline-none focus:border-blue-500 transition-all shadow-lg"
-    />
-  </div>
+        {/* Centered Search Input Box - Takes up all available middle space */}
+        <div className="relative w-full group no-print">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
+          <input 
+            type="text"
+            placeholder="Search logs..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 bg-white/10 dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 dark:text-white text-sm font-bold outline-none focus:border-blue-500 transition-all shadow-lg"
+          />
+        </div>
 
-  {/* --- SORT BUTTON --- */}
-  <button 
-    onClick={() => setSortAsc(!sortAsc)}
-    className={`shrink-0 h-[46px] px-4 rounded-2xl border transition-all flex items-center gap-2 font-bold text-sm shadow-lg ${
-      sortAsc 
-        ? 'bg-blue-600 text-white border-blue-600' 
-        : 'bg-white/10 dark:bg-slate-800 dark:text-white border-gray-100 dark:border-slate-700 hover:border-blue-500'
-    }`}
-    title={sortAsc ? "Showing Oldest First" : "Showing Newest First"}
-  >
-    <div className={`transition-transform duration-300 ${sortAsc ? 'rotate-180' : 'rotate-0'}`}>
-      <ArrowUpDown size={16} /> 
-    </div>
-    <span className="hidden md:inline">{sortAsc ? 'Oldest' : 'Newest'}</span>
-  </button>
-</div>
+        {/* Filter Action Buttons Layout Line */}
+        <div className="flex items-center justify-start lg:justify-end w-full gap-1.5 md:gap-2 no-print">
+          
+          {/* 1. MONTH SELECTION UI (Optimized layout for mobile views) */}
+          <div className="flex items-center gap-1 md:gap-2 bg-white/10 dark:bg-slate-800 h-[46px] px-2 md:px-3 rounded-2xl border border-gray-100 dark:border-slate-700 shadow-xl shrink-0">
+            <Calendar size={16} className="text-blue-500 shrink-0" />
+            <input 
+              type="month" 
+              value={selectedMonth} 
+              onChange={e => setSelectedMonth(e.target.value)} 
+              disabled={seeAllMonths}
+              className="bg-transparent dark:text-white border-none text-xs md:text-sm font-bold outline-none cursor-pointer focus:ring-0 disabled:opacity-30 disabled:cursor-not-allowed max-w-[105px] md:max-w-none px-0 md:px-1"
+            />
+          </div>
 
-  {/* --- DATE PICKER --- */}
-  <div className="flex items-center gap-2 bg-white/10 dark:bg-slate-800 h-[46px] px-3 rounded-2xl border border-gray-100 dark:border-slate-700 shadow-xl w-full sm:w-auto">
-    <Calendar size={18} className="text-blue-500 shrink-0" />
-    <input 
-      type="month" 
-      value={selectedMonth} 
-      onChange={e => setSelectedMonth(e.target.value)} 
-      className="bg-transparent dark:text-white border-none text-sm font-bold outline-none cursor-pointer w-full focus:ring-0"
-    />
-  </div>
+          {/* 2. ALL MONTHS TOGGLE BUTTON */}
+          <button
+            onClick={() => setSeeAllMonths(!seeAllMonths)}
+            className={`shrink-0 h-[46px] px-3 md:px-4 rounded-2xl border transition-all flex items-center justify-center gap-2 font-bold text-sm shadow-lg ${
+              seeAllMonths
+                ? 'bg-purple-600 text-white border-purple-600'
+                : 'bg-white/10 dark:bg-slate-800 dark:text-white border-gray-100 dark:border-slate-700 hover:border-purple-500'
+            }`}
+            title="Toggle View All Months"
+          >
+            <Calendar size={16} className={seeAllMonths ? "text-white" : "text-purple-500"} />
+            <span className="hidden md:inline">{seeAllMonths ? 'Showing All Months' : 'All Months'}</span>
+          </button>
+
+          {/* 3. SORT BUTTON */}
+          <button 
+            onClick={() => setSortAsc(!sortAsc)}
+            className={`shrink-0 h-[46px] px-3 md:px-4 rounded-2xl border transition-all flex items-center justify-center gap-2 font-bold text-sm shadow-lg ${
+              sortAsc 
+                ? 'bg-blue-600 text-white border-blue-600' 
+                : 'bg-white/10 dark:bg-slate-800 dark:text-white border-gray-100 dark:border-slate-700 hover:border-blue-500'
+            }`}
+            title={sortAsc ? "Showing Oldest First" : "Showing Newest First"}
+          >
+            <div className={`transition-transform duration-300 ${sortAsc ? 'rotate-180' : 'rotate-0'}`}>
+              <ArrowUpDown size={16} className={sortAsc ? "text-white" : "text-blue-500"}/> 
+            </div>
+            <span className="hidden md:inline">{sortAsc ? 'Oldest' : 'Newest'}</span>
+          </button>
+
+          {/* 4. DYNAMIC CASH FILTER SELECTION TAB BUTTON */}
+          <button
+            onClick={handleCashFilterCycle}
+            className={`shrink-0 h-[46px] px-3 md:px-4 rounded-2xl border transition-all flex items-center justify-center gap-2 font-bold text-sm shadow-lg ${
+              viewType === 'transactions' ? 'bg-amber-500 text-white border-amber-500' :
+              viewType === 'debit' ? 'bg-red-500 text-white border-red-500' :
+              viewType === 'credit' ? 'bg-emerald-500 text-white border-emerald-500' :
+              'bg-white/10 dark:bg-slate-800 dark:text-white border-gray-100 dark:border-slate-700 hover:border-amber-500'
+            }`}
+            title={`Current view: ${viewType}`}
+          >
+            {viewType === 'all' && <Banknote size={16} className="text-amber-500" />}
+            {viewType === 'transactions' && <Banknote size={16} />}
+            {viewType === 'debit' && <ArrowDownRight size={16} />}
+            {viewType === 'credit' && <ArrowUpRight size={16} />}
+            
+            <span className="hidden md:inline">
+              {viewType === 'all' && 'All Logs'}
+              {viewType === 'transactions' && 'Cash Only'}
+              {viewType === 'debit' && 'Debits Only'}
+              {viewType === 'credit' && 'Credits Only'}
+            </span>
+          </button>
+
+          {/* 5. DESCRIPTION FILTER BUTTON */}
+          <button
+            onClick={handleDescFilterCycle}
+            className={`shrink-0 h-[46px] px-3 md:px-4 rounded-2xl border transition-all flex items-center justify-center gap-2 font-bold text-sm shadow-lg ${
+              descFilter !== 'all'
+                ? 'bg-blue-600 text-white border-blue-600'
+                : 'bg-white/10 dark:bg-slate-800 dark:text-white border-gray-100 dark:border-slate-700 hover:border-blue-500'
+            }`}
+            title={descFilter === 'all' ? "Showing All Content" : descFilter === 'with-desc' ? "Showing Text Only" : "Showing Without Text"}
+          >
+            {descFilter === 'no-desc' ? <FileX size={16}/> : <FileText size={16} className={descFilter === 'with-desc' ? "text-white-500" : "text-pink-500"} />}
+            <span className="hidden md:inline">
+              {descFilter === 'all' && 'All Text'}
+              {descFilter === 'with-desc' && 'With Description'}
+              {descFilter === 'no-desc' && 'No Description'}
+            </span>
+          </button>
+
+        </div>
       </div>
 
+      {/* --- RENDERED DIARY ENTRIES --- */}
       {Object.keys(groupedEntries).length === 0 ? (
         <div className="p-12 text-center text-gray-400 dark:text-slate-500 italic bg-white/10 dark:bg-slate-800/50 rounded-3xl border border-gray-100 dark:border-slate-800">
-          {searchTerm ? "No logs match your search criteria." : "No descriptive logs found for this period."}
+          {searchTerm || viewType !== 'all' || descFilter !== 'all' ? "No logs match your filters or criteria." : "No descriptive logs found for this period."}
         </div>
       ) : (
-        <div className="space-y-8">
+        <div className="md:space-y-8 space-y-2">
           {Object.keys(groupedEntries).map((date) => {
             const items = groupedEntries[date];
             const totalPoints = items.reduce((sum, item) => sum + item.points, 0);
+            
+            // Financial calculations for the header row metrics
+            const totalDebit = items.reduce((sum, item) => sum + (item.debit || 0), 0);
+            const totalCredit = items.reduce((sum, item) => sum + (item.credit || 0), 0);
+            
             const hasGoalInDay = items.some(item => isGoalEntry(item));
             return (
-              <div key={date} className="space-y-4">
-                <div className="flex items-center justify-between w-full gap-3">
+              <div key={date} className="md:space-y-4 space-y-2">
+                <div className="flex items-center justify-between w-full md:gap-3 gap-1">
                   
-                <h3 className="text-lg font-black text-blue-500 flex items-center gap-2 drop-shadow-sm">
-                  {hasGoalInDay ? (
+                  <h3 className="text-lg font-black text-blue-500 flex items-center gap-2 drop-shadow-sm">
+                    {hasGoalInDay ? (
                       <div className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center text-white shadow-lg shadow-emerald-500/50">
                         <Star size={10} fill="currentColor" />
                       </div>
                     ) : (
-                  <div className="w-3 h-3 rounded-full bg-blue-500 shadow-lg shadow-blue-500/50" />
-                  )}
-                  {new Date(date).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}
-                </h3>
-                <div className="bg-blue-600 text-white items-right text-[10px] font-black px-2.5 py-1 rounded-xl shadow-lg shadow-blue-600/20 uppercase tracking-widest">
-                    {totalPoints} PTS
+                      <div className="w-3 h-3 rounded-full bg-blue-500 shadow-lg shadow-blue-500/50" />
+                    )}
+                    {new Date(date).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}
+                  </h3>
+                  
+                  {/* --- FINANCIAL SUM LABELS --- */}
+                  <div className="flex items-center gap-1.5 md:gap-2">
+                    <div className="bg-blue-600 text-white items-right text-[10px] font-black px-2.5 py-1 rounded-xl shadow-lg shadow-blue-600/20 uppercase tracking-widest">
+                      {totalPoints} PTS
+                    </div>
+                    {totalCredit > 0 && (
+                      <div className="bg-emerald-500 text-white text-[10px] font-black px-2.5 py-1 rounded-xl shadow-lg shadow-emerald-500/20 tracking-widest">
+                        +{totalCredit}₹
+                      </div>
+                    )}
+                    {totalDebit > 0 && (
+                      <div className="bg-red-500 text-white text-[10px] font-black px-2.5 py-1 rounded-xl shadow-lg shadow-red-500/20 tracking-widest">
+                        -{totalDebit}₹
+                      </div>
+                    )}
                   </div>
                 </div>
-                <div className="grid gap-6">
+                
+                <div className="grid md:gap-6 gap-3">
                   {items.map(item => {
                     const goalAchieved = isGoalEntry(item);
                     const hasCash = isCashEntry(item);
@@ -141,7 +264,7 @@ const DiaryView: React.FC<DiaryViewProps> = ({ entries, goals, onEdit, onDelete 
                           : 'border-gray-100 dark:border-slate-700'
                         }`}
                       >
-                        <div className="flex justify-between items-start mb-4">
+                        <div className="flex justify-between items-start">
                           <div>
                             <div className="flex flex-wrap items-center gap-2 mb-2">
                               <NotebookPen size={14} className="text-pink-600" />
@@ -178,9 +301,12 @@ const DiaryView: React.FC<DiaryViewProps> = ({ entries, goals, onEdit, onDelete 
                           </div>
                         </div>
                         
-                        <p className="md:text-sm text-xs whitespace-pre-wrap leading-relaxed border-l-4 border-blue-500/30 dark:border-blue-400/20 pl-3 md:py-3 py-1 bg-gray-50 dark:bg-slate-900 rounded-r-xl dark:text-slate-300">
-                          {item.description}
-                        </p>
+                        {/* --- CONDITIONALLY RENDER BLOCK ONLY IF DESCRIPTION CONTENT EXISTS --- */}
+                        {item.description && item.description.trim() !== "" && (
+                          <p className="md:text-sm text-xs whitespace-pre-wrap mt-3 leading-relaxed border-l-4 border-blue-500/30 dark:border-blue-400/20 pl-3 md:py-3 py-1 bg-gray-50 dark:bg-slate-900 rounded-r-xl dark:text-slate-300">
+                            {item.description}
+                          </p>
+                        )}
 
                         {item.attachment && (
                           <a 

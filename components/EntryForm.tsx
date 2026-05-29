@@ -208,11 +208,25 @@ const EntryForm: React.FC<EntryFormProps> = ({ isOpen, onClose, onSave, initialD
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  useEffect(() => {
-    if (!isDescriptionOpen || !descriptionRef.current) return;
-    descriptionRef.current.style.height = 'auto';
-    descriptionRef.current.style.height = `${descriptionRef.current.scrollHeight}px`;
-  }, [description, isDescriptionOpen]);
+useEffect(() => {
+    // 1. Ensure the element is mounted and open
+    if (!isDescriptionOpen || !descriptionRef.current || !isBodyReady) return;
+    
+    const adjustHeight = () => {
+      const textarea = descriptionRef.current;
+      if (!textarea) return;
+      textarea.style.height = 'auto';
+      textarea.style.height = `${textarea.scrollHeight}px`;
+    };
+
+    // 2. Run immediately for fast typing updates
+    adjustHeight();
+
+    // 3. Queue a tiny macro-task to let the layout engine settle 
+    // after the form switches records and finishes animation transitions
+    const frameId = window.requestAnimationFrame(adjustHeight);
+    return () => window.cancelAnimationFrame(frameId);
+  }, [description, isDescriptionOpen, isBodyReady, initialData]);
 
   const activeGoals = useMemo(() => (isHeavyUiReady ? goals.filter(g => !g.achievedAt) : []), [goals, isHeavyUiReady]);
 

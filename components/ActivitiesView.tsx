@@ -229,7 +229,7 @@ const ActivitiesView: React.FC<ActivitiesViewProps> = ({ templates, onAdd, onEdi
               {sortedTemplates.map(t => (
                 <tr key={t.id} className="hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-colors group">
                   <td className="pl-5 pr-3 py-3.5">
-                    <span className="font-black text-blue-500 bg-blue-50 dark:bg-blue-900/20 px-2.5 py-1 rounded-md uppercase tracking-wider text-xs border border-blue-500/20">{t.code}</span>
+                    <span className="font-black text-blue-500 bg-blue-50 dark:bg-blue-900/20 whitespace-nowrap px-2.5 py-1 rounded-md uppercase tracking-wider text-xs border border-blue-500/20">{t.code}</span>
                   </td>
                   <td className="px-3 py-3.5">
                     <div className="font-bold text-gray-900 dark:text-white flex items-center gap-1.5">

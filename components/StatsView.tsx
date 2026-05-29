@@ -33,6 +33,7 @@ const StatsView: React.FC<StatsViewProps> = ({ userName, entries, goals, onRefre
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   });
   const [showExportModal, setShowExportModal] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [exportData, setExportData] = useState<string>('');
   const [copied, setCopied] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -55,10 +56,11 @@ const StatsView: React.FC<StatsViewProps> = ({ userName, entries, goals, onRefre
   const handleExport = async () => {
   try {
     const db = await getDB();
-    const [allEntries, allGoals, allTemplates] = await Promise.all([
+    const [allEntries, allGoals, allTemplates, allAutoTemplates] = await Promise.all([
       db.getAll('entries'),
       db.getAll('goals'),
-      db.getAll('activity_templates')
+      db.getAll('activity_templates'),
+      db.getAll('auto_templates'),
     ]);
     
     const data = {
@@ -66,6 +68,7 @@ const StatsView: React.FC<StatsViewProps> = ({ userName, entries, goals, onRefre
       entries: allEntries,
       goals: allGoals,
       templates: allTemplates,
+      autoTemplates: allAutoTemplates,
       exportedAt: new Date().toISOString(),
       version: '1.0.0',
       device: navigator.userAgent
@@ -192,7 +195,7 @@ const handleWebView = () => {
   `).join('');
 
   // 2. Generate HTML for the Chronological Table
-  const tableBodyHtml = Object.keys(groupedLogsByDate).sort().map(dateStr => {
+  const tableBodyHtml = Object.keys(filteredGroupedLogsByDate).sort().map(dateStr => {
     const dayLogs = groupedLogsByDate[dateStr];
     const dayRows = dayLogs.map(log => `
       <tr class="log-row" data-code="${log.code}" data-debit="${log.debit || 0}" data-credit="${log.credit || 0}">
@@ -535,6 +538,11 @@ const showToast = (message: string) => {
             await Promise.all(data.templates.map((t: any) => tx.store.put(t)));
             await tx.done;
           }
+          if (data.autoTemplates) {
+            const tx = db.transaction('auto_templates', 'readwrite');
+            await Promise.all(data.autoTemplates.map((t: any) => tx.store.put(t)));
+            await tx.done;
+          }
           
           alert('Import successful!');
           if (onRefresh) onRefresh();
@@ -644,6 +652,19 @@ const showToast = (message: string) => {
     });
     return groups;
   }, [currentMonthEntries]);
+
+  const filteredGroupedLogsByDate = useMemo(() => {
+  if (!searchQuery.trim()) return groupedLogsByDate;
+  const q = searchQuery.toLowerCase();
+  const result: Record<string, ActivityEntry[]> = {};
+  Object.keys(groupedLogsByDate).forEach(dateStr => {
+    const matched = groupedLogsByDate[dateStr].filter(e =>
+      e.description?.toLowerCase().includes(q) || e.name.toLowerCase().includes(q)
+    );
+    if (matched.length > 0) result[dateStr] = matched;
+  });
+  return result;
+}, [groupedLogsByDate, searchQuery]);
 
   const hasAttachmentsInReport = useMemo(() => currentMonthEntries.some(e => !!e.attachment), [currentMonthEntries]);
   const hasTransactionsInReport = useMemo(() => currentMonthEntries.some(e => (e.debit || 0) > 0 || (e.credit || 0) > 0), [currentMonthEntries]);
@@ -1042,7 +1063,19 @@ const handleWebReport = async () => {
         * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         .matrix-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; margin-bottom: 30px; }
         .matrix-card { padding: 10px; border: 1px solid #e2e8f0; border-radius: 10px; background: white; cursor: pointer; transition: all 0.2s ease; }
-        .matrix-card.active { border: 2px solid #2563eb !important; background: #eff6ff !important; transform: translateY(-2px); }
+        /* Active state for regular cards (no goal) – blue */
+        .matrix-card.active:not([data-has-goal="true"]) {
+          border: 2px solid #2563eb !important;
+          background: #eff6ff !important;
+          transform: translateY(-2px);
+        }
+
+        /* Active state for goal cards – emerald green */
+        .matrix-card.active[data-has-goal="true"] {
+          border: 2px solid #10b981 !important;
+          background: #d1fae5 !important;
+          transform: translateY(-2px);
+        }
         .log-row { border-bottom: 1px solid #f1f5f9; transition: all 0.3s ease; border-left: 4px solid transparent; }
         .log-row.highlighted { background: #fffbeb !important; border-left-color: #f59e0b !important; }
         .goal-row { cursor: pointer; transition: all 0.2s ease; }
@@ -1166,6 +1199,32 @@ const handleWebReport = async () => {
             if (mode) window.toggleFinanceHighlight(mode);
           }
         });
+
+        // --- Search Description Filter ---
+        (function() {
+          var searchInput = document.getElementById('search-description-input');
+          if (searchInput) {
+            searchInput.addEventListener('input', function() {
+              var query = this.value.toLowerCase();
+              var rows = document.querySelectorAll('tr.log-row');
+              rows.forEach(function(row) {
+                var text = row.textContent.toLowerCase();
+                row.style.display = (query === '' || text.indexOf(query) !== -1) ? '' : 'none';
+              });
+              // Show/hide date headers
+              var headers = document.querySelectorAll('tr[id^="ledger-date-"]');
+              headers.forEach(function(header) {
+                var next = header.nextElementSibling;
+                var visible = false;
+                while (next && next.classList.contains('log-row')) {
+                  if (next.style.display !== 'none') { visible = true; break; }
+                  next = next.nextElementSibling;
+                }
+                header.style.display = visible ? '' : 'none';
+              });
+            });
+          }
+        })();
 
         window.toggleFinanceHighlight = function(mode) {
           var allFinCards = document.querySelectorAll('[data-finance-toggle]');
@@ -1964,33 +2023,62 @@ const [showLabels, setShowLabels] = useState(true);
       // Check if this specific card is the one currently selected
       const isActive = highlightedCode === item.code || isCodeFinanceHighlighted(item.code);
 
+      // Check if this card has a corresponding goal in your goals list
+      const hasGoal = goals && goals.some(g => g.code === item.code);
+
       return (
-        <div 
-          key={item.code} 
-          data-code={item.code}
-          // Toggle logic: if clicking the same one, turn it off (null), otherwise set to item.code
-          onClick={() => { setHighlightedCode(highlightedCode === item.code ? null : item.code); setFinanceHighlight(null); }}
-          className={`matrix-card p-2 border rounded-lg flex flex-col justify-between min-h-[60px] shadow-sm transition-all cursor-pointer ${
-            isActive 
-              ? 'border-blue-600 ring-2 ring-blue-100 bg-blue-50' 
-              : 'border-slate-100 bg-white hover:border-blue-200'
-          }`}
-        >
-          <div className="flex justify-between items-start mb-0.5">
-            <span className={`text-[7px]  font-bold uppercase px-1 py-0.25 rounded border transition-colors ${
-              isActive 
-                ? 'bg-blue-600 text-white border-blue-700' 
-                : 'text-blue-600 bg-blue-50 border-blue-100'
-            }`}>
-              {item.code}
-            </span>
-            <span className="text-[10px]  font-black text-slate-950">+{item.totalPoints}</span>
-          </div>
-          <div>
-            <p className="text-[9px] font-medium text-slate-950 uppercase truncate mb-0.25">{item.name}</p>
-            <p className="text-[6px]  font-semibold text-slate-400 uppercase tracking-widest">Logs: {item.count}</p>
-          </div>
-        </div>
+<div 
+  key={item.code} 
+  data-code={item.code}
+  data-has-goal={hasGoal ? 'true' : 'false'}
+  // Toggle logic: if clicking the same one, turn it off (null), otherwise set to item.code
+  onClick={() => { setHighlightedCode(highlightedCode === item.code ? null : item.code); setFinanceHighlight(null); }}
+  className={`matrix-card relative p-2 border rounded-lg flex flex-col justify-between min-h-[60px] shadow-sm transition-all cursor-pointer ${
+    isActive 
+      ? hasGoal
+        ? 'border-emerald-500 ring-2 ring-emerald-100 bg-emerald-50' // If selected AND has a goal, it turns green!
+        : 'border-blue-600 ring-2 ring-blue-100 bg-blue-50'       // Original active style for non-goal cards
+      : hasGoal
+        ? 'border-emerald-300 bg-white hover:border-emerald-500'   // Default resting style for goal cards
+        : 'border-slate-100 bg-white hover:border-blue-200'       // Original resting style for regular cards
+  }`}
+>
+  <div className="flex justify-between items-start mb-0.5">
+    <span className={`text-[7px]  font-bold uppercase px-1 py-0.25 rounded border transition-colors ${
+      isActive 
+        ? hasGoal
+          ? 'bg-emerald-500 text-white border-emerald-600' // Badge turns green if goal item is active
+          : 'bg-blue-600 text-white border-blue-700'
+        : 'text-blue-600 bg-blue-50 border-blue-100'
+    }`}>
+      {item.code}
+    </span>
+    <span className="text-[10px]  font-black text-slate-950">+{item.totalPoints}</span>
+  </div>
+  
+  {/* Added padding-right to protect text from touching the bottom-right positioned star */}
+  <div className="pr-4"> 
+    <p className="text-[9px] font-medium text-slate-950 uppercase truncate mb-0.25">{item.name}</p>
+    <p className="text-[6px]  font-semibold text-slate-400 uppercase tracking-widest">Logs: {item.count}</p>
+  </div>
+
+  {/* Green Star absolute positioned perfectly in the bottom-right corner */}
+  {hasGoal && (
+    <div style={{
+      position: 'absolute',
+      bottom: '4px',
+      right: '4px',
+      zIndex: 10,
+      pointerEvents: 'none',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      color: '#10b981'
+    }}>
+      <Star size={10} color="#10b981" fill="#10b981" />
+    </div>
+  )}
+</div>
       );
     })}
     
@@ -2004,10 +2092,31 @@ const [showLabels, setShowLabels] = useState(true);
 
         {/* Detailed Ledger */}
 <div className="mb-8 print-section">
-  <h3 className="text-sm  font-semibold uppercase tracking-tighter text-slate-950 mb-3 border-l-[3px] border-slate-950 pl-2 flex items-center gap-2">
+  <div className="flex items-center justify-between mb-3">
+  <h3 className="text-sm  font-semibold uppercase tracking-tighter text-slate-950 border-l-[3px] border-slate-950 pl-2 flex items-center gap-2">
     <NotebookText size={16} className="text-pink-600" />
     Chronological Log Diary
   </h3>
+  <input
+  id="search-description-input"
+  type="text"
+  placeholder="Search descriptions..."
+  value={searchQuery}
+  onChange={(e) => setSearchQuery(e.target.value)}
+  style={{
+    padding: '3px 12px',
+    backgroundColor: '#f8f9fa',
+    border: '1px solid #cbd5e1',
+    borderRadius: '4px',
+    fontSize: '10px',
+    fontWeight: 500,
+    width: '192px',
+    outline: 'none',
+  }}
+  onFocus={(e) => { e.target.style.boxShadow = '0 0 0 2px #60a5fa'; }}
+  onBlur={(e) => { e.target.style.boxShadow = ''; }}
+/>
+</div>
   <div className="border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm">
     <table className="w-full text-left border-collapse">
       <thead className="table-header-group">
@@ -2021,33 +2130,44 @@ const [showLabels, setShowLabels] = useState(true);
         </tr>
       </thead>
       <tbody className="divide-y divide-slate-50">
-        {Object.keys(groupedLogsByDate).length === 0 ? (
+        {Object.keys(filteredGroupedLogsByDate).length === 0 ? (
           <tr>
             <td colSpan={6} className="p-6 text-center text-[9px] font-medium text-slate-300 italic">
               No records found.
             </td>
           </tr>
         ) : (
-          Object.keys(groupedLogsByDate).sort().map((dateStr) => {
-            const dayPts = groupedLogsByDate[dateStr].reduce((s, e) => s + e.points, 0);
-            const achievedGoalsToday = goals.filter(g => g.achievedAt === dateStr);
-            return (
-              <React.Fragment key={dateStr}>
-                <tr id={`ledger-date-${dateStr}`} className="bg-slate-100/50 border-y border-slate-100 transition-colors duration-500">
-                  <td colSpan={6} className="px-4 py-1.5">
-                    <div className="flex justify-between items-center">
-                      <span className="text-[10px]  font-semibold text-slate-950 tracking-[0.05em] uppercase flex items-center gap-2">
-                        <Clock size={10} className="text-blue-500" />
-                        {new Date(dateStr).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-                        <span className="text-gray-600/75">{` (${new Date(dateStr).toLocaleDateString('en-GB', { weekday: 'long' })})`}</span>
-                        {achievedGoalsToday.length > 0 && <Star size={10} className="text-amber-500 fill-amber-500" />}
-                      </span>
-                      <span className="text-[7px]  font-semibold text-slate-400 uppercase tracking-widest px-1.5 py-0.25 rounded bg-white border border-slate-100">
-                        DAY YIELD: <span className="text-slate-950">{dayPts} PTS</span>
-                      </span>
-                    </div>
-                  </td>
-                </tr>
+Object.keys(filteredGroupedLogsByDate).sort().map((dateStr) => {
+  const dayLogs = filteredGroupedLogsByDate[dateStr];
+  const dayPts = dayLogs.reduce((s, e) => s + e.points, 0);
+  
+  // Calculate day's total debit and credit amounts
+  const dayDebit = dayLogs.reduce((s, e) => s + (e.debit || 0), 0);
+  const dayCredit = dayLogs.reduce((s, e) => s + (e.credit || 0), 0);
+  
+  const achievedGoalsToday = goals.filter(g => g.achievedAt === dateStr);
+  return (
+    <React.Fragment key={dateStr}>
+      <tr id={`ledger-date-${dateStr}`} className="bg-slate-100/50 border-y border-slate-100 transition-colors duration-500">
+        <td colSpan={6} className="px-4 py-1.5">
+          <div className="flex justify-between items-center">
+            <span className="text-[10px] font-semibold text-slate-950 tracking-[0.05em] uppercase flex items-center gap-2">
+              <Clock size={10} className="text-blue-500" />
+              {new Date(dateStr).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+              <span className="text-gray-600/75">{` (${new Date(dateStr).toLocaleDateString('en-GB', { weekday: 'long' })})`}</span>
+              {achievedGoalsToday.length > 0 && <Star size={10} className="text-amber-500 fill-amber-500" />}
+            </span>
+            
+            <span className="text-[7px] font-semibold text-slate-400 uppercase tracking-widest px-1.5 py-0.25 p-0.5 rounded bg-white border border-slate-100 flex items-center gap-2">
+              <span>Debit: <span className="text-red-600 font-bold">-{dayDebit}₹</span></span>
+              <span className="text-slate-300">|</span>
+              <span>Credit: <span className="text-emerald-600 font-bold">+{dayCredit}₹</span></span>
+              <span className="text-slate-300">|</span>
+              <span>DAY YIELD: <span className="text-slate-950">{dayPts} PTS</span></span>
+            </span>
+          </div>
+        </td>
+      </tr>
                 {groupedLogsByDate[dateStr].map(e => {
                   // HIGHLIGHT LOGIC: Check if this row's code matches the clicked matrix code
                   const isHighlighted = highlightedCode === e.code || isEntryFinanceHighlighted(e);
@@ -2088,7 +2208,7 @@ const [showLabels, setShowLabels] = useState(true);
                           {e.name}
                         </p>
                         {e.description && (
-                          <p className={`text-[8px] leading-normal italic whitespace-pre-wrap border-l pl-2 mt-1 transition-colors ${
+                          <p className={`text-[8px] leading-normal whitespace-pre-wrap border-l pl-2 mt-1 transition-colors ${
                             isHighlighted ? 'text-slate-900 border-amber-400' : 'text-slate-600 border-slate-200'
                           }`}>
                             {e.description}

@@ -297,7 +297,7 @@ const GoalsView: React.FC<GoalsViewProps> = ({ userName, goals, onAddGoal, onDel
                   <td className="pl-5 pr-2 py-3.5 text-center align-top pt-4">
                     {goal.achievedAt ? <CheckCircle className="text-emerald-500 mx-auto" size={20} /> : <div className="w-5 h-5 rounded-full border-2 border-white/20 mx-auto" />}
                   </td>
-                  <td className="px-3 py-3.5 align-top pt-4">
+                  <td className="px-3 whitespace-nowrap py-3.5 align-top pt-4">
                     <span className="font-black text-blue-500 bg-blue-500/10 px-2.5 py-1 rounded-md uppercase tracking-wider text-xs border border-blue-500/20">{goal.code}</span>
                   </td>
                   <td className="px-3 py-3.5">
