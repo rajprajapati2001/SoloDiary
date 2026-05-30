@@ -74,7 +74,19 @@ const LineGraph: React.FC<LineGraphProps> = ({
   const todayIndex = isCurrentMonth ? data.findIndex(d => d.day === today.getDate()) : -1;
 
   return (
-    <div ref={containerRef} className="linegraph-container relative w-full overflow-x-auto overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] no-scrollbar">
+        <div 
+      ref={containerRef} 
+      onTouchStart={() => {
+        document.body.dataset.disableSwipeNav = 'true';
+      }}
+      onTouchEnd={() => {
+        delete document.body.dataset.disableSwipeNav;
+      }}
+      onTouchCancel={() => {
+        delete document.body.dataset.disableSwipeNav;
+      }}
+      className="linegraph-container relative w-full overflow-x-auto overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] no-scrollbar"
+    >
       
       {/* Legend - Only visible if NOT in dashboard */}
       {variant !== 'dashboard' && (

@@ -5,6 +5,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import LineGraph from './LineGraph';
 import CalendarView from './CalendarView';
 import { getDB } from '../db';
+import HeatMap from './HeatMap';
 import MainLogo from "../assets/icons/solodiary_icon.ico";
 import AndroidIcon from "../assets/icons/android.png"
 // html2canvas and jsPDF are loaded dynamically when needed
@@ -1952,6 +1953,79 @@ const [showLabels, setShowLabels] = useState(true);
     </div>
 </div>
 
+{/*Progression Frequency Index*/}
+<div className="mb-8 print-section w-full">
+  <h3 className="text-sm font-semibold uppercase tracking-tighter text-slate-950 mb-3 border-l-[3px] border-slate-950 pl-2 flex items-center gap-2">
+    <ClipboardList size={16} className="text-indigo-650" />
+    Progression Frequency Index ({selectedYear})
+  </h3>
+  
+  <div className="border border-slate-100 p-4 rounded-xl bg-slate-50/50 w-full">
+    {/* Heatmap Grid Component */}
+    <HeatMap 
+      year={parseInt(selectedYear)}
+      entries={entries}
+      themeColor="indigo"
+      maxMonth={parseInt(selectedMonth) - 1}
+      onDayClick={(dateStr) => {
+        const target = document.getElementById(`ledger-date-${dateStr}`);
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          target.style.backgroundColor = '#eff6ff';
+          setTimeout(() => { target.style.backgroundColor = ''; }, 2000);
+        }
+      }}
+    />
+
+    {/* Ultra-Stable CSS Grid Footer Layout */}
+    <div className="mt-1 pt-1 border-t border-slate-100 grid grid-cols-3 items-center w-full text-[9px] text-gray-500 font-medium select-none whitespace-nowrap">
+      
+      {/* 1. LEFT SIDE: Legend (Aligned Left) */}
+      <div className="flex items-center gap-1 justify-start">
+        <span className="text-gray-400">Less</span>
+        <div className="w-2.5 h-2.5 rounded-[2px] bg-gray-200/60 dark:bg-slate-800/80 border border-gray-300/10 shrink-0"></div>
+        <div className="w-2.5 h-2.5 rounded-[2px] bg-indigo-500/20 shrink-0"></div>
+        <div className="w-2.5 h-2.5 rounded-[2px] bg-indigo-500/45 shrink-0"></div>
+        <div className="w-2.5 h-2.5 rounded-[2px] bg-indigo-500/75 shrink-0"></div>
+        <div className="w-2.5 h-2.5 rounded-[2px] bg-indigo-600 shrink-0"></div>
+        <span className="text-gray-400">More</span>
+      </div>
+
+      {/* 2. CENTER: Year Display Function (Aligned Center) */}
+      <div className="text-center font-bold tracking-wider">
+        {(() => {
+          return `${selectedYear}`;
+        })()}
+      </div>
+
+      {/* 3. RIGHT SIDE: Dynamic Days Counter (Aligned Right) */}
+      <div className="text-right tabular-nums text-slate-600 dark:text-slate-400 font-bold">
+        {(() => {
+          const yearNum = parseInt(selectedYear);
+          const monthNum = parseInt(selectedMonth);
+
+          const isLeapYear = (yearNum % 4 === 0 && yearNum % 100 !== 0) || (yearNum % 400 === 0);
+          const totalYearDays = isLeapYear ? 366 : 365;
+
+          const daysInMonths = [
+            31, isLeapYear ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
+          ];
+
+          let daysPassed = 0;
+          for (let i = 0; i < monthNum; i++) {
+            daysPassed += daysInMonths[i];
+          }
+
+          const daysLeft = totalYearDays - daysPassed;
+
+          return `${String(Math.max(0, daysLeft)).padStart(3, '0')} / ${totalYearDays} days left`;
+        })()}
+      </div>
+
+    </div>
+  </div>
+</div>
+
         {/* Goal Ledger Module "text-purple-600"*/}
         <div className="mb-8 print-section">
            <h3 id="strategic-objectives" className="text-sm  font-semibold uppercase tracking-tighter text-slate-950 mb-3 border-l-[3px] border-slate-950 pl-2 flex items-center gap-2">
@@ -2013,7 +2087,7 @@ const [showLabels, setShowLabels] = useState(true);
         </div>
 
         {/* Matrix */}
-<div className="mb-8 print-section">
+<div className="mb-8">
   <h3 className="text-sm  font-semibold uppercase tracking-tighter text-slate-950 mb-3 border-l-[3px] border-slate-950 pl-2 flex items-center gap-2">
     <Zap size={16} className="text-blue-600" />
     Participation Matrix
@@ -2033,7 +2107,7 @@ const [showLabels, setShowLabels] = useState(true);
   data-has-goal={hasGoal ? 'true' : 'false'}
   // Toggle logic: if clicking the same one, turn it off (null), otherwise set to item.code
   onClick={() => { setHighlightedCode(highlightedCode === item.code ? null : item.code); setFinanceHighlight(null); }}
-  className={`matrix-card relative p-2 border rounded-lg flex flex-col justify-between min-h-[60px] shadow-sm transition-all cursor-pointer ${
+  className={`matrix-card relative p-2 border rounded-lg flex flex-col justify-between min-h-[60px] shadow-sm transition-all cursor-pointer break-inside-avoid ${
     isActive 
       ? hasGoal
         ? 'border-emerald-500 ring-2 ring-emerald-100 bg-emerald-50' // If selected AND has a goal, it turns green!
@@ -2091,7 +2165,7 @@ const [showLabels, setShowLabels] = useState(true);
 </div>
 
         {/* Detailed Ledger */}
-<div className="mb-8 print-section">
+<div className="mb-8">
   <div className="flex items-center justify-between mb-3">
   <h3 className="text-sm  font-semibold uppercase tracking-tighter text-slate-950 border-l-[3px] border-slate-950 pl-2 flex items-center gap-2">
     <NotebookText size={16} className="text-pink-600" />

@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { ActivityEntry, Goal } from '../types';
 
@@ -12,7 +12,7 @@ import {
   Star,
   ChevronLeft,
   ChevronRight,
-  Flame,
+   Check, Edit2,
   Shield,
   Trophy,
   Activity,
@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 
 import { motion, AnimatePresence } from 'motion/react';
+import HeatMap from './HeatMap';
 
 interface QuickPopDataProps {
   isOpen: boolean;
@@ -60,6 +61,32 @@ const QuickPopData: React.FC<QuickPopDataProps> = ({
   userName = 'User',
   currentTimeClass = ''
 }) => {
+
+      // State for name editing
+const [isEditingName, setIsEditingName] = useState(false);
+const [editNameValue, setEditNameValue] = useState(userName || "");
+const nameInputRef = useRef<HTMLInputElement>(null);
+
+// Sync with external userName updates
+useEffect(() => {
+  setEditNameValue(userName);
+}, [userName]);
+
+// Keyboard handler
+const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  if (e.key === 'Enter') {
+    handleSaveName();
+  } else if (e.key === 'Escape') {
+    setEditNameValue(userName);
+    setIsEditingName(false);
+  }
+};
+
+// Save handler
+const handleSaveName = () => {
+  // Add your logic to save the name (e.g., API call or parent state update)
+  setIsEditingName(false);
+};
 
   const dateObj = useMemo(() => new Date(selectedDate), [selectedDate]);
 
@@ -577,7 +604,7 @@ className={`w-full p-3 rounded-2xl border border-gray-100 dark:border-slate-700 
 
 {type === 'yearly_pts' && (
   <div className="md:space-y-3 space-y-1">
-    {Array.from(new Set(entries.map(e => new Date(e.toDate).getFullYear())))
+    {Array.from(new Set([new Date().getFullYear(), ...entries.map(e => new Date(e.toDate).getFullYear())]))
       .sort((a, b) => (b as number) - (a as number))
       .map(year => {
         const score = entries
@@ -887,20 +914,75 @@ className={`w-full p-3 rounded-2xl border border-gray-100 dark:border-slate-700 
                 {/* Profile Header Card */}
                 <div className={`p-6 rounded-3xl ${currentTimeClass || 'bg-slate-900'} relative overflow-hidden flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg border border-white/10`}>
                   <div className="absolute right-[-10px] bottom-[-20px] opacity-[0.08]">
-                    <Trophy size={160} className="text-white" />
+                    <Trophy size={160} />
                   </div>
                   
-                  <div className="text-center sm:text-left z-10 text-white space-y-1">
-                    <h3 className="text-3xl md:text-4xl font-black tracking-tight leading-none text-white font-sans">
-                      {userName}
-                    </h3>
-                    <p className="text-[10px] pt-2 font-black tracking-widest uppercase opacity-80 text-white/90">
-                      Annual Journal Performance Card
-                    </p>
-                  </div>
+                  <div className="text-center sm:text-left z-10 space-y-1 w-full sm:w-auto">
+                  <AnimatePresence mode="wait" initial={false}>
+                    {isEditingName ? (
+                      <motion.div
+                        key="editing"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -8 }}
+                        transition={{ duration: 0.2, ease: 'easeOut' }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex items-center gap-2 justify-center sm:justify-start"
+                      >
+                        <input
+                          ref={nameInputRef}
+                          type="text"
+                          value={editNameValue}
+                          onChange={(e) => setEditNameValue(e.target.value)}
+                          onKeyDown={handleKeyDown}
+                          className="w-[70%] sm:w-auto sm:min-w-[240px] text-2xl font-black uppercase tracking-tight bg-white/20 border-b-2 border-white outline-none text-white px-2 py-1 rounded-t-lg"
+                          autoFocus
+                        />
+                        <motion.button
+                          whileTap={{ scale: 0.92 }}
+                          onClick={(e) => { e.stopPropagation(); handleSaveName(); }}
+                          className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-full transition-colors backdrop-blur-sm"
+                        >
+                          <Check size={18} />
+                        </motion.button>
+                        <motion.button
+                          whileTap={{ scale: 0.92 }}
+                          onClick={(e) => { e.stopPropagation(); setEditNameValue(userName); setIsEditingName(false); }}
+                          className="p-2 bg-white/10 hover:bg-white/20 text-white/80 rounded-full transition-colors backdrop-blur-sm"
+                        >
+                          <X size={18} />
+                        </motion.button>
+                      </motion.div>
+                    ) : (
+                      <motion.div
+                        key="viewing"
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -8 }}
+                        transition={{ duration: 0.2, ease: 'easeOut' }}
+                        className="flex items-center gap-2 justify-center sm:justify-start group text-left cursor-pointer"
+                        onClick={(e) => { e.stopPropagation(); setIsEditingName(true); }}
+                      >
+                        <h3 className="text-3xl md:text-4xl uppercase font-black tracking-tight leading-none text-white group-hover:underline decoration-dotted decoration-2">
+                          {userName || "Guest"}
+                        </h3>
+                        <motion.button
+                          whileTap={{ scale: 0.9 }}
+                          className="opacity-0 group-hover:opacity-100 text-white/60 hover:text-white transition-all p-1"
+                          title="Edit name"
+                        >
+                          <Edit2 size={16} />
+                        </motion.button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                  <p className="text-[10px] pt-2 font-black tracking-widest uppercase opacity-80 text-white/90">
+                    Annual Journal Performance Card
+                  </p>
+                </div>
 
                   <div className="text-center sm:text-right z-10 flex flex-col items-center sm:items-end gap-1">
-                    <div className="px-4 py-2 rounded-2xl border font-black text-xs inline-flex items-center gap-2 backdrop-blur-md bg-white/20 border-white/30 text-white shadow-sm">
+                    <div className="px-4 py-2 rounded-2xl border font-black text-xs inline-flex items-center gap-2 backdrop-blur-md bg-white/20 border-white/30 shadow-sm">
                       <Trophy size={14} className="text-amber-300 animate-pulse" />
                       <span className="tracking-wide">{profileStats.rank}</span>
                     </div>
@@ -979,90 +1061,18 @@ className={`w-full p-3 rounded-2xl border border-gray-100 dark:border-slate-700 
 
                   {/* The Heatmap Matrix */}
                   <div className="relative pt-1">
-                    <div className="flex items-start gap-1">
-                      {/* Day of Week Labels */}
-                      <div className="flex flex-col justify-between h-[70px] pr-1.5 text-[8px] font-black text-gray-400 dark:text-gray-500 pt-[22px] shrink-0 uppercase tracking-widest leading-none">
-                        <span>Sun</span>
-                        <span>Mon</span>
-                        <span>Tue</span>
-                        <span>Wed</span>
-                        <span>Thu</span>
-                        <span>Fri</span>
-                        <span>Sat</span>
-                      </div>
-
-                      {/* Outer container supporting horizontal scrollbar without visible scrollbars */}
-                      <div className="flex-1 overflow-x-auto pb-1.5 [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-gray-350 dark:[&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar-track]:bg-transparent">
-                        <div className="min-w-[420px] space-y-1 select-none">
-                          {/* Month Labels Sub-row inline with the week matrix columns */}
-                          <div className="flex gap-[2px] h-4">
-                            {profileStats.yearGrid.map((week, wIdx) => {
-                              const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-                              const firstDayInYear = week.find(d => d.isCurrentYear) || week[0];
-                              const m = firstDayInYear.month;
-                              const prevWeek = profileStats.yearGrid[wIdx - 1];
-                              const prevMonth = prevWeek ? (prevWeek.find(d => d.isCurrentYear)?.month ?? -1) : -1;
-                              const isFirstWeekOfThisMonth = wIdx === 0 || (prevMonth !== m);
-
-                              return (
-                                <div key={wIdx} className="w-[10px] relative shrink-0">
-                                  {isFirstWeekOfThisMonth && firstDayInYear.isCurrentYear && (
-                                    <span className="absolute left-0 text-[8px] font-black text-indigo-600 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
-                                      {monthNames[m]}
-                                    </span>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-
-                          {/* Heatmap Matrix Sub-row */}
-                          <div className="flex gap-[2px] h-[72px]">
-                            {profileStats.yearGrid.map((week, wIdx) => (
-                              <div key={wIdx} className="flex flex-col gap-[2px] justify-between h-full">
-                                {week.map((day, dIdx) => {
-                                  // Determine shade based on points (Full color starting at 100 pts)
-                                  let shadeClass = "bg-gray-200/60 dark:bg-slate-800/80"; // 0 logs
-                                  let activeBorder = "border-[0.5px] border-gray-150/40 dark:border-slate-800/40";
-                                  if (day.isCurrentYear && day.count > 0) {
-                                    if (day.points >= 100) {
-                                      shadeClass = "bg-indigo-600 dark:bg-indigo-500 shadow-[0_0_4px_rgba(99,102,241,0.4)]";
-                                    } else if (day.points >= 60) {
-                                      shadeClass = "bg-indigo-500/75 dark:bg-indigo-500/80";
-                                    } else if (day.points >= 30) {
-                                      shadeClass = "bg-indigo-500/40 dark:bg-indigo-500/45";
-                                    } else {
-                                      shadeClass = "bg-indigo-500/20 dark:bg-indigo-200/20";
-                                    }
-                                    activeBorder = "border-[0.5px] border-indigo-500/10";
-                                  } else if (!day.isCurrentYear) {
-                                    shadeClass = "bg-transparent opacity-0 pointer-events-none";
-                                    activeBorder = "border-transparent";
-                                  }
-
-                                  const formattedTip = day.isCurrentYear
-                                    ? `${new Date(day.dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}: ${day.count} log${day.count !== 1 ? 's' : ''} (${day.points} pts)`
-                                    : "";
-
-                                return (
-                                  <div
-                                    key={dIdx}
-                                    className={`w-[10px] h-[10px] rounded-[2px] transition-colors duration-200 relative ${shadeClass} ${activeBorder} group/day cursor-help`}
-                                    title={formattedTip}
-                                  >
-                                    {day.isCurrentYear && (
-                                      <div className="absolute bottom-5 left-1/2 -translate-x-1/2 bg-slate-900 border border-slate-750 text-white text-[9px] px-2 py-1 rounded shadow-xl whitespace-nowrap opacity-0 group-hover/day:opacity-100 pointer-events-none transition-all duration-150 z-25 font-bold">
-                                        {formattedTip}
-                                      </div>
-                                    )}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
+                    <HeatMap
+                      year={parseInt(profileStats.trackingYear) || new Date().getFullYear()}
+                      entries={entries}
+                      themeColor="indigo"
+                      onDayClick={(dateStr) => {
+                        onSelectDate(dateStr);
+                        onClose();
+                        setTimeout(() => {
+                          scrollToActivities();
+                        }, 300);
+                      }}
+                    />
                   </div>
 
                     {/* Legend & Summary Info */}
@@ -1084,7 +1094,6 @@ className={`w-full p-3 rounded-2xl border border-gray-100 dark:border-slate-700 
                       </div>
                     </div>
                   </div>
-                </div>
 
                 {/* Statistics Bento Grid */}
                 <div className="grid grid-cols-2 gap-3">
@@ -1177,7 +1186,7 @@ className={`w-full p-3 rounded-2xl border border-gray-100 dark:border-slate-700 
                     </span>
                   </div>
 
-                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                  <div className="space-y-2 w-full">
                     {goals.map(g => {
                       const matchedEntry = entries
                         .filter(e => e.code === g.code && (g.achievedAt ? e.toDate === g.achievedAt : true))
@@ -1204,36 +1213,36 @@ className={`w-full p-3 rounded-2xl border border-gray-100 dark:border-slate-700 
                           
                           {/* Left Side: Icon & Details */}
                           <div className="flex items-center gap-2.5 flex-1 min-w-0">
-      <div className={`w-6 h-6 rounded-lg flex-shrink-0 ${g.achievedAt ? 'bg-emerald-500/10 text-emerald-500' : 'bg-slate-200 dark:bg-slate-700 text-gray-400'} flex items-center justify-center`}>
-        <Star size={12} fill={g.achievedAt ? "currentColor" : "none"} />
-      </div>
-      
-      <div className="text-left min-w-0 flex flex-col justify-center">
-        <p className="text-xs font-black text-gray-800 dark:text-white leading-tight truncate mb-0.5">
-          {g.name}
-        </p>
-        <p className="text-[9px] font-medium text-gray-400 dark:text-gray-400">
-          Code: {g.code}
-        </p>
-      </div>
-    </div>
+                            <div className={`w-6 h-6 rounded-lg flex-shrink-0 ${g.achievedAt ? 'bg-emerald-500/10 text-emerald-500' : 'bg-slate-200 dark:bg-slate-700 text-gray-400'} flex items-center justify-center`}>
+                              <Star size={12} fill={g.achievedAt ? "currentColor" : "none"} />
+                            </div>
+                            
+                            <div className="text-left min-w-0 flex flex-col justify-center">
+                              <p className="text-xs font-black text-gray-800 dark:text-white leading-tight truncate mb-0.5">
+                                {g.name}
+                              </p>
+                              <p className="text-[9px] font-medium text-gray-400 dark:text-gray-400">
+                                Code: {g.code}
+                              </p>
+                            </div>
+                          </div>
 
-    {/* Right Side: Points, Date & Status */}
-    <div className="text-right flex flex-col items-end justify-center flex-shrink-0 gap-1.5">
-      <div className="flex items-baseline gap-1.5">
-        <span className="text-xs text-slate-500 dark:text-slate-400 font-digital font-bold">
-          +{g.points} p
-        </span>
-        
-      </div>
-      
-      <span className="text-[9px] font-mono font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
-          {g.achievedAt ? formatGoalDate(g.achievedAt) : `${g.deadlineMonth.substring(0, 3).toUpperCase()} ${g.deadlineYear}`}
-        </span>
-    </div>
+                          {/* Right Side: Points, Date & Status */}
+                          <div className="text-right flex flex-col items-end justify-center flex-shrink-0 gap-1.5">
+                            <div className="flex items-baseline gap-1.5">
+                              <span className="text-xs text-slate-500 dark:text-slate-400 font-digital font-bold">
+                                +{g.points} p
+                              </span>
+                              
+                            </div>
+                            
+                            <span className="text-[9px] font-mono font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                                {g.achievedAt ? formatGoalDate(g.achievedAt) : `${g.deadlineMonth.substring(0, 3).toUpperCase()} ${g.deadlineYear}`}
+                              </span>
+                          </div>
 
-  </div>
-);
+                        </div>
+                      );
                     })}
                     {goals.length === 0 && (
                       <div className="text-center py-4 text-xs text-gray-400">
