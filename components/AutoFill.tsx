@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { KeySquare, Trash2, Edit2, CalendarSync, Check, GripVertical, Search } from 'lucide-react';
+import { KeySquare, Trash2, Edit2, CalendarSync, Check, GripVertical, Search, Paperclip } from 'lucide-react';
 import { AutoTemplate, ActivityEntry, ActivityTemplate, Goal } from '../types';
 import { getDB } from '../db';
+import { getCurrencySymbol } from '../constants';
 import EntryForm from './EntryForm';
 import {
   DndContext,
@@ -100,34 +101,60 @@ const SortableItem: React.FC<SortableItemProps> = ({ t, toggleTemplate, onEdit, 
           <div className="relative flex items-center ml-0.5">
             <input
               type="checkbox"
+              className="w-[18px] h-[18px] rounded-md border-2 border-gray-200 checked:bg-blue-600 transition-all cursor-pointer appearance-none checked:border-blue-600"
               checked={t.isEnabled}
               onChange={() => toggleTemplate(t)}
-              className="w-[18px] h-[18px] rounded-md border-2 border-gray-200 checked:bg-blue-600 transition-all cursor-pointer appearance-none checked:border-blue-600"
             />
             {t.isEnabled && <Check size={12} className="absolute left-[3px] text-white pointer-events-none" />}
           </div>
         </div>
       </div>
 
-      {(t.description || t.points > 0) && (
+      {(t.description || t.points !== 0 || (t.debit && t.debit !== 0) || (t.credit && t.credit !== 0) || t.attachment) && (
         <div className="mt-2 ml-[42px] flex flex-wrap items-center gap-1.5">
           {t.description && (
             <p className="text-[11px] text-gray-400 dark:text-gray-500 italic line-clamp-1 mr-1 basis-full">
               {t.description}
             </p>
           )}
-          <span className="px-1.5 py-0.5 rounded-md bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-[10px] font-bold">
-            +{t.points} pts
-          </span>
-          {t.debit! > 0 && (
-            <span className="px-1.5 py-0.5 rounded-md bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-[10px] font-bold">
-              -{t.debit}₹
+          
+          {/* Points Display */}
+          {t.points !== 0 && (
+            <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold ${
+              t.points > 0 
+                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' 
+                : 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400'
+            }`}>
+              {t.points > 0 ? `+${t.points}` : t.points} pts
             </span>
           )}
-          {t.credit! > 0 && (
-            <span className="px-1.5 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold">
-              +{t.credit}₹
+
+          {/* Debit Display */}
+          {t.debit !== undefined && t.debit !== 0 && (
+            <span className="px-1.5 py-0.5 rounded-md bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-[10px] font-bold">
+              -{Math.abs(t.debit)}{getCurrencySymbol(t.moneyCode)}
             </span>
+          )}
+
+          {/* Credit Display */}
+          {t.credit !== undefined && t.credit !== 0 && (
+            <span className="px-1.5 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold">
+              +{Math.abs(t.credit)}{getCurrencySymbol(t.moneyCode)}
+            </span>
+          )}
+
+          {/* Clickable Attachment Badge */}
+          {t.attachment && (
+            <a
+              href={t.attachment}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-50 hover:bg-amber-100 dark:bg-amber-900/20 dark:hover:bg-amber-900/40 text-amber-600 dark:text-amber-400 text-[10px] font-bold border border-amber-200/30 transition-colors"
+            >
+              <Paperclip size={10} strokeWidth={2.5} />
+              <span>Attachment</span>
+            </a>
           )}
         </div>
       )}
@@ -286,22 +313,45 @@ const AutoFill: React.FC<AutoFillProps> = ({ onAddEntries, templates: activityTe
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-center md:gap-4 gap-2 bg-white dark:bg-slate-900 md:p-6 p-3 rounded-[2rem] border border-gray-100 dark:border-slate-800 shadow-sm">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-blue-600/10 flex items-center justify-center text-blue-600">
-            <CalendarSync size={24} />
+      <div className="relative flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:p-4 p-1 overflow-visible">
+        {/* Large Decorative Background Icon */}
+        <div className="absolute top-1 -translate-y-10 -right-10 text-violet-500/20 dark:text-violet-400/15 pointer-events-none select-none z-0 transform rotate-12">
+          <CalendarSync size={180} strokeWidth={1.2} />
+        </div>
+
+        {/* Left Section: Icon Badge + Headings */}
+        <div className="flex items-center gap-4 relative z-10 w-full md:w-auto">
+          <div className="relative flex items-center justify-center p-2.5 rounded-xl bg-violet-50 dark:bg-violet-950/40 text-violet-600 dark:text-violet-400 border border-violet-100 dark:border-violet-900/50 shadow-sm shadow-violet-100/50 dark:shadow-none shrink-0 transition-transform hover:scale-105">
+            <CalendarSync size={24} strokeWidth={2.2} />
+            <span className="absolute inset-0 rounded-xl bg-violet-400/20 blur-xl -z-10 animate-pulse" />
           </div>
+
           <div>
-            <h2 className="text-xl font-black uppercase tracking-tighter dark:text-white">AutoFill Engine</h2>
-            <p className="md:text-xs text-[9px] font-bold text-gray-500 uppercase tracking-widest">Manual automation for daily logs</p>
+            <h2 className="text-xl md:text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">
+              AutoFill Engine
+            </h2>
+            <p className="text-[10px] md:text-xs font-bold opacity-60 dark:opacity-50 text-gray-500 dark:text-slate-400 uppercase tracking-widest mt-0.5">
+              Manual automation for daily logs
+            </p>
           </div>
         </div>
-        <div className="flex gap-3">
-          <button onClick={handleAutoFill} className="flex items-center gap-2 md:px-6 md:py-3 px-2 py-2 pl-4 pr-4 bg-emerald-600 text-white font-black rounded-2xl shadow-lg hover:bg-emerald-700 transition-all uppercase tracking-widest text-xs">
-            <Check size={18} /> Run AutoFill
+
+        {/* Right Section: Action Buttons */}
+        <div className="flex flex-row items-center gap-2 md:gap-3 relative z-10 w-full md:w-auto no-print">
+          <button 
+            onClick={handleAutoFill} 
+            className="flex-1 md:flex-initial flex items-center justify-center gap-2 md:px-5 md:py-3 px-3 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold rounded-xl shadow-md shadow-emerald-500/10 hover:shadow-lg hover:shadow-emerald-500/20 transition-all duration-300 transform active:scale-95 uppercase tracking-wider text-[11px] md:text-xs select-none whitespace-nowrap"
+          >
+            <Check size={15} strokeWidth={2.5} /> 
+            <span>Run AutoFill</span>
           </button>
-          <button onClick={() => { setEditingTemplate(null); setIsFormOpen(true); }} className="flex items-center gap-2 md:px-6 md:py-3 px-2 py-2 pl-4 pr-4 bg-blue-600 text-white font-black rounded-2xl shadow-lg hover:bg-blue-700 transition-all uppercase tracking-widest text-xs">
-            <KeySquare size={18} /> New Key
+
+          <button 
+            onClick={() => { setEditingTemplate(null); setIsFormOpen(true); }} 
+            className="flex-1 md:flex-initial flex items-center justify-center gap-2 md:px-5 md:py-3 px-3 py-2.5 bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white font-bold rounded-xl shadow-md shadow-violet-500/10 hover:shadow-lg hover:shadow-violet-500/20 transition-all duration-300 transform active:scale-95 uppercase tracking-wider text-[11px] md:text-xs select-none whitespace-nowrap"
+          >
+            <KeySquare size={15} strokeWidth={2.5} /> 
+            <span>New Key</span>
           </button>
         </div>
       </div>
@@ -315,7 +365,7 @@ const AutoFill: React.FC<AutoFillProps> = ({ onAddEntries, templates: activityTe
             placeholder="Search by name, code or description..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-12 pr-4 py-3.5 bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 dark:text-white text-sm font-bold outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 transition-all shadow-sm"
+            className="w-full pl-11 pr-4 py-3 rounded-2xl border border-gray-200 dark:border-slate-700 dark:bg-slate-800/50 dark:text-white outline-none font-bold text-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
           />
         </div>
         
@@ -325,12 +375,12 @@ const AutoFill: React.FC<AutoFillProps> = ({ onAddEntries, templates: activityTe
               <div className="relative flex items-center">
                 <input 
                   type="checkbox"
+                  className="w-5 h-5 rounded-lg border-2 border-gray-200 checked:bg-blue-600 transition-all cursor-pointer appearance-none checked:border-blue-600"
                   checked={allSelected}
                   ref={el => {
                     if (el) el.indeterminate = someSelected;
                   }}
                   onChange={(e) => handleToggleAll(e.target.checked)}
-                  className="w-5 h-5 rounded-lg border-2 border-gray-200 checked:bg-blue-600 transition-all cursor-pointer appearance-none checked:border-blue-600"
                 />
                 {allSelected && <Check size={14} className="absolute left-0.5 text-white pointer-events-none" />}
                 {someSelected && <div className="absolute left-1 w-3 h-0.5 bg-gray-400 rounded-full pointer-events-none" />}
@@ -375,7 +425,7 @@ const AutoFill: React.FC<AutoFillProps> = ({ onAddEntries, templates: activityTe
 
       {isFormOpen && (
         <EntryForm
-          isOpen={isFormOpen} // ADD THIS LINE
+          isOpen={isFormOpen}
           title={editingTemplate ? 'Edit Auto Key' : 'New Auto Key'}
           onClose={() => { setIsFormOpen(false); setEditingTemplate(null); }}
           onSave={handleSaveTemplate}

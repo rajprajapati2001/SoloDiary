@@ -14,16 +14,39 @@ class SoloDiaryDatabase extends Dexie {
   constructor() {
     super(DB_NAME);
     this.version(DB_VERSION).stores({
-      entries: 'id',
+      entries: 'id', // Only 'id' is indexed. Schemaless properties fit perfectly.
       goals: 'id',
       activity_templates: 'id',
       auto_templates: 'id',
-      settings: '' // Out-of-line keys
+      settings: ''   // Out-of-line keys
     });
   }
 }
 
 export const dexieDB = new SoloDiaryDatabase();
+
+/**
+ * Utility function to clean objects before persistence.
+ * Removes empty string, zero, false, null, and undefined properties to minimize DB size.
+ */
+const cleanObject = (obj: any): any => {
+  if (!obj || typeof obj !== 'object') return obj;
+  
+  const cleaned = { ...obj };
+  Object.keys(cleaned).forEach((key) => {
+    const value = cleaned[key];
+    if (
+      value === null ||
+      value === undefined ||
+      value === "" ||
+      value === 0 ||
+      value === false
+    ) {
+      delete cleaned[key];
+    }
+  });
+  return cleaned;
+};
 
 // Compatibility wrapper matching the idb API used in the application
 export const getDB = async (): Promise<any> => {
@@ -71,17 +94,21 @@ export const getDB = async (): Promise<any> => {
         if (!key) throw new Error('Key is required for out-of-line settings table');
         return await dexieDB.settings.put(value, key);
       }
+      
+      // Clean data before storing to reduce offline footprint
+      const optimizedValue = cleanObject(value);
+
       if (storeName === 'entries') {
-        return await dexieDB.entries.put(value);
+        return await dexieDB.entries.put(optimizedValue);
       }
       if (storeName === 'goals') {
-        return await dexieDB.goals.put(value);
+        return await dexieDB.goals.put(optimizedValue);
       }
       if (storeName === 'activity_templates') {
-        return await dexieDB.activity_templates.put(value);
+        return await dexieDB.activity_templates.put(optimizedValue);
       }
       if (storeName === 'auto_templates') {
-        return await dexieDB.auto_templates.put(value);
+        return await dexieDB.auto_templates.put(optimizedValue);
       }
     },
 
@@ -112,15 +139,21 @@ export const getDB = async (): Promise<any> => {
              if (storeName === 'settings') {
                if (!key) throw new Error('Key is required for settings table transaction');
                p = dexieDB.settings.put(value, key);
-             } else if (storeName === 'entries') {
-               p = dexieDB.entries.put(value);
-             } else if (storeName === 'goals') {
-               p = dexieDB.goals.put(value);
-             } else if (storeName === 'activity_templates') {
-               p = dexieDB.activity_templates.put(value);
-             } else if (storeName === 'auto_templates') {
-               p = dexieDB.auto_templates.put(value);
+             } else {
+               // Clean data in transactions as well
+               const optimizedValue = cleanObject(value);
+               
+               if (storeName === 'entries') {
+                 p = dexieDB.entries.put(optimizedValue);
+               } else if (storeName === 'goals') {
+                 p = dexieDB.goals.put(optimizedValue);
+               } else if (storeName === 'activity_templates') {
+                 p = dexieDB.activity_templates.put(optimizedValue);
+               } else if (storeName === 'auto_templates') {
+                 p = dexieDB.auto_templates.put(optimizedValue);
+               }
              }
+             
              if (p) {
                putsWaiting.push(p);
              }

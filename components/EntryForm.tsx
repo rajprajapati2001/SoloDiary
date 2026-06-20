@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import { ActivityEntry, ActivityTemplate, Goal } from '../types';
 import { X, NotebookTabs, Save, Banknote, Clock, Zap, Target, FileText, Calendar as CalendarIcon, Link as LinkIcon, ChevronDown, Code, Star, ArrowDownLeft, ArrowUpRight, NotebookPen, Activity,KeySquare } from 'lucide-react';
 import { useReducedMotion } from 'motion/react';
+import { CURRENCY_MAP } from '../constants';
 
 interface EntryFormProps {
   isOpen: boolean;
@@ -75,6 +76,7 @@ const EntryForm: React.FC<EntryFormProps> = ({ isOpen, onClose, onSave, initialD
   const [points, setPoints] = useState(initialData?.points ?? 0);
   const [debit, setDebit] = useState(initialData?.debit ?? 0);
   const [credit, setCredit] = useState(initialData?.credit ?? 0);
+  const [moneyCode, setMoneyCode] = useState(initialData?.moneyCode ?? (localStorage.getItem('solo_diary_default_currency') || 'INR'));
   const [description, setDescription] = useState(initialData?.description ?? '');
   const [attachment, setAttachment] = useState(initialData?.attachment ?? '');
   
@@ -179,6 +181,7 @@ const EntryForm: React.FC<EntryFormProps> = ({ isOpen, onClose, onSave, initialD
     setPoints(initialData?.points ?? 0);
     setDebit(initialData?.debit ?? 0);
     setCredit(initialData?.credit ?? 0);
+    setMoneyCode(initialData?.moneyCode ?? (localStorage.getItem('solo_diary_default_currency') || 'INR'));
     setDescription(initialData?.description ?? '');
     setAttachment(initialData?.attachment ?? '');
     setSelectedTemplateId('');
@@ -317,6 +320,7 @@ useEffect(() => {
       points,
       debit: isCashTransaction ? debit : 0,
       credit: isCashTransaction ? credit : 0,
+      moneyCode: isCashTransaction ? moneyCode : undefined,
       description: isDescriptionOpen ? description : '',
       attachment: isDescriptionOpen ? attachment : '',
       createdAt: initialData?.createdAt || Date.now(),
@@ -626,21 +630,49 @@ useEffect(() => {
             </div>
             <div className="space-y-1">
               <label className="text-[10px] inline-flex gap-1 font-black uppercase opacity-60 text-black dark:text-white"><Star size={12} />Points</label>
-              <input type="number" value={points} onChange={e => setPoints(Number(e.target.value))} placeholder="0" className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:bg-black/20 dark:border-white/10 text-black dark:text-white font-bold" required />
+              <input type="number" value={points || ""} onChange={e => setPoints(e.target.value === "" ? "" : Number(e.target.value))}  placeholder="0" className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:bg-black/20 dark:border-white/10 text-black dark:text-white font-bold" required />
             </div>
           </div>
 
           {/* Row 7: Debit | Credit (Conditional) */}
           {isCashTransaction && (
-            <div className="grid grid-cols-2 gap-4 overflow-hidden">
-              <div className="space-y-1">
-                <label className="inline-flex gap-1 text-[10px] font-black text-red-500 uppercase"><ArrowDownLeft size={12} /> Debit ( - )</label>
-                <input type="number" value={debit} onChange={e => setDebit(Number(e.target.value))} className="w-full px-4 py-2.5 rounded-xl border border-red-500/30 text-red-600 font-bold dark:bg-red-500/10" />
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-4 overflow-hidden">
+                <div className="space-y-1">
+                  <label className="inline-flex gap-1 text-[10px] font-black text-red-500 uppercase"><ArrowDownLeft size={12} /> Debit ({CURRENCY_MAP[moneyCode]?.symbol ?? '₹'})</label>
+                  <input type="number" min="0" value={debit || ""} onChange={e => setDebit(e.target.value === "" ? "" : Math.max(0, Number(e.target.value)))} placeholder="0" className="w-full px-4 py-2.5 rounded-xl border border-red-500/30 text-red-600 font-bold dark:bg-red-500/10" />
+                </div>
+                <div className="space-y-1">
+                  <label className="inline-flex gap-1 text-[10px] font-black text-emerald-500 uppercase"><ArrowUpRight size={12} /> Credit ({CURRENCY_MAP[moneyCode]?.symbol ?? '₹'})</label>
+                  <input type="number" min="0" value={credit || ""} onChange={e => setCredit(e.target.value === "" ? "" : Math.max(0, Number(e.target.value)))} placeholder="0" className="w-full px-4 py-2.5 rounded-xl border border-emerald-500/30 text-emerald-600 font-bold dark:bg-emerald-500/10" />
+                </div>
               </div>
+              
               <div className="space-y-1">
-                <label className="inline-flex gap-1 text-[10px] font-black text-emerald-500 uppercase"><ArrowUpRight size={12} /> Credit ( + )</label>
-                <input type="number" value={credit} onChange={e => setCredit(Number(e.target.value))} className="w-full px-4 py-2.5 rounded-xl border border-emerald-500/30 text-emerald-600 font-bold dark:bg-emerald-500/10" />
+                <label className="text-[10px] inline-flex gap-1 font-black uppercase opacity-60 text-black dark:text-white">
+                  <Banknote size={12} /> Currency DEFAULT SELECTOR
+                </label>
+                  <select
+                    value={moneyCode}
+                    onChange={e => {
+                      const selected = e.target.value;
+                      setMoneyCode(selected);
+                      localStorage.setItem('solo_diary_default_currency', selected);
+                    }}
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 dark:bg-slate-800 text-black dark:text-white font-bold cursor-pointer outline-none"
+                  >
+                    {Object.entries(CURRENCY_MAP).map(([code, { symbol, country }]) => (
+                      <option
+                        key={code}
+                        value={code}
+                        className="dark:bg-slate-900 text-black dark:text-white"
+                      >
+                        {country} - {code} ({symbol})
+                      </option>
+                    ))}
+                  </select>
               </div>
+
             </div>
           )}
 

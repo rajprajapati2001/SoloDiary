@@ -88,7 +88,7 @@ const HeatMap: React.FC<HeatMapProps> = ({
 
     if (customData) {
       customData.forEach(item => {
-        if (item.date) {
+        if (item && item.date) {
           contributionsMap[item.date] = {
             count: item.count !== undefined ? item.count : 1,
             points: item.points || 0
@@ -97,14 +97,18 @@ const HeatMap: React.FC<HeatMapProps> = ({
       });
     } else {
       entries.forEach(e => {
-        if (e.toDate) {
-          const entryDate = new Date(e.toDate);
-          if (entryDate.getFullYear() === selectedYear) {
-            if (!contributionsMap[e.toDate]) {
-              contributionsMap[e.toDate] = { count: 0, points: 0 };
+        // Critical Fix: Ensure e.toDate is a valid string before splitting to prevent blank screens
+        if (e && e.toDate && typeof e.toDate === 'string') {
+          const parts = e.toDate.split('-');
+          if (parts.length === 3) {
+            const yy = Number(parts[0]);
+            if (yy === selectedYear) {
+              if (!contributionsMap[e.toDate]) {
+                contributionsMap[e.toDate] = { count: 0, points: 0 };
+              }
+              contributionsMap[e.toDate].count += 1;
+              contributionsMap[e.toDate].points += e.points || 0;
             }
-            contributionsMap[e.toDate].count += 1;
-            contributionsMap[e.toDate].points += e.points || 0;
           }
         }
       });
@@ -120,9 +124,15 @@ const HeatMap: React.FC<HeatMapProps> = ({
     for (let w = 0; w < 53; w++) {
       const weekDays = [];
       for (let d = 0; d < 7; d++) {
-        const dateStr = runner.toISOString().split('T')[0];
+        // Safe localized manual string assembly avoiding ISO timezone bugs
+        const yStr = runner.getFullYear();
+        const mStr = String(runner.getMonth() + 1).padStart(2, '0');
+        const dStr = String(runner.getDate()).padStart(2, '0');
+        const dateStr = `${yStr}-${mStr}-${dStr}`;
+
         const isCurrentYear = runner.getFullYear() === selectedYear;
         const dayInfo = contributionsMap[dateStr];
+        
         weekDays.push({
           dateStr,
           isCurrentYear,
@@ -161,7 +171,7 @@ const HeatMap: React.FC<HeatMapProps> = ({
         <div className="flex-1 overflow-x-auto pb-1.5 [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-gray-350 dark:[&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar-track]:bg-transparent no-scrollbar">
           <div className="min-w-[420px] space-y-1 select-none">
             
-            {/* Month Labels row - Always visible across all 53 columns */}
+            {/* Month Labels row */}
             <div className="flex gap-[2px] h-4">
               {yearGrid.map((week, wIdx) => {
                 const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -191,10 +201,9 @@ const HeatMap: React.FC<HeatMapProps> = ({
                     const isFutureMonth = maxMonth !== undefined && day.month > maxMonth;
                     const isClickable = day.isCurrentYear && !isFutureMonth;
 
-                    let shadeClass = "bg-gray-200/60 dark:bg-slate-800/80"; // Default clean 0-log space
+                    let shadeClass = "bg-gray-200/60 dark:bg-slate-800/80";
                     let activeBorder = "border-[0.5px] border-gray-150/40 dark:border-slate-800/40";
                     
-                    // Only process score color steps if it isn't restricted by maxMonth constraint
                     if (day.isCurrentYear && !isFutureMonth && day.count > 0) {
                       if (day.points >= 100) {
                         shadeClass = colors.full;
@@ -207,13 +216,13 @@ const HeatMap: React.FC<HeatMapProps> = ({
                       }
                       activeBorder = colors.activeBorder;
                     } else if (!day.isCurrentYear) {
-                      // Hides structural layout blocks belonging to previous or trailing year overlaps
                       shadeClass = "bg-transparent opacity-0 pointer-events-none";
                       activeBorder = "border-transparent";
                     }
 
+                    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
                     const formattedTip = isClickable
-                      ? `${new Date(day.dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}: ${day.count} log${day.count !== 1 ? 's' : ''} (${day.points} pts)`
+                      ? `${monthNames[day.month]} ${day.dayOfMonth}, ${selectedYear}: ${day.count} log${day.count !== 1 ? 's' : ''} (${day.points} pts)`
                       : "";
 
                     return (
@@ -230,7 +239,7 @@ const HeatMap: React.FC<HeatMapProps> = ({
                         title={formattedTip}
                       >
                         {isClickable && (
-                          <div className="absolute bottom-5 left-1/2 -translate-x-1/2 bg-slate-900 border border-slate-750 text-white text-[9px] px-2 py-1 rounded shadow-xl whitespace-nowrap opacity-0 group-hover/day:opacity-100 pointer-events-none transition-all duration-150 z-25 font-bold">
+                          <div className="absolute bottom-5 left-1/2 -translate-x-1/2 bg-slate-900 border border-slate-750 text-white text-[9px] px-2 py-1 rounded shadow-xl whitespace-nowrap opacity-0 group-hover/day:opacity-100 pointer-events-none transition-all duration-150 z-50 font-bold">
                             {formattedTip}
                           </div>
                         )}

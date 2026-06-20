@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { ActivityEntry, Goal } from '../types';
+import { getCurrencySymbol, getAggregateCurrencyDisplay } from '../constants';
 
 import {
   X,
@@ -132,12 +133,12 @@ const handleSaveName = () => {
   
   // Profile Stats Calculation
   const profileStats = useMemo(() => {
-    const totalPoints = entries.reduce((sum, e) => sum + e.points, 0);
+    const totalPoints = entries.reduce((sum, e) => sum + (e.points || 0), 0);
     const totalActivities = entries.length;
     const completedGoals = goals.filter(g => g.achievedAt);
     const pendingGoals = goals.filter(g => !g.achievedAt);
     const uniqueDays = Array.from(new Set(entries.map(e => e.toDate)));
-    const totalActiveDaysCount = uniqueDays.length || 1;
+    const totalActiveDaysCount = Math.max(uniqueDays.length, 1); // Prevent division by zero
     const avgPointsPerDay = Math.round(totalPoints / totalActiveDaysCount);
 
     // Track the year dynamically from the selected tracking date
@@ -146,8 +147,14 @@ const handleSaveName = () => {
     const yearStr = String(trackingYear);
 
     // Year specific computations
-    const entriesYear = entries.filter(e => e.toDate.startsWith(yearStr));
-    const totalPointsYear = entriesYear.reduce((sum, e) => sum + e.points, 0);
+const entriesYear = entries.filter(e => {
+  try {
+    return new Date(e.toDate).getFullYear() === trackingYear;
+  } catch {
+    return false;
+  }
+});
+const totalPointsYear = entriesYear.reduce((sum, e) => sum + (e.points || 0), 0);
     const totalDebitYear = entriesYear.reduce((sum, e) => sum + (e.debit || 0), 0);
     const totalCreditYear = entriesYear.reduce((sum, e) => sum + (e.credit || 0), 0);
     const netBalanceYear = totalCreditYear - totalDebitYear;
@@ -465,7 +472,7 @@ const handleSaveName = () => {
 
               <div className="text-right">
                 <p className="text-emerald-500 font-black">
-                  +{item.points}
+                  {item.points >= 0 ? `+${item.points}` : item.points}
                 </p>
               </div>
             </div>
@@ -608,8 +615,8 @@ className={`w-full p-3 rounded-2xl border border-gray-100 dark:border-slate-700 
       .sort((a, b) => (b as number) - (a as number))
       .map(year => {
         const score = entries
-          .filter(e => new Date(e.toDate).getFullYear() === year)
-          .reduce((s, e) => s + e.points, 0);
+        .filter(e => new Date(e.toDate).getFullYear() === year)
+        .reduce((s, e) => s + (e.points || 0), 0);
 
         return (
           <button
@@ -809,35 +816,42 @@ className={`w-full p-3 rounded-2xl border border-gray-100 dark:border-slate-700 
       </button>
     </div>
 
-    <div className="grid grid-cols-3 gap-2">
+<div className="flex flex-wrap-reverse gap-2 w-full">
 
-      <div className="p-3 rounded-xl bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/10 dark:border-emerald-500/20 text-center">
-        <p className="text-[10px] uppercase text-gray-400">Credit</p>
-        <p className="text-lg font-black mt-1 text-emerald-500">
-          +{financialSummary.credit}
-        </p>
-      </div>
+  {/* Credit Card */}
+  <div className="flex-grow flex-shrink-0 basis-[calc(33.333%-0.5rem)] min-w-[105px] p-3 rounded-xl bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/10 dark:border-emerald-500/20 text-center">
+    <p className="text-[10px] uppercase text-gray-400">Credit</p>
+    <p className="text-xs sm:text-base font-black mt-1 text-emerald-500 break-all">
+      + {financialSummary.credit}
+    </p>
+  </div>
 
-      <div className="p-3 rounded-xl bg-red-500/5 dark:bg-red-500/10 border border-red-500/10 dark:border-red-500/20 text-center">
-        <p className="text-[10px] uppercase text-gray-400">Debit</p>
-        <p className="text-lg font-black mt-1 text-red-500">
-          -{financialSummary.debit}
-        </p>
-      </div>
-      
-      <div className={`p-3 rounded-xl ${
-  financialSummary.balance >= 0
-    ? 'bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/10 dark:border-emerald-500/20'
-    : 'bg-red-500/5 dark:bg-red-500/10 border border-red-500/10 dark:border-red-500/20'
-}  text-center`}>
-        <p className="text-[10px] uppercase text-gray-400">Balance</p>
-        <p className={`text-lg font-black mt-1 ${
-          financialSummary.balance >= 0 ? 'text-emerald-500' : 'text-red-500'
-        }`}>
-          {financialSummary.balance}
-        </p>
-      </div>
-    </div>
+  {/* Debit Card */}
+  <div className="flex-grow flex-shrink-0 basis-[calc(33.333%-0.5rem)] min-w-[105px] p-3 rounded-xl bg-red-500/5 dark:bg-red-500/10 border border-red-500/10 dark:border-red-500/20 text-center">
+    <p className="text-[10px] uppercase text-gray-400">Debit</p>
+    <p className="text-xs sm:text-base font-black mt-1 text-red-500 break-all">
+      - {financialSummary.debit}
+    </p>
+  </div>
+  
+  {/* Balance Card */}
+  <div className={`flex-grow flex-shrink-0 basis-[calc(33.333%-0.5rem)] min-w-[105px] p-3 rounded-xl text-center ${
+    financialSummary.balance >= 0
+      ? 'bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/10 dark:border-emerald-500/20'
+      : 'bg-red-500/5 dark:bg-red-500/10 border border-red-500/10 dark:border-red-500/20'
+  }`}>
+     <p className="text-[10px] uppercase text-gray-400">Balance</p>
+     <p className={`text-xs sm:text-base font-black mt-1 break-all ${
+       financialSummary.balance >= 0 ? 'text-emerald-500' : 'text-red-500'
+     }`}>
+       {getCurrencySymbol(getAggregateCurrencyDisplay(activeMonthEntries))} {financialSummary.balance}
+     </p>
+   </div>
+
+</div>
+
+
+
 
     <div className="md:space-y-2 space-y-1">
   {activeMonthEntries
@@ -891,12 +905,12 @@ className={`w-full p-3 rounded-2xl border border-gray-100 dark:border-slate-700 
               
               {item.credit > 0 && (
                 <p className="font-black text-emerald-500 leading-none">
-                  +{item.credit} ₹
+                  +{item.credit}{getCurrencySymbol(item.moneyCode)}
                 </p>
               )}
               {item.debit > 0 && (
                 <p className="font-black text-red-500 leading-none">
-                  -{item.debit} ₹
+                  -{item.debit}{getCurrencySymbol(item.moneyCode)}
                 </p>
               )}
             </div>
@@ -995,14 +1009,15 @@ className={`w-full p-3 rounded-2xl border border-gray-100 dark:border-slate-700 
                 {/* Rank Progression */}
 {(() => {
   // 1. Get the current tracking year safely
-  const year = parseInt(profileStats.trackingYear) || new Date().getFullYear();
-  
-  // 2. Check if it's a leap year, then set max points (36500 or 36600)
-  const isLeapYear = (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
-  const maxYearPoints = isLeapYear ? 36600 : 36500;
+const year = parseInt(profileStats.trackingYear) || new Date().getFullYear();
+const isLeapYear = (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
+const maxYearPoints = isLeapYear ? 36600 : 36500;
   
   // 3. Calculate metrics safely
-  const progressPercent = Math.min((profileStats.totalPointsYear / maxYearPoints) * 100, 100);
+  const progressPercent = Math.min(
+  Math.max((profileStats.totalPointsYear / maxYearPoints) * 100, 0),
+  100
+);
   const pointsLeft = maxYearPoints - profileStats.totalPointsYear;
 
   return (
@@ -1161,15 +1176,15 @@ className={`w-full p-3 rounded-2xl border border-gray-100 dark:border-slate-700 
                   <div className="grid grid-cols-3 gap-1">
                     <div className="p-1 rounded-2xl bg-emerald-500/[0.02] dark:bg-emerald-500/[0.01] border border-emerald-500/10 flex flex-col justify-between items-center min-h-[2.5rem] h-auto text-center">
                       <p className="text-[9px] uppercase font-bold text-gray-400">Total Credit</p>
-                      <p className="text-xs sm:text-sm font-black text-emerald-500 mt-1 break-all leading-snug">+{profileStats.totalCredit} ₹</p>
+                      <p className="text-xs sm:text-sm font-black text-emerald-500 mt-1 break-all leading-snug">+{getAggregateCurrencyDisplay(entries)} {profileStats.totalCredit}</p>
                     </div>
                     <div className="p-1 rounded-2xl bg-red-500/[0.02] dark:bg-red-500/[0.01] border border-red-500/10 flex flex-col justify-between items-center min-h-[2.5rem] h-auto text-center">
                       <p className="text-[9px] uppercase font-bold text-gray-400">Total Debit</p>
-                      <p className="text-xs sm:text-sm font-black text-red-500 mt-1 break-all leading-snug">-{profileStats.totalDebit} ₹</p>
+                      <p className="text-xs sm:text-sm font-black text-red-500 mt-1 break-all leading-snug">-{getAggregateCurrencyDisplay(entries)} {profileStats.totalDebit}</p>
                     </div>
                     <div className={`p-1 rounded-2xl border flex flex-col justify-between items-center min-h-[2.5rem] h-auto text-center ${profileStats.netBalance >= 0 ? 'bg-emerald-500/[0.02] dark:bg-emerald-500/[0.01] border-emerald-500/10' : 'bg-red-500/[0.02] dark:bg-red-500/[0.01] border-red-500/10'}`}>
                       <p className="text-[9px] uppercase font-bold text-gray-400">Net Wealth</p>
-                      <p className={`text-xs sm:text-sm font-black mt-1 break-all leading-snug ${profileStats.netBalance >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{profileStats.netBalance} ₹</p>
+                      <p className={`text-xs sm:text-sm font-black mt-1 break-all leading-snug ${profileStats.netBalance >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{getAggregateCurrencyDisplay(entries)} {profileStats.netBalance}</p>
                     </div>
                   </div>
                 </div>

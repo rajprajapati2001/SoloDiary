@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { ActivityEntry, Goal } from '../types';
+import { getCurrencySymbol, getAggregateCurrencyDisplay } from '../constants';
 import { Printer, FileChartColumn, FileText, TrendingUp, Award, ImageDown,  Banknote,FileCode2, BadgeCheck , EyeOff, NotebookText, ChartLine, Landmark, ExternalLink, CheckCircle2, Zap, Target, ClipboardList, Star, Clock, DatabaseBackup, Download, Upload, X, Copy, Share2, Eye, Layout, Mail, Globe } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import LineGraph from './LineGraph';
@@ -272,9 +273,9 @@ const handleWebView = () => {
         </div>
 
         <div style="display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap;">
-          <button class="finance-btn" onclick="toggleFinanceHighlight('net')" style="border-color: ${isNegative ? '#fca5a5' : '#6ee7b7'};">💰 Net: ${isNegative ? '-' : '+'} ₹${Math.abs(netAmount).toLocaleString()}</button>
-          <button class="finance-btn" onclick="toggleFinanceHighlight('debit')" style="border-color: #fca5a5; color: #dc2626;">🔴 Debit: ₹${totalDebitAmt.toLocaleString()}</button>
-          <button class="finance-btn" onclick="toggleFinanceHighlight('credit')" style="border-color: #6ee7b7; color: #059669;">🟢 Credit: ₹${totalCreditAmt.toLocaleString()}</button>
+          <button class="finance-btn" onclick="toggleFinanceHighlight('net')" style="border-color: ${isNegative ? '#fca5a5' : '#6ee7b7'};">💰 Net: ${isNegative ? '-' : '+'} ${getAggregateCurrencyDisplay(currentMonthEntries)} ${Math.abs(netAmount).toLocaleString()}</button>
+          <button class="finance-btn" onclick="toggleFinanceHighlight('debit')" style="border-color: #fca5a5; color: #dc2626;">🔴 Debit: ${getAggregateCurrencyDisplay(currentMonthEntries)} ${totalDebitAmt.toLocaleString()}</button>
+          <button class="finance-btn" onclick="toggleFinanceHighlight('credit')" style="border-color: #6ee7b7; color: #059669;">🟢 Credit: ${getAggregateCurrencyDisplay(currentMonthEntries)} ${totalCreditAmt.toLocaleString()}</button>
         </div>
 
         <h3 style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; color: #475569;">Activity Breakdown</h3>
@@ -575,7 +576,7 @@ const showToast = (message: string) => {
       element.classList.add('bg-blue-50', 'dark:bg-blue-900/20');
       setTimeout(() => {
         element.classList.remove('bg-blue-50', 'dark:bg-blue-900/20');
-      }, 2000);
+      }, 200);
     }
   };
 
@@ -597,24 +598,24 @@ const showToast = (message: string) => {
     });
   }, [goals, monthLabelText, selectedYear, selectedMonth]);
 
-  const activitySummary = useMemo(() => {
-    const summaryMap: Record<string, { name: string, count: number, totalPoints: number }> = {};
-    currentMonthEntries.forEach(e => {
-      if (!summaryMap[e.code]) {
-        summaryMap[e.code] = { name: e.name, count: 0, totalPoints: 0 };
-      }
-      summaryMap[e.code].count += 1;
-      summaryMap[e.code].totalPoints += e.points;
-    });
-    return Object.entries(summaryMap).map(([code, data]) => ({
-      code,
-      ...data
-    })).sort((a, b) => b.totalPoints - a.totalPoints);
-  }, [currentMonthEntries]);
+const activitySummary = useMemo(() => {
+  const summaryMap: Record<string, { name: string, count: number, totalPoints: number }> = {};
+  currentMonthEntries.forEach(e => {
+    if (!summaryMap[e.code]) {
+      summaryMap[e.code] = { name: e.name, count: 0, totalPoints: 0 };
+    }
+    summaryMap[e.code].count += 1;
+    summaryMap[e.code].totalPoints += (e.points || 0); // Add fallback here
+  });
+  return Object.entries(summaryMap).map(([code, data]) => ({
+    code,
+    ...data
+  })).sort((a, b) => b.totalPoints - a.totalPoints);
+}, [currentMonthEntries]);
 
-  const userMonthPoints = useMemo(() => {
-    return currentMonthEntries.reduce((s, e) => s + e.points, 0);
-  }, [currentMonthEntries]);
+const userMonthPoints = useMemo(() => {
+  return currentMonthEntries.reduce((s, e) => s + (e.points || 0), 0);
+}, [currentMonthEntries]);
 
   const daysInMonthCount = new Date(parseInt(selectedYear), parseInt(selectedMonth), 0).getDate();
   const monthTargetBase = daysInMonthCount * 100;
@@ -625,12 +626,12 @@ const showToast = (message: string) => {
   }, [userMonthPoints, monthTargetBase]);
 
     // Cumulative yearly points calculation: January until selected month
-  const yearPoints = useMemo(() => {
-    return entries.filter(e => {
-      const parts = e.toDate.split('-');
-      return parts[0] === selectedYear && parts[1] <= selectedMonth;
-    }).reduce((s, e) => s + e.points, 0);
-  }, [entries, selectedYear, selectedMonth]);
+const yearPoints = useMemo(() => {
+  return entries.filter(e => {
+    const parts = e.toDate.split('-');
+    return parts[0] === selectedYear && parts[1] <= selectedMonth;
+  }).reduce((s, e) => s + (e.points || 0), 0);
+}, [entries, selectedYear, selectedMonth]);
 
   // Cumulative yearly goals calculation: January until selected month
   const yearGoalsAchievedCount = useMemo(() => {
@@ -747,7 +748,7 @@ const getGraphDataForMonth = () => {
     // Now dStr will correctly be "2024-03-01" regardless of timezone
     const pts = entries
       .filter(e => e.toDate === dStr)
-      .reduce((s, e) => s + e.points, 0);
+      .reduce((sum, e) => sum + (e.points || 0), 0);
       
     const achievedInDay = goals.filter(g => g.achievedAt === dStr);
 
@@ -1831,24 +1832,41 @@ const [showLabels, setShowLabels] = useState(true);
             </div>
             
             <div className="grid grid-cols-2 gap-3">
-              <div className="p-4 bg-slate-50 border border-slate-100 rounded-lg flex flex-col justify-between">
-                <p className="text-[8px]  font-semibold uppercase text-slate-400 mb-0.5 tracking-widest">
+              {/* Yearly Points Card */}
+              <div className="p-4 bg-white border-[2px] border-slate-950 rounded-xl flex flex-col justify-between relative overflow-hidden group shadow-sm">
+                {/* Background Icon Asset */}
+                <div className="absolute top-0 right-0 p-2 opacity-10 text-slate-900 pointer-events-none">
+                  <Award size={40} />
+                </div>
+                
+                <p className="text-[8px] font-semibold uppercase text-slate-400 mb-0.5 tracking-widest relative z-10">
                   <Award size={10} className="text-blue-500 inline mr-1" /> Yearly Points
                 </p>
-                <p className="text-lg  font-semibold text-slate-950">{yearPoints.toLocaleString()}</p>
+                <p className="text-lg font-semibold text-slate-950 relative z-10">{yearPoints.toLocaleString()}</p>
               </div>
+
+              {/* Yearly Goals Card */}
               <div 
                 data-finance-toggle="goals"
                 onClick={() => handleFinanceToggle('goals')}
-                className={`p-4 rounded-lg flex flex-col justify-between cursor-pointer transition-all duration-300 hover:scale-[1.02] active:scale-95 ${
-                  financeHighlight === 'goals' ? 'bg-purple-100 border-2 border-purple-400 ring-2 ring-purple-200' : 'bg-slate-50 border border-slate-100'
-                }`}>
-                <p className="text-[8px]  font-semibold uppercase text-slate-400 mb-0.5 tracking-widest">
+                className={`p-4 rounded-xl flex flex-col justify-between cursor-pointer transition-all duration-300 hover:scale-[1.02] active:scale-95 relative overflow-hidden group shadow-sm ${
+                  financeHighlight === 'goals' 
+                    ? 'bg-purple-100 border-2 border-purple-400 ring-2 ring-purple-200' 
+                    : 'bg-white border-[2px] border-slate-950'
+                }`}
+              >
+                {/* Background Icon Asset */}
+                <div className="absolute top-0 right-0 p-2 opacity-10 text-slate-900 pointer-events-none">
+                  <Target size={40} />
+                </div>
+
+                <p className="text-[8px] font-semibold uppercase text-slate-400 mb-0.5 tracking-widest relative z-10">
                   <Target size={10} className="text-purple-500 inline mr-1" /> Yearly Goals
                 </p>
-                <p className="text-lg  font-semibold text-slate-950">{yearGoalsAchievedCount}</p>
+                <p className="text-lg font-semibold text-slate-950 relative z-10">{yearGoalsAchievedCount}</p>
               </div>
             </div>
+
 
             <div className="space-y-3">
     {/* Dynamic Top Card */}
@@ -1866,37 +1884,50 @@ const [showLabels, setShowLabels] = useState(true);
         Month Net Amount
       </p>
       
-      <p className={`text-3xl  font-bold tracking-tighter ${isNegative ? 'text-red-600' : 'text-emerald-600'}`}>
-        {isNegative ? '- ' : '+ '} ₹{Math.abs(netAmount).toLocaleString()}
+      <p className={`text-3xl [overflow-wrap:anywhere] font-bold tracking-tighter ${isNegative ? 'text-red-600' : 'text-emerald-600'}`}>
+        {isNegative ? '- ' : '+ '} {getCurrencySymbol(getAggregateCurrencyDisplay(currentMonthEntries))} {Math.abs(netAmount).toLocaleString()}
       </p>
     </div>
 
     {/* Bottom Grid */}
-    <div className="grid grid-cols-2 gap-3">
-      <div 
-        data-finance-toggle="debit"
-        onClick={() => handleFinanceToggle('debit')}
-        className={`p-4 rounded-lg flex flex-col justify-between cursor-pointer transition-all duration-300 hover:scale-[1.02] active:scale-95 ${
-          financeHighlight === 'debit' ? 'bg-red-100 border-2 border-red-400 ring-2 ring-red-200' : 'bg-red-50/50 border border-red-100'
-        }`}>
-         <p className="text-[8px]  font-semibold uppercase text-red-500 mb-0.5 tracking-widest">
-           <Banknote size={10} className="inline mr-1" /> Debit
-         </p>
-         <p className="text-lg  font-semibold text-red-600">₹{totalDebitAmt.toLocaleString()}</p>
-      </div>
-      
-      <div 
-        data-finance-toggle="credit"
-        onClick={() => handleFinanceToggle('credit')}
-        className={`p-4 rounded-lg flex flex-col justify-between cursor-pointer transition-all duration-300 hover:scale-[1.02] active:scale-95 ${
-          financeHighlight === 'credit' ? 'bg-emerald-100 border-2 border-emerald-400 ring-2 ring-emerald-200' : 'bg-emerald-50/50 border border-emerald-100'
-        }`}>
-         <p className="text-[8px]  font-semibold uppercase text-emerald-600 mb-0.5 tracking-widest">
-           <Banknote size={10} className="inline mr-1" /> Credit
-         </p>
-         <p className="text-lg  font-semibold text-emerald-600">₹{totalCreditAmt.toLocaleString()}</p>
-      </div>
-    </div>
+<div className="grid grid-cols-2 gap-3">
+  {/* Debit Card */}
+  <div 
+    data-finance-toggle="debit"
+    onClick={() => handleFinanceToggle('debit')}
+    className={`p-4 [overflow-wrap:anywhere] rounded-lg flex flex-col justify-between cursor-pointer transition-all duration-300 hover:scale-[1.02] active:scale-95 relative overflow-hidden group ${
+      financeHighlight === 'debit' ? 'bg-red-100 border-2 border-red-400 ring-2 ring-red-200' : 'bg-red-50/50 border border-red-100'
+    }`}>
+     {/* Large Background Color Icon Added */}
+     <div className="absolute top-0 right-0 p-2 opacity-10 text-red-900 pointer-events-none">
+       <Banknote size={40} />
+     </div>
+
+     <p className="text-[8px] font-semibold uppercase text-red-500 mb-0.5 tracking-widest relative z-10">
+       <Banknote size={10} className="inline mr-1" /> Debit
+     </p>
+     <p className="text-lg font-semibold text-red-600 relative z-10">{getCurrencySymbol(getAggregateCurrencyDisplay(currentMonthEntries))} {totalDebitAmt.toLocaleString()}</p>
+  </div>
+  
+  {/* Credit Card */}
+  <div 
+    data-finance-toggle="credit"
+    onClick={() => handleFinanceToggle('credit')}
+    className={`p-4 [overflow-wrap:anywhere] rounded-lg flex flex-col justify-between cursor-pointer transition-all duration-300 hover:scale-[1.02] active:scale-95 relative overflow-hidden group ${
+      financeHighlight === 'credit' ? 'bg-emerald-100 border-2 border-emerald-400 ring-2 ring-emerald-200' : 'bg-emerald-50/50 border border-emerald-100'
+    }`}>
+     {/* Large Background Color Icon Added */}
+     <div className="absolute top-0 right-0 p-2 opacity-10 text-emerald-900 pointer-events-none">
+       <Banknote size={40} />
+     </div>
+
+     <p className="text-[8px] font-semibold uppercase text-emerald-600 mb-0.5 tracking-widest relative z-10">
+       <Banknote size={10} className="inline mr-1" /> Credit
+     </p>
+     <p className="text-lg font-semibold text-emerald-600 relative z-10">{getCurrencySymbol(getAggregateCurrencyDisplay(currentMonthEntries))} {totalCreditAmt.toLocaleString()}</p>
+  </div>
+</div>
+
   </div>
 
           </div>
@@ -2167,98 +2198,118 @@ const [showLabels, setShowLabels] = useState(true);
         {/* Detailed Ledger */}
 <div className="mb-8">
   <div className="flex items-center justify-between mb-3">
-  <h3 className="text-sm  font-semibold uppercase tracking-tighter text-slate-950 border-l-[3px] border-slate-950 pl-2 flex items-center gap-2">
-    <NotebookText size={16} className="text-pink-600" />
-    Chronological Log Diary
-  </h3>
-  <input
-  id="search-description-input"
-  type="text"
-  placeholder="Search descriptions..."
-  value={searchQuery}
-  onChange={(e) => setSearchQuery(e.target.value)}
-  style={{
-    padding: '3px 12px',
-    backgroundColor: '#f8f9fa',
-    border: '1px solid #cbd5e1',
-    borderRadius: '4px',
-    fontSize: '10px',
-    fontWeight: 500,
-    width: '192px',
-    outline: 'none',
-  }}
-  onFocus={(e) => { e.target.style.boxShadow = '0 0 0 2px #60a5fa'; }}
-  onBlur={(e) => { e.target.style.boxShadow = ''; }}
-/>
-</div>
+    <h3 className="text-sm font-semibold uppercase tracking-tighter text-slate-950 border-l-[3px] border-slate-950 pl-2 flex items-center gap-2">
+      <NotebookText size={16} className="text-pink-600" />
+      Chronological Log Diary
+    </h3>
+    <input
+      id="search-description-input"
+      type="text"
+      placeholder="Search descriptions..."
+      value={searchQuery}
+      onChange={(e) => setSearchQuery(e.target.value)}
+      style={{
+        padding: '3px 12px',
+        backgroundColor: '#f8f9fa',
+        border: '1px solid #cbd5e1',
+        borderRadius: '4px',
+        fontSize: '10px',
+        fontWeight: 500,
+        width: '192px',
+        outline: 'none',
+      }}
+      onFocus={(e) => { e.target.style.boxShadow = '0 0 0 2px #60a5fa'; }}
+      onBlur={(e) => { e.target.style.boxShadow = ''; }}
+    />
+  </div>
   <div className="border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm">
-    <table className="w-full text-left border-collapse">
+    <table className="w-full text-left border-collapse table-fixed">
+      {/* Explicit colgroup ensures table-fixed respects widths even when rows are empty */}
+      <colgroup>
+        <col className="w-24" />
+        <col className="w-12" />
+        <col />
+        {hasAttachmentsInReport && <col className="w-16" />}
+        {hasTransactionsInReport && <col className="w-20" />}
+        <col className="w-14" />
+      </colgroup>
       <thead className="table-header-group">
         <tr className="bg-slate-950 text-white">
-          <th className="px-4 py-2 text-[7px]  font-semibold uppercase tracking-widest w-24">Timestamp</th>
-          <th className="px-4 py-2 text-[7px]  font-semibold uppercase tracking-widest w-12 text-center">Code</th>
-          <th className="px-4 py-2 text-[7px]  font-semibold uppercase tracking-widest">Entry Details</th>
-          {hasAttachmentsInReport && <th className="px-4 py-2 text-[7px]  font-semibold uppercase tracking-widest w-12 text-center">QR</th> }
-          {hasTransactionsInReport && <th className="px-4 py-2 text-[7px]  font-semibold uppercase tracking-widest w-16 text-right">Account</th>}
-           <th className="px-4 py-2 text-[7px]  font-semibold uppercase tracking-widest text-center w-14">Pts</th>
+          {/* Left-aligned metadata headers */}
+          <th className="px-4 py-2 text-[7px] font-semibold uppercase tracking-widest text-left">Timestamp</th>
+          <th className="px-4 py-2 text-[7px] font-semibold uppercase tracking-widest text-left">Code</th>
+          <th className="px-4 py-2 text-[7px] font-semibold uppercase tracking-widest text-left">Entry Details</th>
+          {/* Right-aligned utility headers */}
+          {hasAttachmentsInReport && <th className="px-4 py-2 text-[7px] font-semibold uppercase tracking-widest text-center">QR</th>}
+          {hasTransactionsInReport && <th className="px-4 py-2 text-[7px] font-semibold uppercase tracking-widest text-right">Account</th>}
+          <th className="px-4 py-2 text-[7px] font-semibold uppercase tracking-widest text-center">Pts</th>
         </tr>
       </thead>
       <tbody className="divide-y divide-slate-50">
         {Object.keys(filteredGroupedLogsByDate).length === 0 ? (
           <tr>
-            <td colSpan={6} className="p-6 text-center text-[9px] font-medium text-slate-300 italic">
+            <td 
+              colSpan={3 + (hasAttachmentsInReport ? 1 : 0) + (hasTransactionsInReport ? 1 : 0) + 1} 
+              className="p-6 text-center text-[9px] font-medium text-slate-300 italic w-full"
+            >
               No records found.
             </td>
           </tr>
         ) : (
-Object.keys(filteredGroupedLogsByDate).sort().map((dateStr) => {
-  const dayLogs = filteredGroupedLogsByDate[dateStr];
-  const dayPts = dayLogs.reduce((s, e) => s + e.points, 0);
-  
-  // Calculate day's total debit and credit amounts
-  const dayDebit = dayLogs.reduce((s, e) => s + (e.debit || 0), 0);
-  const dayCredit = dayLogs.reduce((s, e) => s + (e.credit || 0), 0);
-  
-  const achievedGoalsToday = goals.filter(g => g.achievedAt === dateStr);
-  return (
-    <React.Fragment key={dateStr}>
-      <tr id={`ledger-date-${dateStr}`} className="bg-slate-100/50 border-y border-slate-100 transition-colors duration-500">
-        <td colSpan={6} className="px-4 py-1.5">
-          <div className="flex justify-between items-center">
-            <span className="text-[10px] font-semibold text-slate-950 tracking-[0.05em] uppercase flex items-center gap-2">
-              <Clock size={10} className="text-blue-500" />
-              {new Date(dateStr).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-              <span className="text-gray-600/75">{` (${new Date(dateStr).toLocaleDateString('en-GB', { weekday: 'long' })})`}</span>
-              {achievedGoalsToday.length > 0 && <Star size={10} className="text-amber-500 fill-amber-500" />}
-            </span>
-            
-            <span className="text-[7px] font-semibold text-slate-400 uppercase tracking-widest px-1.5 py-0.25 p-0.5 rounded bg-white border border-slate-100 flex items-center gap-2">
-              <span>Debit: <span className="text-red-600 font-bold">-{dayDebit}₹</span></span>
-              <span className="text-slate-300">|</span>
-              <span>Credit: <span className="text-emerald-600 font-bold">+{dayCredit}₹</span></span>
-              <span className="text-slate-300">|</span>
-              <span>DAY YIELD: <span className="text-slate-950">{dayPts} PTS</span></span>
-            </span>
-          </div>
-        </td>
-      </tr>
+          Object.keys(filteredGroupedLogsByDate).sort().map((dateStr) => {
+            const dayLogs = filteredGroupedLogsByDate[dateStr];
+            const dayPts = dayLogs.reduce((s, e) => s + (e.points || 0), 0);
+            const dayDebit = dayLogs.reduce((s, e) => s + (e.debit || 0), 0);
+            const dayCredit = dayLogs.reduce((s, e) => s + (e.credit || 0), 0);
+            const achievedGoalsToday = goals.filter(g => g.achievedAt === dateStr);
+
+            return (
+              <React.Fragment key={dateStr}>
+                <tr id={`ledger-date-${dateStr}`} className="bg-slate-100/50 border-y border-slate-100 transition-colors duration-500">
+                  <td colSpan={hasAttachmentsInReport && hasTransactionsInReport ? 6 : hasAttachmentsInReport || hasTransactionsInReport ? 5 : 4} className="px-4 py-1.5">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[10px] font-semibold text-slate-950 tracking-[0.05em] uppercase flex items-center gap-2">
+                        <Clock size={10} className="text-blue-500" />
+                        {new Date(dateStr).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        <span className="text-gray-600/75">{` (${new Date(dateStr).toLocaleDateString('en-GB', { weekday: 'long' })})`}</span>
+                        {achievedGoalsToday.length > 0 && <Star size={10} className="text-amber-500 fill-amber-500" />}
+                      </span>
+                      <span className="text-[7px] font-semibold text-slate-400 uppercase tracking-widest px-1.5 py-0.25 p-0.5 rounded bg-white border border-slate-100 flex items-center gap-2">
+                        <span>Debit: <span className="text-red-600 font-bold">-{dayDebit} {getCurrencySymbol(getAggregateCurrencyDisplay(dayLogs))}</span></span>
+                        <span className="text-slate-300">|</span>
+                        <span>Credit: <span className="text-emerald-600 font-bold">+{dayCredit} {getCurrencySymbol(getAggregateCurrencyDisplay(dayLogs))}</span></span>
+                        <span className="text-slate-300">|</span>
+                        <span>DAY YIELD: <span className="text-slate-950">{dayPts} PTS</span></span>
+                      </span>
+                    </div>
+                  </td>
+                </tr>
                 {groupedLogsByDate[dateStr].map(e => {
-                  // HIGHLIGHT LOGIC: Check if this row's code matches the clicked matrix code
                   const isHighlighted = highlightedCode === e.code || isEntryFinanceHighlighted(e);
-                  
+                  const hasDescription = e.description && e.description.length > 0;
+                  const hasQR = e.attachment && hasAttachmentsInReport;
+                  const hasTransaction = (e.debit! > 0 || e.credit! > 0) && hasTransactionsInReport;
+
+                  let qrSize = 42;
+                  if (hasQR && (!hasTransaction || hasDescription)) {
+                    qrSize = 55;
+                  }
+
+                  const shouldExpandDesc = hasAttachmentsInReport && !hasQR;
+
                   return (
-                    <tr 
-                      key={e.id} 
+                    <tr
+                      key={e.id}
                       data-code={e.code}
                       data-debit={e.debit || 0}
                       data-credit={e.credit || 0}
                       className={`log-row align-top transition-all duration-300 ${
-                        isHighlighted 
-                          ? 'bg-amber-50 ring-1 ring-inset ring-amber-200' 
+                        isHighlighted
+                          ? 'bg-amber-50 ring-1 ring-inset ring-amber-200'
                           : 'hover:bg-slate-50/50'
                       }`}
                     >
-                      <td className="px-4 py-2 text-[8px]  font-semibold text-slate-900 whitespace-nowrap leading-tight">
+                      <td className="px-4 py-2 text-[8px] font-semibold text-slate-900 whitespace-nowrap leading-tight text-left">
                         {e.fromTime && e.isLongEvent ? (
                           <>
                             {e.fromTime} <span className="text-gray-600/75">To</span> {e.toTime}
@@ -2267,53 +2318,61 @@ Object.keys(filteredGroupedLogsByDate).sort().map((dateStr) => {
                           e.toTime
                         )}
                       </td>
-                      <td className="px-0 py-0 text-center">
-                        <span className={`text-[7px]  font-semibold uppercase px-1.5 py-0.5 rounded border transition-colors ${
-                          isHighlighted 
-                            ? 'bg-amber-500 text-white border-amber-600 shadow-sm' 
+                      
+                      <td className="px-2 py-2 text-left">
+                        <span className={`text-[7px] font-semibold uppercase px-1.5 py-0.5 rounded border transition-colors ${
+                          isHighlighted
+                            ? 'bg-amber-500 text-white border-amber-600 shadow-sm'
                             : 'text-blue-600 bg-blue-50 border-blue-100'
                         }`}>
                           {e.code}
                         </span>
                       </td>
-                      <td className="px-1.5 py-0.5">
-                        <p className="text-[10px]  font-semibold leading-tight text-slate-950 mb-1 uppercase tracking-tighter flex items-center gap-1">
+
+                      <td colSpan={shouldExpandDesc ? 2 : 1} className="px-4 py-2 text-left">
+                        <p className="text-[10px] font-semibold leading-tight text-slate-950 mb-1 uppercase tracking-tighter flex items-center gap-1 justify-start">
                           {goals.some(g => g.code === e.code && g.achievedAt === e.toDate) && <Star size={8} className="text-amber-500 fill-amber-500" />}
                           {e.name}
                         </p>
-                        {e.description && (
-                          <p className={`text-[8px] leading-normal whitespace-pre-wrap border-l pl-2 mt-1 transition-colors ${
+                        {hasDescription && (
+                          <p className={`text-[8px] leading-normal whitespace-pre-wrap border-l pl-2 mt-1 transition-colors text-left ${
                             isHighlighted ? 'text-slate-900 border-amber-400' : 'text-slate-600 border-slate-200'
                           }`}>
                             {e.description}
                           </p>
                         )}
                       </td>
-                      
-                      {hasAttachmentsInReport && (
-                        <td className="px-0.5 py-0.5 text-center">
-                          {e.attachment ? (
-                            <div className="flex flex-col items-center justify-center">
-                              <a 
-                                href={e.attachment} 
-                                target="_blank" 
-                                rel="noopener noreferrer" 
-                                title={e.attachment}
-                                className="inline-block active:opacity-50 transition-opacity"
-                              >
-                                <QRCodeSVG value={e.attachment} size={40} level="M" />
-                              </a>
-                            </div>
+
+                      {hasAttachmentsInReport && !shouldExpandDesc && (
+                        <td className="px-1 py-1 text-center">
+                          <div className="flex flex-col items-center justify-center">
+                            <a
+                              href={e.attachment}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title={e.attachment}
+                              className="inline-block active:opacity-50 transition-opacity"
+                            >
+                              <QRCodeSVG value={e.attachment} size={qrSize} level="M" />
+                            </a>
+                          </div>
+                        </td>
+                      )}
+
+                      {hasTransactionsInReport && (
+                        <td className="px-4 py-2 text-[8px] font-semibold whitespace-pre-wrap text-right">
+                          {hasTransaction ? (
+                            <>
+                              {e.debit! > 0 && <span className="text-red-600">-{e.debit}{getCurrencySymbol(e.moneyCode)}</span>}
+                              {e.credit! > 0 && <span className="text-emerald-600 ml-1">+{e.credit}{getCurrencySymbol(e.moneyCode)}</span>}
+                            </>
                           ) : null}
                         </td>
                       )}
-                      {hasTransactionsInReport && (
-                        <td className="px-4 py-2 text-[8px]  font-semibold whitespace-nowrap text-right">
-                          {e.debit! > 0 && <span className="text-red-600">-{e.debit}₹</span>}
-                          {e.credit! > 0 && <span className="text-emerald-600 ml-1">+{e.credit}₹</span>}
-                        </td>
-                      )}
-                      <td className="px-4 py-2 text-center text-[10px]  font-semibold text-slate-950">+{e.points}</td>
+
+                      <td className="px-4 py-2 text-center text-[10px] font-semibold text-slate-950">
+                        {new Intl.NumberFormat('en-US', { signDisplay: 'always' }).format(Number(e.points) || 0)}
+                      </td>
                     </tr>
                   );
                 })}
@@ -2362,7 +2421,7 @@ Object.keys(filteredGroupedLogsByDate).sort().map((dateStr) => {
 
       {/* RIGHT: Functional QR Code */}
       <div className="flex flex-col items-center gap-1 shrink-0">
-        <div className="p-1 bg-white border border-slate-200 rounded-sm shadow-sm">
+        <div className="p-1 flex items-center justify-center bg-white border border-slate-200 rounded-sm shadow-sm">
           <a 
           href="https://solo-diary-khaki.vercel.app/" 
           target="_blank" 

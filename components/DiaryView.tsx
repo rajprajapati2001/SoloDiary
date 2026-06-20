@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ActivityEntry, Goal } from '../types';
-import { Trash2, Edit2, Clock, Paperclip, Calendar, Star, Banknote, NotebookPen, Search, ArrowUpDown, FileText, FileX, ArrowDownRight, ArrowUpRight } from 'lucide-react';
+import { getCurrencySymbol, getAggregateCurrencyDisplay } from '../constants';
+import { Trash2, Edit2, BookText, Clock, Paperclip, Calendar, Star, Banknote, NotebookPen, Search, ArrowUpDown, FileText, FileX, ArrowDownRight, ArrowUpRight } from 'lucide-react';
 
 interface DiaryViewProps {
   entries: ActivityEntry[];
@@ -91,116 +92,136 @@ const DiaryView: React.FC<DiaryViewProps> = ({ entries, goals, onEdit, onDelete 
 
   return (
     <div className="space-y-6">
-      {/* --- COMPACT CONSOLIDATED ROW: TITLE, SEARCH, AND BUTTONS IN ONE LINE ON DESKTOP --- */}
-      <div className="grid grid-cols-1 lg:grid-cols-[auto_1fr_auto] gap-4 items-center w-full">
-        
-        {/* Title Block - whitespace-nowrap prevents text wrapping */}
-        <div className="shrink-0 whitespace-nowrap">
-          <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tighter dark:text-white">Personal Diary</h2>
-          <p className="text-sm font-bold text-gray-600 dark:text-slate-400">Records for {monthDisplay}</p>
-        </div>
-        
-        {/* Centered Search Input Box - Takes up all available middle space */}
-        <div className="relative w-full group no-print">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
-          <input 
-            type="text"
-            placeholder="Search logs..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-white/10 dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 dark:text-white text-sm font-bold outline-none focus:border-blue-500 transition-all shadow-lg"
-          />
-        </div>
 
-        {/* Filter Action Buttons Layout Line */}
-        <div className="flex items-center justify-start lg:justify-end w-full gap-1.5 md:gap-2 no-print">
-          
-          {/* 1. MONTH SELECTION UI (Optimized layout for mobile views) */}
-          <div className="flex items-center gap-1 md:gap-2 bg-white/10 dark:bg-slate-800 h-[46px] px-2 md:px-3 rounded-2xl border border-gray-100 dark:border-slate-700 shadow-xl shrink-0">
-            <Calendar size={16} className="text-blue-500 shrink-0" />
-            <input 
-              type="month" 
-              value={selectedMonth} 
-              onChange={e => setSelectedMonth(e.target.value)} 
-              disabled={seeAllMonths}
-              className="bg-transparent dark:text-white border-none text-xs md:text-sm font-bold outline-none cursor-pointer focus:ring-0 disabled:opacity-30 disabled:cursor-not-allowed max-w-[105px] md:max-w-none px-0 md:px-1"
-            />
-          </div>
+{/* --- COMPACT CONSOLIDATED ROW: TITLE, SEARCH, AND BUTTONS IN ONE LINE ON DESKTOP --- */}
+<div className="relative grid grid-cols-1 lg:grid-cols-[auto_1fr_auto] gap-4 items-center w-full overflow-visible md:p-4 p-1">
+  
+  {/* Large Decorative Background Icon */}
+  <div className="absolute top-1 -translate-y-10 -right-10 text-pink-500/20 dark:text-pink-400/15 pointer-events-none select-none z-0 transform rotate-12">
+    <BookText size={180} strokeWidth={1.2} />
+  </div>
 
-          {/* 2. ALL MONTHS TOGGLE BUTTON */}
-          <button
-            onClick={() => setSeeAllMonths(!seeAllMonths)}
-            className={`shrink-0 h-[46px] px-3 md:px-4 rounded-2xl border transition-all flex items-center justify-center gap-2 font-bold text-sm shadow-lg ${
-              seeAllMonths
-                ? 'bg-purple-600 text-white border-purple-600'
-                : 'bg-white/10 dark:bg-slate-800 dark:text-white border-gray-100 dark:border-slate-700 hover:border-purple-500'
-            }`}
-            title="Toggle View All Months"
-          >
-            <Calendar size={16} className={seeAllMonths ? "text-white" : "text-purple-500"} />
-            <span className="hidden md:inline">{seeAllMonths ? 'Showing All Months' : 'All Months'}</span>
-          </button>
+  {/* Left Section: Icon + Headings */}
+  <div className="flex items-center gap-4 relative z-10 shrink-0 whitespace-nowrap">
+    {/* Upgraded BookText Icon Badge */}
+    <div className="relative flex items-center justify-center p-2.5 rounded-xl bg-pink-50 dark:bg-pink-950/40 text-pink-600 dark:text-pink-400 border border-pink-100 dark:border-pink-900/50 shadow-sm shadow-pink-100/50 dark:shadow-none shrink-0 transition-transform hover:scale-105">
+      <BookText size={24} strokeWidth={2.2} />
+      {/* Subtle glow effect breaking outside the badge */}
+      <span className="absolute inset-0 rounded-xl bg-pink-400/20 blur-xl -z-10 animate-pulse" />
+    </div>
 
-          {/* 3. SORT BUTTON */}
-          <button 
-            onClick={() => setSortAsc(!sortAsc)}
-            className={`shrink-0 h-[46px] px-3 md:px-4 rounded-2xl border transition-all flex items-center justify-center gap-2 font-bold text-sm shadow-lg ${
-              sortAsc 
-                ? 'bg-blue-600 text-white border-blue-600' 
-                : 'bg-white/10 dark:bg-slate-800 dark:text-white border-gray-100 dark:border-slate-700 hover:border-blue-500'
-            }`}
-            title={sortAsc ? "Showing Oldest First" : "Showing Newest First"}
-          >
-            <div className={`transition-transform duration-300 ${sortAsc ? 'rotate-180' : 'rotate-0'}`}>
-              <ArrowUpDown size={16} className={sortAsc ? "text-white" : "text-blue-500"}/> 
-            </div>
-            <span className="hidden md:inline">{sortAsc ? 'Oldest' : 'Newest'}</span>
-          </button>
+    <div>
+      <h2 className="text-xl md:text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">
+        Personal Diary
+      </h2>
+      <p className="text-[10px] md:text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-widest mt-0.5">
+        Records for {monthDisplay}
+      </p>
+    </div>
+  </div>
+  
+  {/* Centered Search Input Box - Takes up all available middle space */}
+  <div className="relative w-full group no-print z-10">
+    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-pink-500 transition-colors" />
+    <input 
+      type="text"
+      placeholder="Search logs..."
+      value={searchTerm}
+      onChange={(e) => setSearchTerm(e.target.value)}
+      className="w-full pl-10 pr-4 py-2.5 bg-white/10 dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 dark:text-white text-sm font-bold outline-none focus:border-pink-500 transition-all shadow-lg"
+    />
+  </div>
 
-          {/* 4. DYNAMIC CASH FILTER SELECTION TAB BUTTON */}
-          <button
-            onClick={handleCashFilterCycle}
-            className={`shrink-0 h-[46px] px-3 md:px-4 rounded-2xl border transition-all flex items-center justify-center gap-2 font-bold text-sm shadow-lg ${
-              viewType === 'transactions' ? 'bg-amber-500 text-white border-amber-500' :
-              viewType === 'debit' ? 'bg-red-500 text-white border-red-500' :
-              viewType === 'credit' ? 'bg-emerald-500 text-white border-emerald-500' :
-              'bg-white/10 dark:bg-slate-800 dark:text-white border-gray-100 dark:border-slate-700 hover:border-amber-500'
-            }`}
-            title={`Current view: ${viewType}`}
-          >
-            {viewType === 'all' && <Banknote size={16} className="text-amber-500" />}
-            {viewType === 'transactions' && <Banknote size={16} />}
-            {viewType === 'debit' && <ArrowDownRight size={16} />}
-            {viewType === 'credit' && <ArrowUpRight size={16} />}
-            
-            <span className="hidden md:inline">
-              {viewType === 'all' && 'All Logs'}
-              {viewType === 'transactions' && 'Cash Only'}
-              {viewType === 'debit' && 'Debits Only'}
-              {viewType === 'credit' && 'Credits Only'}
-            </span>
-          </button>
+  {/* Filter Action Buttons Layout Line */}
+  <div className="flex items-center justify-start lg:justify-end w-full gap-1.5 md:gap-2 no-print z-10">
+    
+    {/* 1. MONTH SELECTION UI (Optimized layout for mobile views) */}
+    <div className="flex items-center gap-1 md:gap-2 bg-white/10 dark:bg-slate-800 h-[46px] px-2 md:px-3 rounded-2xl border border-gray-100 dark:border-slate-700 shadow-xl shrink-0">
+      <Calendar size={16} className="text-pink-500 shrink-0" />
+      <input 
+        type="month" 
+        value={selectedMonth} 
+        onChange={e => setSelectedMonth(e.target.value)} 
+        disabled={seeAllMonths}
+        className="bg-transparent dark:text-white border-none text-xs md:text-sm font-bold outline-none cursor-pointer focus:ring-0 disabled:opacity-30 disabled:cursor-not-allowed max-w-[105px] md:max-w-none px-0 md:px-1"
+      />
+    </div>
 
-          {/* 5. DESCRIPTION FILTER BUTTON */}
-          <button
-            onClick={handleDescFilterCycle}
-            className={`shrink-0 h-[46px] px-3 md:px-4 rounded-2xl border transition-all flex items-center justify-center gap-2 font-bold text-sm shadow-lg ${
-              descFilter !== 'all'
-                ? 'bg-blue-600 text-white border-blue-600'
-                : 'bg-white/10 dark:bg-slate-800 dark:text-white border-gray-100 dark:border-slate-700 hover:border-blue-500'
-            }`}
-            title={descFilter === 'all' ? "Showing All Content" : descFilter === 'with-desc' ? "Showing Text Only" : "Showing Without Text"}
-          >
-            {descFilter === 'no-desc' ? <FileX size={16}/> : <FileText size={16} className={descFilter === 'with-desc' ? "text-white-500" : "text-pink-500"} />}
-            <span className="hidden md:inline">
-              {descFilter === 'all' && 'All Text'}
-              {descFilter === 'with-desc' && 'With Description'}
-              {descFilter === 'no-desc' && 'No Description'}
-            </span>
-          </button>
+    {/* 2. ALL MONTHS TOGGLE BUTTON */}
+    <button
+      onClick={() => setSeeAllMonths(!seeAllMonths)}
+      className={`shrink-0 h-[46px] px-3 md:px-4 rounded-2xl border transition-all flex items-center justify-center gap-2 font-bold text-sm shadow-lg ${
+        seeAllMonths
+          ? 'bg-purple-600 text-white border-purple-600'
+          : 'bg-white/10 dark:bg-slate-800 dark:text-white border-gray-100 dark:border-slate-700 hover:border-purple-500'
+      }`}
+      title="Toggle View All Months"
+    >
+      <Calendar size={16} className={seeAllMonths ? "text-white" : "text-purple-500"} />
+      <span className="hidden md:inline">{seeAllMonths ? 'Showing All Months' : 'All Months'}</span>
+    </button>
 
-        </div>
+    {/* 3. SORT BUTTON */}
+    <button 
+      onClick={() => setSortAsc(!sortAsc)}
+      className={`shrink-0 h-[46px] px-3 md:px-4 rounded-2xl border transition-all flex items-center justify-center gap-2 font-bold text-sm shadow-lg ${
+        sortAsc 
+          ? 'bg-pink-600 text-white border-pink-600' 
+          : 'bg-white/10 dark:bg-slate-800 dark:text-white border-gray-100 dark:border-slate-700 hover:border-pink-500'
+      }`}
+      title={sortAsc ? "Showing Oldest First" : "Showing Newest First"}
+    >
+      <div className={`transition-transform duration-300 ${sortAsc ? 'rotate-180' : 'rotate-0'}`}>
+        <ArrowUpDown size={16} className={sortAsc ? "text-white" : "text-pink-500"}/> 
       </div>
+      <span className="hidden md:inline">{sortAsc ? 'Oldest' : 'Newest'}</span>
+    </button>
+
+    {/* 4. DYNAMIC CASH FILTER SELECTION TAB BUTTON */}
+    <button
+      onClick={handleCashFilterCycle}
+      className={`shrink-0 h-[46px] px-3 md:px-4 rounded-2xl border transition-all flex items-center justify-center gap-2 font-bold text-sm shadow-lg ${
+        viewType === 'transactions' ? 'bg-amber-500 text-white border-amber-500' :
+        viewType === 'debit' ? 'bg-red-500 text-white border-red-500' :
+        viewType === 'credit' ? 'bg-emerald-500 text-white border-emerald-500' :
+        'bg-white/10 dark:bg-slate-800 dark:text-white border-gray-100 dark:border-slate-700 hover:border-amber-500'
+      }`}
+      title={`Current view: ${viewType}`}
+    >
+      {viewType === 'all' && <Banknote size={16} className="text-amber-500" />}
+      {viewType === 'transactions' && <Banknote size={16} />}
+      {viewType === 'debit' && <ArrowDownRight size={16} />}
+      {viewType === 'credit' && <ArrowUpRight size={16} />}
+      
+      <span className="hidden md:inline">
+        {viewType === 'all' && 'All Logs'}
+        {viewType === 'transactions' && 'Cash Only'}
+        {viewType === 'debit' && 'Debits Only'}
+        {viewType === 'credit' && 'Credits Only'}
+      </span>
+    </button>
+
+    {/* 5. DESCRIPTION FILTER BUTTON */}
+    <button
+      onClick={handleDescFilterCycle}
+      className={`shrink-0 h-[46px] px-3 md:px-4 rounded-2xl border transition-all flex items-center justify-center gap-2 font-bold text-sm shadow-lg ${
+        descFilter !== 'all'
+          ? 'bg-pink-600 text-white border-pink-600'
+          : 'bg-white/10 dark:bg-slate-800 dark:text-white border-gray-100 dark:border-slate-700 hover:border-pink-500'
+      }`}
+      title={descFilter === 'all' ? "Showing All Content" : descFilter === 'with-desc' ? "Showing Text Only" : "Showing Without Text"}
+    >
+      {descFilter === 'no-desc' ? <FileX size={16}/> : <FileText size={16} className={descFilter === 'with-desc' ? "text-white" : "text-pink-500"} />}
+      <span className="hidden md:inline">
+        {descFilter === 'all' && 'All Text'}
+        {descFilter === 'with-desc' && 'With Description'}
+        {descFilter === 'no-desc' && 'No Description'}
+      </span>
+    </button>
+
+  </div>
+</div>
+
 
       {/* --- RENDERED DIARY ENTRIES --- */}
       {Object.keys(groupedEntries).length === 0 ? (
@@ -240,12 +261,12 @@ const DiaryView: React.FC<DiaryViewProps> = ({ entries, goals, onEdit, onDelete 
                     </div>
                     {totalCredit > 0 && (
                       <div className="bg-emerald-500 text-white text-[10px] font-black px-2.5 py-1 rounded-xl shadow-lg shadow-emerald-500/20 tracking-widest">
-                        +{totalCredit}₹
+                        +{totalCredit} {getCurrencySymbol(getAggregateCurrencyDisplay(items))}
                       </div>
                     )}
                     {totalDebit > 0 && (
                       <div className="bg-red-500 text-white text-[10px] font-black px-2.5 py-1 rounded-xl shadow-lg shadow-red-500/20 tracking-widest">
-                        -{totalDebit}₹
+                        -{totalDebit} {getCurrencySymbol(getAggregateCurrencyDisplay(items))}
                       </div>
                     )}
                   </div>
@@ -289,8 +310,8 @@ const DiaryView: React.FC<DiaryViewProps> = ({ entries, goals, onEdit, onDelete 
                               <span className="text-blue-500 dark:text-blue-400 font-black">+{item.points} PTS</span>
                               {hasCash && (
                                 <div className="flex gap-2 font-black">
-                                  {item.debit! > 0 && <span className="text-red-500">-{item.debit}₹</span>}
-                                  {item.credit! > 0 && <span className="text-emerald-500">+{item.credit}₹</span>}
+                                  {item.debit! > 0 && <span className="text-red-500">-{item.debit}{getCurrencySymbol(item.moneyCode)}</span>}
+                                  {item.credit! > 0 && <span className="text-emerald-500">+{item.credit}{getCurrencySymbol(item.moneyCode)}</span>}
                                 </div>
                               )}
                             </div>

@@ -160,7 +160,7 @@ const LineGraph: React.FC<LineGraphProps> = ({
                       }}
                       className="goal-label fill-emerald-600 dark:fill-emerald-500 text-[8px] font-bold tracking-tight"
                     >
-                      {d.achievedGoals?.map(g => g.name).join(', ')}
+                      {d.achievedGoals?.map(g => g.name).reverse().join(', ')}
                     </text>
                   )}
                   <title>Goals: {d.achievedGoals?.map(g => g.name).join(', ')}</title>

@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Goal } from '../types';
-import { X, Plus, Trash2, CheckCircle, Edit2, Flag, Search } from 'lucide-react'; // Added Search icon
+import { X, Plus, Trash2, Target, CheckCircle, Edit2, Flag, Search } from 'lucide-react'; // Added Search icon
 
 interface GoalsViewProps {
   userName: string;
@@ -116,27 +116,49 @@ const GoalsView: React.FC<GoalsViewProps> = ({ userName, goals, onAddGoal, onDel
 
   return (
     <div className="space-y-6 dark:text-white text-black">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 ref={formRef} className="text-2xl font-black uppercase tracking-tighter text-gray-900 dark:text-white">Manage Goals</h2>
-          <p className="text-xs font-bold opacity-50 uppercase tracking-widest mt-1 text-gray-600 dark:text-slate-400">Dream big, stay consistent</p>
-        </div>
-        <button
-          onClick={toggleForm} 
-          className={`text-white px-3 py-2 sm:px-4 sm:py-2 rounded-xl font-bold shadow-lg hover:scale-105 transition-transform flex items-center gap-2 relative overflow-hidden ${
-            showForm ? 'bg-red-600' : 'bg-blue-600'
-          }`}
-        >
-          {!showForm ? (
-            <Plus size={18} />
-          ) : (
-            <X size={18} />
-          )}
-          <span className="hidden sm:inline-block">
-            {showForm ? 'Cancel' : 'New Goal'}
-          </span>
-        </button>
-      </div>
+      
+<div className="relative flex justify-between items-center md:gap-4 md:p-4 p-1 overflow-visible">
+  {/* Large Decorative Background Icon */}
+  <div className="absolute top-1 -translate-y-10 -right-10 text-emerald-500/20 dark:text-emerald-400/15 pointer-events-none select-none z-0 transform rotate-12">
+    <Target size={180} strokeWidth={1.2} />
+  </div>
+
+  {/* Left Section: Icon + Headings */}
+  <div className="flex items-center gap-4 relative z-10">
+    {/* Upgraded Target Icon Badge */}
+    <div className="relative flex items-center justify-center p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/50 shadow-sm shadow-emerald-100/50 dark:shadow-none shrink-0 transition-transform hover:scale-105">
+      <Target size={24} strokeWidth={2.2} />
+      {/* Subtle glow effect breaking outside the badge */}
+      <span className="absolute inset-0 rounded-xl bg-emerald-400/20 blur-xl -z-10 animate-pulse" />
+    </div>
+
+    <div>
+      <h2 ref={formRef} className="text-xl md:text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">
+        Manage Goals
+      </h2>
+      <p className="text-[10px] md:text-xs font-bold opacity-60 dark:opacity-50 text-gray-500 dark:text-slate-400 uppercase tracking-widest mt-0.5">
+        Dream big, stay consistent
+      </p>
+    </div>
+  </div>
+
+  {/* Right Section: Premium Action Button */}
+  <button
+    onClick={toggleForm}
+    className={`flex items-center gap-2 text-white px-4 py-3 rounded-xl font-semibold text-sm tracking-wide shadow-md transition-all duration-300 transform active:scale-95 shrink-0 select-none ${
+      showForm 
+        ? 'bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 shadow-red-500/20 hover:shadow-lg hover:shadow-red-500/30' 
+        : 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 shadow-emerald-500/20 hover:shadow-lg hover:shadow-emerald-500/30'
+    }`}
+  >
+    <span className={`transform transition-transform duration-300 ${showForm ? 'rotate-90' : 'rotate-0'}`}>
+      {!showForm ? <Plus size={18} strokeWidth={2.5} /> : <X size={18} strokeWidth={2.5} />}
+    </span>
+    <span className="hidden sm:inline-block font-bold">
+      {showForm ? 'Cancel' : 'New Goal'}
+    </span>
+  </button>
+</div>
 
       {/* --- SEARCH BAR --- */}
       <div className="relative group">
@@ -205,7 +227,7 @@ const GoalsView: React.FC<GoalsViewProps> = ({ userName, goals, onAddGoal, onDel
                   value={code}
                   onChange={e => setCode(e.target.value)}
                   placeholder="XYZ"
-                  className="w-full px-4 py-2.5 rounded-xl border dark:bg-black/20 dark:border-white/10 outline-none text-sm font-bold dark:text-white"
+                  className="w-full px-4 py-2.5 uppercase rounded-xl border dark:bg-black/20 dark:border-white/10 outline-none text-sm font-bold dark:text-white"
                   required
                 />
               </div>
@@ -213,8 +235,8 @@ const GoalsView: React.FC<GoalsViewProps> = ({ userName, goals, onAddGoal, onDel
                 <label className="text-[10px] font-black uppercase opacity-60 px-1">Points</label>
                 <input
                   type="number"
-                  value={points}
-                  onChange={e => setPoints(Number(e.target.value))}
+                  value={points || ""}
+                  onChange={e => setPoints(e.target.value === "" ? "" : Number(e.target.value))}
                   placeholder="Pts"
                   className="w-full px-4 py-2.5 rounded-xl border dark:bg-black/20 dark:border-white/10 outline-none text-sm font-bold dark:text-white"
                   required
@@ -246,7 +268,7 @@ const GoalsView: React.FC<GoalsViewProps> = ({ userName, goals, onAddGoal, onDel
                       {goal.name}
                     </span>
                   </div>
-                  <span className="font-black text-blue-500 text-sm shrink-0">+{goal.points}</span>
+                  <span className="font-black text-blue-500 text-sm shrink-0">{goal.points >= 0 ? `+${goal.points}` : goal.points} </span>
                 </div>
                 <div className="flex items-center gap-2 mt-1.5">
                   <span className="font-black text-blue-500 bg-blue-500/10 px-2 py-0.5 rounded-md uppercase tracking-wider text-[10px] border border-blue-500/20">{goal.code}</span>
@@ -316,7 +338,7 @@ const GoalsView: React.FC<GoalsViewProps> = ({ userName, goals, onAddGoal, onDel
                       </div>
                     )}
                   </td>
-                  <td className="px-3 py-3.5 font-black text-blue-500 text-base text-center align-top pt-4">+{goal.points}</td>
+                  <td className="px-3 py-3.5 font-black text-blue-500 text-base text-center align-top pt-4">{goal.points >= 0 ? `+${goal.points}` : goal.points} </td>
                   <td className="pl-3 pr-5 py-3.5 text-right align-top pt-3">
                     {!goal.achievedAt ? (
                       <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

@@ -5,6 +5,7 @@ import QuickPopData from './QuickPopData';
 import { ActivityEntry, Goal } from '../types';
 import { TrendingUp, Award, Clock, Edit2, Trash2, Star, Banknote, Eye, EyeOff, Target, Calendar, Paperclip, Snowflake , ChartLine, ScrollText, Check, X as CloseIcon, ChevronLeft, ChevronRight, Sun, MoonStar, CloudSun, CloudMoon, Cloud, Wind, CloudDrizzle, CloudRain, CloudHail, CloudSnow, CloudLightning, Moon, Bubbles , type LucideIcon, ThermometerSun, Cloudy, Droplets } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
+import { getCurrencySymbol, getAggregateCurrencyDisplay } from '../constants';
 
 const LiveClock: React.FC = React.memo(() => {
   const [now, setNow] = useState(new Date());
@@ -186,8 +187,11 @@ const Dashboard: React.FC<DashboardProps> = ({ userName, entries, selectedDate, 
     onSelectDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
   };
 
-  const dateObj = useMemo(() => new Date(selectedDate), [selectedDate]);
-  const selectedYear = dateObj.getFullYear();
+const dateObj = useMemo(() => {
+  const d = new Date(selectedDate);
+  return isNaN(d.getTime()) ? new Date() : d;
+}, [selectedDate]);
+const selectedYear = dateObj.getFullYear();
   const selectedMonthStr = selectedDate.substring(0, 7);
 
   const selectedDateEntries = useMemo(() =>
@@ -210,8 +214,21 @@ const Dashboard: React.FC<DashboardProps> = ({ userName, entries, selectedDate, 
   const totalMonthCredit = useMemo(() => monthEntries.reduce((sum, e) => sum + (e.credit || 0), 0), [monthEntries]);
   const monthCashBalance = totalMonthCredit - totalMonthDebit;
 
-  const yearlyEntries = useMemo(() => entries.filter(e => new Date(e.toDate).getFullYear() === selectedYear), [entries, selectedYear]);
-  const totalYearlyPoints = useMemo(() => yearlyEntries.reduce((s, e) => s + e.points, 0), [yearlyEntries]);
+const yearlyEntries = useMemo(
+  () => entries.filter(e => {
+    try {
+      return new Date(e.toDate).getFullYear() === selectedYear;
+    } catch {
+      return false;
+    }
+  }),
+  [entries, selectedYear]
+);
+
+const totalYearlyPoints = useMemo(
+  () => yearlyEntries.reduce((s, e) => s + (e.points || 0), 0),
+  [yearlyEntries]
+);
   const yearlyGoalsAchieved = useMemo(() => goals.filter(g => g.achievedAt && new Date(g.achievedAt).getFullYear() === selectedYear).length, [goals, selectedYear]);
 
   // Optimized graphData dependency calculation
@@ -447,87 +464,122 @@ const Dashboard: React.FC<DashboardProps> = ({ userName, entries, selectedDate, 
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 md:gap-6 gap-3">
-        <div onClick={() => openQuickPop('daily')} className="bg-white dark:bg-slate-800 md:p-6 p-3 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 cursor-pointer hover:border-emerald-500/40 transition-all">
-          <div className="flex justify-between items-center mb-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-emerald-500/10"><Target className="text-emerald-500" size={20} /></div>
-              <div>
-                <h3 className="text-xl font-bold uppercase tracking-tight text-gray-800 dark:text-white">Today's Points</h3>
-                <p className="text-xs text-gray-500">Daily Target: 100 pts</p>
-              </div>
-            </div>
-            <div className="text-right">
-              <span className="text-4xl font-black text-emerald-600 leading-none font-digital">{totalPointsSelectedDay}</span>
-              <span className="text-xs font-bold text-gray-400 ml-1">pts</span>
-            </div>
-          </div>
-          <div className="w-full h-4 bg-gray-100 dark:bg-slate-900 rounded-full overflow-hidden p-1 border border-gray-200 dark:border-slate-700 shadow-inner">
-            <div className="h-full bg-gradient-to-r from-emerald-600 to-emerald-400 rounded-full transition-all duration-1000 shadow-lg" style={{ width: `${dailyProgressPercent}%` }} />
-          </div>
-        </div>
-
-        <div onClick={() => openQuickPop('monthly_pts')} className="bg-white dark:bg-slate-800 md:p-6 p-3 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 cursor-pointer hover:border-blue-500/40 transition-all">
-          <div className="flex justify-between items-center mb-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-500/10"><Calendar className="text-blue-500" size={20} /></div>
-              <div>
-                <h3 className="text-xl font-bold uppercase tracking-tight text-gray-800 dark:text-white">Monthly Progress</h3>
-                <p className="text-xs text-gray-500">{monthName} Target: {monthTarget.toLocaleString()} pts</p>
-              </div>
-            </div>
-            <div className="text-right">
-              <span className="text-4xl font-black text-blue-600 leading-none font-digital">{monthProgressPercent.toFixed(0)}</span>
-              <span className="text-1xl font-black text-gray-400 leading-none">%</span>
-            </div>
-          </div>
-          <div className="w-full h-4 bg-gray-100 dark:bg-slate-900 rounded-full overflow-hidden p-1 border border-gray-200 dark:border-slate-700 shadow-inner">
-            <div className="h-full bg-gradient-to-r from-blue-600 via-blue-400 to-emerald-400 rounded-full transition-all duration-1000 shadow-lg" style={{ width: `${Math.min(monthProgressPercent, 100)}%` }} />
-          </div>
+<div className="grid grid-cols-1 lg:grid-cols-2 md:gap-6 gap-3">
+  {/* Today's Points Card */}
+  <div 
+    onClick={() => openQuickPop('daily')} 
+    className="relative overflow-hidden bg-white dark:bg-slate-800 md:p-6 p-3 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 cursor-pointer hover:border-emerald-500/40 transition-all group"
+  >
+    {/* Large Background Icon */}
+    <Target className="absolute -left-4 -bottom-4 text-emerald-500 opacity-10 dark:opacity-10 pointer-events-none transform group-hover:scale-110 transition-transform duration-500" size={120} />
+    
+    <div className="relative z-10 flex justify-between items-center mb-4">
+      <div className="flex items-center gap-3">
+        <div className="p-2 rounded-lg bg-emerald-500/10"><Target className="text-emerald-500" size={20} /></div>
+        <div>
+          <h3 className="text-xl font-bold uppercase tracking-tight text-gray-800 dark:text-white">Today's Points</h3>
+          <p className="text-xs text-gray-500">Daily Target: 100 pts</p>
         </div>
       </div>
+      <div className="text-right">
+        <span className="text-4xl font-black text-emerald-600 leading-none font-digital">{totalPointsSelectedDay}</span>
+        <span className="text-xs font-bold text-gray-400 ml-1">pts</span>
+      </div>
+    </div>
+    <div className="relative z-10 w-full h-4 bg-gray-100 dark:bg-slate-900 rounded-full overflow-hidden p-1 border border-gray-200 dark:border-slate-700 shadow-inner">
+      <div className="h-full bg-gradient-to-r from-emerald-600 to-emerald-400 rounded-full transition-all duration-1000 shadow-lg" style={{ width: `${dailyProgressPercent}%` }} />
+    </div>
+  </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 md:gap-4 gap-3">
-        <div onClick={() => openQuickPop('yearly_pts')} className="bg-white dark:bg-slate-800 md:p-5 p-2.5 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 flex flex-col justify-between cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 rounded-lg bg-blue-500/10"><TrendingUp className="text-blue-500" size={18} /></div>
-            <p className="text-[10px] font-bold uppercase text-gray-400">Yearly Points ({selectedYear})</p>
-          </div>
-          <p className="text-2xl font-black text-gray-800 dark:text-white">{totalYearlyPoints.toLocaleString()}</p>
-        </div>
-
-        <div onClick={() => openQuickPop('yearly_goals')} className="bg-white dark:bg-slate-800 md:p-5 p-2.5 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 flex flex-col justify-between cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 rounded-lg bg-purple-500/10"><Award className="text-purple-500" size={18} /></div>
-            <p className="text-[10px] font-bold uppercase text-gray-400">Yearly Goals ({selectedYear})</p>
-          </div>
-          <p className="text-2xl font-black text-gray-800 dark:text-white">{yearlyGoalsAchieved}</p>
-        </div>
-
-        <div onClick={() => openQuickPop('financial')} className="bg-white dark:bg-slate-800 md:p-5 p-2.5 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 flex flex-col justify-between col-span-2 lg:col-span-2 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-emerald-500/10"><Banknote className="text-emerald-500" size={18} /></div>
-              <p className="text-[10px] font-bold uppercase text-gray-400">Transaction of {monthName}</p>
-            </div>
-            <div>
-              <p className={`text-xl font-black ${monthCashBalance >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                {monthCashBalance.toLocaleString()} ₹
-              </p>
-            </div>
-          </div>
-          <div className="flex gap-4">
-            <div className="flex-1 bg-gray-50 dark:bg-slate-900/50 p-2 rounded-xl border border-gray-100 dark:border-slate-700">
-              <p className="text-[9px] font-bold text-gray-400 uppercase">Total Debit</p>
-              <p className="text-sm font-black text-red-500">-{totalMonthDebit.toLocaleString()} ₹</p>
-            </div>
-            <div className="flex-1 bg-gray-50 dark:bg-slate-900/50 p-2 rounded-xl border border-gray-100 dark:border-slate-700">
-              <p className="text-[9px] font-bold text-gray-400 uppercase">Total Credit</p>
-              <p className="text-sm font-black text-emerald-600">+{totalMonthCredit.toLocaleString()} ₹</p>
-            </div>
-          </div>
+  {/* Monthly Progress Card */}
+  <div 
+    onClick={() => openQuickPop('monthly_pts')} 
+    className="relative overflow-hidden bg-white dark:bg-slate-800 md:p-6 p-3 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 cursor-pointer hover:border-blue-500/40 transition-all group"
+  >
+    {/* Large Background Icon */}
+    <Calendar className="absolute -left-4 -bottom-4 text-blue-500 opacity-10 dark:opacity-10 pointer-events-none transform group-hover:scale-110 transition-transform duration-500" size={120} />
+    
+    <div className="relative z-10 flex justify-between items-center mb-4">
+      <div className="flex items-center gap-3">
+        <div className="p-2 rounded-lg bg-blue-500/10"><Calendar className="text-blue-500" size={20} /></div>
+        <div>
+          <h3 className="text-xl font-bold uppercase tracking-tight text-gray-800 dark:text-white">Monthly Progress</h3>
+          <p className="text-xs text-gray-500">{monthName} Target: {monthTarget.toLocaleString()} pts</p>
         </div>
       </div>
+      <div className="text-right">
+        <span className="text-4xl font-black text-blue-600 leading-none font-digital">{monthProgressPercent.toFixed(0)}</span>
+        <span className="text-1xl font-black text-gray-400 leading-none">%</span>
+      </div>
+    </div>
+    <div className="relative z-10 w-full h-4 bg-gray-100 dark:bg-slate-900 rounded-full overflow-hidden p-1 border border-gray-200 dark:border-slate-700 shadow-inner">
+      <div className="h-full bg-gradient-to-r from-blue-600 via-blue-400 to-emerald-400 rounded-full transition-all duration-1000 shadow-lg" style={{ width: `${Math.min(monthProgressPercent, 100)}%` }} />
+    </div>
+  </div>
+</div>
+
+<div className="grid grid-cols-2 lg:grid-cols-4 md:gap-4 gap-3">
+  {/* Yearly Points Card */}
+  <div 
+    onClick={() => openQuickPop('yearly_pts')} 
+    className="relative overflow-hidden bg-white dark:bg-slate-800 md:p-5 p-2.5 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 flex flex-col justify-between cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all group"
+  >
+    {/* Large Background Icon */}
+    <TrendingUp className="absolute -right-2 -bottom-2 text-blue-500 opacity-10 dark:opacity-10 pointer-events-none transform group-hover:scale-110 transition-transform duration-500" size={90} />
+    
+    <div className="relative z-10 flex items-center gap-3 mb-2">
+      <div className="p-2 rounded-lg bg-blue-500/10"><TrendingUp className="text-blue-500" size={18} /></div>
+      <p className="text-[10px] font-bold uppercase text-gray-400">Yearly Points ({selectedYear})</p>
+    </div>
+    <p className="relative z-10 text-2xl font-black text-gray-800 dark:text-white">{totalYearlyPoints.toLocaleString()}</p>
+  </div>
+
+  {/* Yearly Goals Card */}
+  <div 
+    onClick={() => openQuickPop('yearly_goals')} 
+    className="relative overflow-hidden bg-white dark:bg-slate-800 md:p-5 p-2.5 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 flex flex-col justify-between cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all group"
+  >
+    {/* Large Background Icon */}
+    <Award className="absolute -right-2 -bottom-2 text-purple-500 opacity-10 dark:opacity-10 pointer-events-none transform group-hover:scale-110 transition-transform duration-500" size={90} />
+    
+    <div className="relative z-10 flex items-center gap-3 mb-2">
+      <div className="p-2 rounded-lg bg-purple-500/10"><Award className="text-purple-500" size={18} /></div>
+      <p className="text-[10px] font-bold uppercase text-gray-400">Yearly Goals ({selectedYear})</p>
+    </div>
+    <p className="relative z-10 text-2xl font-black text-gray-800 dark:text-white">{yearlyGoalsAchieved}</p>
+  </div>
+
+  {/* Transaction Card */}
+  <div 
+    onClick={() => openQuickPop('financial')} 
+    className="relative overflow-hidden bg-white dark:bg-slate-800 md:p-5 p-2.5 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 flex flex-col justify-between col-span-2 lg:col-span-2 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all group"
+  >
+    {/* Large Background Icon */}
+    <Banknote className="absolute -right-4 -bottom-6 text-emerald-500 opacity-10 dark:opacity-10 pointer-events-none transform group-hover:scale-110 transition-transform duration-500" size={130} />
+    
+    <div className="relative z-10 flex items-center justify-between mb-2">
+      <div className="flex items-center gap-3">
+        <div className="p-2 rounded-lg bg-emerald-500/10"><Banknote className="text-emerald-500" size={18} /></div>
+        <p className="text-[10px] font-bold uppercase text-gray-400">Transaction of {monthName}</p>
+      </div>
+      <div>
+        <p className={`text-xl font-black ${monthCashBalance >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+          {getCurrencySymbol(getAggregateCurrencyDisplay(monthEntries))} {monthCashBalance.toLocaleString()}
+        </p>
+      </div>
+    </div>
+    <div className="relative z-10 flex gap-4">
+      <div className="flex-1 bg-gray-50 dark:bg-slate-900/50 p-2 rounded-xl border border-gray-100 dark:border-slate-700">
+        <p className="text-[9px] font-bold text-gray-400 uppercase">Total Debit</p>
+        <p className="text-sm font-black text-red-500">- {getCurrencySymbol(getAggregateCurrencyDisplay(monthEntries))} {totalMonthDebit.toLocaleString()}</p>
+      </div>
+      <div className="flex-1 bg-gray-50 dark:bg-slate-900/50 p-2 rounded-xl border border-gray-100 dark:border-slate-700">
+        <p className="text-[9px] font-bold text-gray-400 uppercase">Total Credit</p>
+        <p className="text-sm font-black text-emerald-600">+ {getCurrencySymbol(getAggregateCurrencyDisplay(monthEntries))} {totalMonthCredit.toLocaleString()}</p>
+      </div>
+    </div>
+  </div>
+</div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 md:gap-6 gap-3">
         <div className="lg:col-span-1">
@@ -610,8 +662,8 @@ const Dashboard: React.FC<DashboardProps> = ({ userName, entries, selectedDate, 
                               <span>{entry.isLongEvent ? `${entry.fromTime} — ${entry.toTime}` : entry.toTime}</span>
                               {isCash && (
                                 <div className="flex gap-2 ml-1 border-l pl-2 border-gray-200 dark:border-slate-700">
-                                  {entry.debit > 0 && <span className="text-red-500">-{entry.debit}₹</span>}
-                                  {entry.credit > 0 && <span className="text-emerald-500">+{entry.credit}₹</span>}
+                                  {entry.debit > 0 && <span className="text-red-500">-{entry.debit}{getCurrencySymbol(entry.moneyCode)}</span>}
+                                  {entry.credit > 0 && <span className="text-emerald-500">+{entry.credit}{getCurrencySymbol(entry.moneyCode)}</span>}
                                 </div>
                               )}
                             </div>
@@ -619,7 +671,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userName, entries, selectedDate, 
 
                           <div className="flex items-center gap-3 shrink-0">
                             <span className={`text-lg font-black ${isGoal ? 'text-emerald-500' : 'text-blue-600'}`}>
-                              +{entry.points}
+                              {entry.points >= 0 ? `+${entry.points}` : entry.points}
                             </span>
                             <div className="flex flex-col border-l border-gray-200 dark:border-slate-700 pl-2 gap-1 md:opacity-0 group-hover:opacity-100 transition-opacity">
                               <button onClick={() => onEdit(entry)} className="p-1 text-gray-400 hover:text-blue-500 transition-colors">
