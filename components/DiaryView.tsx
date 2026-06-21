@@ -303,18 +303,24 @@ const DiaryView: React.FC<DiaryViewProps> = ({ entries, goals, onEdit, onDelete 
                                 )}
                               </div>
                             </div>
-                            <div className="flex flex-wrap items-center gap-4 text-xs font-bold text-gray-500 dark:text-slate-400">
-                              <span className="flex items-center gap-1.5">
-                                <Clock size={14} /> {item.isLongEvent ? `${item.fromTime} - ${item.toTime}` : item.toTime}
-                              </span>
-                              <span className="text-blue-500 dark:text-blue-400 font-black">+{item.points} PTS</span>
-                              {hasCash && (
-                                <div className="flex gap-2 font-black">
-                                  {item.debit! > 0 && <span className="text-red-500">-{item.debit}{getCurrencySymbol(item.moneyCode)}</span>}
-                                  {item.credit! > 0 && <span className="text-emerald-500">+{item.credit}{getCurrencySymbol(item.moneyCode)}</span>}
-                                </div>
-                              )}
-                            </div>
+                              <div className="flex flex-wrap items-center gap-4 text-xs font-bold text-gray-500 dark:text-slate-400">
+                                <span className="flex items-center gap-1.5">
+                                  <Clock size={14} /> {item.isLongEvent ? `${item.fromTime} - ${item.toTime}` : item.toTime}
+                                </span>
+                                <span className={` ${
+                                  item.points >= 0 
+                                    ? 'text-blue-500 dark:text-blue-400' 
+                                    : 'text-red-500 dark:text-red-400'
+                                }`}>
+                                  {item.points >= 0 ? `+${item.points}` : item.points} PTS
+                                </span>
+                                {hasCash && (
+                                  <div className="flex gap-2 font-black">
+                                    {item.debit! > 0 && <span className="text-red-500">-{item.debit}{getCurrencySymbol(item.moneyCode)}</span>}
+                                    {item.credit! > 0 && <span className="text-emerald-500">+{item.credit}{getCurrencySymbol(item.moneyCode)}</span>}
+                                  </div>
+                                )}
+                              </div>
                           </div>
                           <div className="flex gap-2 no-print">
                             <button onClick={() => onEdit(item)} className="p-2 opacity-30 group-hover:opacity-100 hover:text-blue-500 dark:text-white transition-all"><Edit2 size={18}/></button>

@@ -564,7 +564,9 @@ const totalYearlyPoints = useMemo(
       </div>
       <div>
         <p className={`text-xl font-black ${monthCashBalance >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-          {getCurrencySymbol(getAggregateCurrencyDisplay(monthEntries))} {monthCashBalance.toLocaleString()}
+          {monthCashBalance >= 0 ? '' : ''}
+          {getCurrencySymbol(getAggregateCurrencyDisplay(monthEntries))}{' '}
+          {Math.abs(monthCashBalance).toLocaleString()}
         </p>
       </div>
     </div>

@@ -13,8 +13,8 @@ import {
   Star,
   ChevronLeft,
   ChevronRight,
-   Check, Edit2,
-  Shield,
+  Check, 
+  Edit2,
   Trophy,
   Activity,
   Coins,
@@ -62,43 +62,43 @@ const QuickPopData: React.FC<QuickPopDataProps> = ({
   userName = 'User',
   currentTimeClass = ''
 }) => {
+  // State for name editing
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editNameValue, setEditNameValue] = useState(userName || "");
+  const nameInputRef = useRef<HTMLInputElement>(null);
 
-      // State for name editing
-const [isEditingName, setIsEditingName] = useState(false);
-const [editNameValue, setEditNameValue] = useState(userName || "");
-const nameInputRef = useRef<HTMLInputElement>(null);
-
-// Sync with external userName updates
-useEffect(() => {
-  setEditNameValue(userName);
-}, [userName]);
-
-// Keyboard handler
-const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-  if (e.key === 'Enter') {
-    handleSaveName();
-  } else if (e.key === 'Escape') {
+  // Sync with external userName updates
+  useEffect(() => {
     setEditNameValue(userName);
-    setIsEditingName(false);
-  }
-};
+  }, [userName]);
 
-// Save handler
-const handleSaveName = () => {
-  // Add your logic to save the name (e.g., API call or parent state update)
-  setIsEditingName(false);
-};
+  // Keyboard handler
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleSaveName();
+    } else if (e.key === 'Escape') {
+      setEditNameValue(userName);
+      setIsEditingName(false);
+    }
+  };
+
+  // Save handler
+  const handleSaveName = () => {
+    setIsEditingName(false);
+  };
 
   const dateObj = useMemo(() => new Date(selectedDate), [selectedDate]);
-
-  const currentYear = dateObj.getFullYear();
+  const currentYear = isNaN(dateObj.getFullYear()) ? 2026 : dateObj.getFullYear();
 
   const [activeDate, setActiveDate] = useState(selectedDate);
   const [activeYear, setActiveYear] = useState(currentYear);
+  // Dedicated profile view tracking year navigation state
+  const [profileYear, setProfileYear] = useState(currentYear);
 
   useEffect(() => {
     setActiveDate(selectedDate);
     setActiveYear(currentYear);
+    setProfileYear(currentYear);
   }, [selectedDate, currentYear]);
 
   const activeMonth = activeDate.substring(0, 7);
@@ -133,31 +133,22 @@ const handleSaveName = () => {
   
   // Profile Stats Calculation
   const profileStats = useMemo(() => {
-    const totalPoints = entries.reduce((sum, e) => sum + (e.points || 0), 0);
-    const totalActivities = entries.length;
-    const completedGoals = goals.filter(g => g.achievedAt);
-    const pendingGoals = goals.filter(g => !g.achievedAt);
-    const uniqueDays = Array.from(new Set(entries.map(e => e.toDate)));
-    const totalActiveDaysCount = Math.max(uniqueDays.length, 1); // Prevent division by zero
-    const avgPointsPerDay = Math.round(totalPoints / totalActiveDaysCount);
+    const entriesYear = entries.filter(e => {
+      try {
+        return new Date(e.toDate).getFullYear() === profileYear;
+      } catch {
+        return false;
+      }
+    });
 
-    // Track the year dynamically from the selected tracking date
-    const parsedDate = new Date(selectedDate);
-    const trackingYear = isNaN(parsedDate.getFullYear()) ? 2026 : parsedDate.getFullYear();
-    const yearStr = String(trackingYear);
-
-    // Year specific computations
-const entriesYear = entries.filter(e => {
-  try {
-    return new Date(e.toDate).getFullYear() === trackingYear;
-  } catch {
-    return false;
-  }
-});
-const totalPointsYear = entriesYear.reduce((sum, e) => sum + (e.points || 0), 0);
-    const totalDebitYear = entriesYear.reduce((sum, e) => sum + (e.debit || 0), 0);
-    const totalCreditYear = entriesYear.reduce((sum, e) => sum + (e.credit || 0), 0);
-    const netBalanceYear = totalCreditYear - totalDebitYear;
+    const totalPointsYear = entriesYear.reduce((sum, e) => sum + (e.points || 0), 0);
+    const totalActivitiesYear = entriesYear.length;
+    
+    const completedGoalsYear = goals.filter(g => g.achievedAt && new Date(g.achievedAt).getFullYear() === profileYear);
+    const totalGoalsInYear = goals.filter(g => 
+      (g.achievedAt && new Date(g.achievedAt).getFullYear() === profileYear) || 
+      (!g.achievedAt && parseInt(g.deadlineYear) === profileYear)
+    );
 
     const entriesByDateInYear: Record<string, { count: number; points: number }> = {};
     entriesYear.forEach(e => {
@@ -165,14 +156,16 @@ const totalPointsYear = entriesYear.reduce((sum, e) => sum + (e.points || 0), 0)
         entriesByDateInYear[e.toDate] = { count: 0, points: 0 };
       }
       entriesByDateInYear[e.toDate].count += 1;
-      entriesByDateInYear[e.toDate].points += e.points;
+      entriesByDateInYear[e.toDate].points += (e.points || 0);
     });
 
     const activeDaysCountYear = Object.keys(entriesByDateInYear).length;
+    const totalActiveDaysCount = Math.max(activeDaysCountYear, 1);
+    const avgPointsPerDayYear = Math.round(totalPointsYear / totalActiveDaysCount);
 
-    // Streaks
+    // Streaks calculations
     const sortedDates = (Array.from(new Set(entries.map(e => e.toDate))) as string[])
-      .sort((a, b) => b.localeCompare(a)); // Newest first
+      .sort((a, b) => b.localeCompare(a));
 
     let currentStreak = 0;
     if (sortedDates.length > 0) {
@@ -196,45 +189,18 @@ const totalPointsYear = entriesYear.reduce((sum, e) => sum + (e.points || 0), 0)
       }
     }
 
-    // Rank / Title Evaluation - Evaluated by totalPointsYear (points of the tracking year)
+    // Rank evaluation based on selected profile tracking year
     let rank = "Novice Logger";
-    let nextRank = "Aspirant Scholar";
-    let pointsNeeded = 100;
-    let progressPercent = 0;
+    if (totalPointsYear >= 100 && totalPointsYear < 500) rank = "Aspirant Scholar";
+    else if (totalPointsYear >= 500 && totalPointsYear < 1500) rank = "Elite Chronicler";
+    else if (totalPointsYear >= 1500 && totalPointsYear < 4000) rank = "Master Navigator";
+    else if (totalPointsYear >= 4000) rank = "Legendary Voyager";
 
-    if (totalPointsYear < 100) {
-      rank = "Novice Logger";
-      nextRank = "Aspirant Scholar";
-      pointsNeeded = 100 - totalPointsYear;
-      progressPercent = (totalPointsYear / 100) * 100;
-    } else if (totalPointsYear >= 100 && totalPointsYear < 500) {
-      rank = "Aspirant Scholar";
-      nextRank = "Elite Chronicler";
-      pointsNeeded = 500 - totalPointsYear;
-      progressPercent = ((totalPointsYear - 100) / 400) * 100;
-    } else if (totalPointsYear >= 500 && totalPointsYear < 1500) {
-      rank = "Elite Chronicler";
-      nextRank = "Master Navigator";
-      pointsNeeded = 1500 - totalPointsYear;
-      progressPercent = ((totalPointsYear - 500) / 1000) * 100;
-    } else if (totalPointsYear >= 1500 && totalPointsYear < 4000) {
-      rank = "Master Navigator";
-      nextRank = "Legendary Voyager";
-      pointsNeeded = 4000 - totalPointsYear;
-      progressPercent = ((totalPointsYear - 1500) / 2500) * 100;
-    } else {
-      rank = "Legendary Voyager";
-      nextRank = "Eternal Grandmaster";
-      pointsNeeded = 10000 - totalPointsYear;
-      progressPercent = Math.min(((totalPointsYear - 4000) / 6000) * 100, 100);
-    }
-
-    // Financial
-    const totalDebit = entries.reduce((s, e) => s + (e.debit || 0), 0);
-    const totalCredit = entries.reduce((s, e) => s + (e.credit || 0), 0);
-    const netBalance = totalCredit - totalDebit;
+    // Financial calculations scaled to the selected navigation year
+    const totalDebitYear = entriesYear.reduce((s, e) => s + (e.debit || 0), 0);
+    const totalCreditYear = entriesYear.reduce((s, e) => s + (e.credit || 0), 0);
+    const netBalanceYear = totalCreditYear - totalDebitYear;
     
-    // Annual Grade evaluation for that year
     let annualGradeYear = "D";
     let annualGradeDescription = "Aspirant";
     if (activeDaysCountYear >= 150) {
@@ -251,19 +217,18 @@ const totalPointsYear = entriesYear.reduce((sum, e) => sum + (e.points || 0), 0)
       annualGradeDescription = "Regular Explorer";
     }
 
-    // Year contributions grid (53 weeks, Sunday to Saturday)
     const yearGrid = [];
-    const firstJan = new Date(trackingYear, 0, 1);
-    const dayOfWeek = firstJan.getDay(); // 0 is Sunday, 1 is Monday...
+    const firstJan = new Date(profileYear, 0, 1);
+    const dayOfWeek = firstJan.getDay();
     const startOfGrid = new Date(firstJan);
-    startOfGrid.setDate(firstJan.getDate() - dayOfWeek); // Go back to the preceding Sunday
+    startOfGrid.setDate(firstJan.getDate() - dayOfWeek);
     const runner = new Date(startOfGrid);
 
     for (let w = 0; w < 53; w++) {
       const weekDays = [];
       for (let d = 0; d < 7; d++) {
         const dateStr = runner.toISOString().split('T')[0];
-        const isCurrentYear = runner.getFullYear() === trackingYear;
+        const isCurrentYear = runner.getFullYear() === profileYear;
         const dayInfo = entriesByDateInYear[dateStr];
         weekDays.push({
           dateStr,
@@ -280,32 +245,24 @@ const totalPointsYear = entriesYear.reduce((sum, e) => sum + (e.points || 0), 0)
     }
 
     return {
-      totalPoints,
-      totalActivities,
-      completedGoals,
-      pendingGoals,
-      uniqueDays,
-      avgPointsPerDay,
+      entriesYear,
+      totalPointsYear,
+      totalActivitiesYear,
+      completedGoalsYear,
+      totalGoalsInYear,
+      avgPointsPerDayYear,
       currentStreak,
       rank,
-      nextRank,
-      pointsNeeded,
-      progressPercent,
-      totalDebit,
-      totalCredit,
-      netBalance,
-      // Target Year values
-      trackingYear,
-      totalPointsYear,
       totalDebitYear,
       totalCreditYear,
       netBalanceYear,
+      trackingYear: profileYear,
       activeDaysCountYear,
       annualGradeYear,
       annualGradeDescription,
       yearGrid
     };
-  }, [entries, goals, selectedDate]);
+  }, [entries, goals, profileYear]);
 
   const metadata = {
     daily: {
@@ -313,31 +270,26 @@ const totalPointsYear = entriesYear.reduce((sum, e) => sum + (e.points || 0), 0)
       icon: <Target className="text-emerald-500" size={24} />,
       headerBg: 'bg-emerald-500/10 border-emerald-500/20'
     },
-
     monthly_pts: {
       title: 'Months Target',
       icon: <Calendar className="text-blue-500" size={24} />,
       headerBg: 'bg-blue-500/10 border-blue-500/20'
     },
-
     yearly_pts: {
       title: 'Yearly Points',
       icon: <TrendingUp className="text-indigo-500" size={24} />,
       headerBg: 'bg-indigo-500/10 border-indigo-500/20'
     },
-
     yearly_goals: {
       title: 'Yearly Goals',
       icon: <Award className="text-purple-500" size={24} />,
       headerBg: 'bg-purple-500/10 border-purple-500/20'
     },
-
     financial: {
       title: 'Transaction',
       icon: <Banknote className="text-teal-500" size={24} />,
       headerBg: 'bg-teal-500/10 border-teal-500/20'
-        },
-
+    },
     profile: {
       title: 'Performance Report',
       icon: <Award className="text-inherit" size={24} />,
@@ -349,9 +301,7 @@ const totalPointsYear = entriesYear.reduce((sum, e) => sum + (e.points || 0), 0)
 
   return createPortal(
     <AnimatePresence>
-
       <div className="fixed inset-0 z-[150] flex items-center justify-center md:p-4 p-2">
-
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -367,11 +317,9 @@ const totalPointsYear = entriesYear.reduce((sum, e) => sum + (e.points || 0), 0)
           transition={{ type: 'spring', duration: 0.4 }}
           className="relative w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-slate-800 border border-gray-100 dark:border-slate-700 z-10"
         >
-
           <div className={`flex items-center justify-between border-b p-4 ${metadata.headerBg}`}>
             <div className="flex items-center gap-3">
               {metadata.icon}
-
               <h3 className={`text-lg font-black uppercase tracking-tight ${type === 'profile' ? 'text-inherit' : 'text-gray-800 dark:text-white'}`}>
                 {metadata.title}
               </h3>
@@ -386,109 +334,101 @@ const totalPointsYear = entriesYear.reduce((sum, e) => sum + (e.points || 0), 0)
           </div>
 
           <div className="md:p-5 p-3 max-h-[70vh] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] space-y-4">
-
+            
             {/* DAILY */}
-{type === 'daily' && (
-  <div className="space-y-4">
-    {/* Navigation Header */}
-    <div className="flex items-center justify-between">
-      <button
-        onClick={() => {
-          const d = new Date(activeDate);
-          d.setDate(d.getDate() - 1);
-          setActiveDate(d.toISOString().split('T')[0]);
-        }}
-        className="p-2 rounded-xl bg-slate-100 dark:bg-slate-700"
-      >
-        <ChevronLeft size={16} />
-      </button>
+            {type === 'daily' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <button
+                    onClick={() => {
+                      const d = new Date(activeDate);
+                      d.setDate(d.getDate() - 1);
+                      setActiveDate(d.toISOString().split('T')[0]);
+                    }}
+                    className="p-2 rounded-xl bg-slate-100 dark:bg-slate-700"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
 
-      <div className="text-center">
-        <p className="text-xs uppercase text-gray-400">Selected Day</p>
-        <h3 className="font-black text-lg text-gray-800 dark:text-white">
-          {new Date(activeDate).toLocaleDateString('en-GB', {
-            day: '2-digit',
-            month: 'long',
-            year: 'numeric'
-          })}
-        </h3>
-      </div>
+                  <div className="text-center">
+                    <p className="text-xs uppercase text-gray-400">Selected Day</p>
+                    <h3 className="font-black text-lg text-gray-800 dark:text-white">
+                      {new Date(activeDate).toLocaleDateString('en-GB', {
+                        day: '2-digit',
+                        month: 'long',
+                        year: 'numeric'
+                      })}
+                    </h3>
+                  </div>
 
-      <button
-        onClick={() => {
-          const d = new Date(activeDate);
-          d.setDate(d.getDate() + 1);
-          setActiveDate(d.toISOString().split('T')[0]);
-        }}
-        className="p-2 rounded-xl bg-slate-100 dark:bg-slate-700"
-      >
-        <ChevronRight size={16} />
-      </button>
-    </div>
+                  <button
+                    onClick={() => {
+                      const d = new Date(activeDate);
+                      d.setDate(d.getDate() + 1);
+                      setActiveDate(d.toISOString().split('T')[0]);
+                    }}
+                    className="p-2 rounded-xl bg-slate-100 dark:bg-slate-700"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
 
-    {/* Daily Total Score Card */}
-    <div className="bg-emerald-500/5 border border-emerald-500/10 p-4 rounded-2xl text-center">
-      <p className="text-xs uppercase tracking-widest text-gray-400">Daily Total Score</p>
-      <p className="text-5xl font-black text-emerald-500 font-digital mt-2">
-        {activeDayEntries.reduce((s, e) => s + e.points, 0)}
-      </p>
-    </div>
+                <div className="bg-emerald-500/5 border border-emerald-500/10 p-4 rounded-2xl text-center">
+                  <p className="text-xs uppercase tracking-widest text-gray-400">Daily Total Score</p>
+                  <p className="text-5xl font-black text-emerald-500 font-digital mt-2">
+                    {activeDayEntries.reduce((s, e) => s + e.points, 0)}
+                  </p>
+                </div>
 
-    {/* Sorted List of Entries */}
-    <div className="md:space-y-2 space-y-1">
-      {activeDayEntries
-        .slice() // Copy array to avoid mutating state
-        .sort((a, b) => {
-          // Sort logic: Use fromTime if it exists, otherwise use toTime
-          const timeA = a.fromTime || a.toTime;
-          const timeB = b.fromTime || b.toTime;
-          return timeA.localeCompare(timeB);
-        })
-        .map(item => (
-          <button
-            key={item.id}
-            onClick={() => {
-              onSelectDate(item.toDate);
-              onClose();
-              setTimeout(() => {
-                scrollToActivity(item.id, item.toDate);
-              }, 400);
-            }}
-          className={`w-full text-left p-3 rounded-2xl transition-all border ${
-            goals.some(g => g.code === item.code && g.achievedAt === item.toDate)
-              ? 'border-emerald-500/40 shadow-md shadow-emerald-500/10 bg-emerald-500/[0.02] dark:bg-emerald-500/[0.01]' 
-              : 'border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900'
-          } hover:border-emerald-500/60`}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-black text-gray-800 dark:text-white">
-                  {item.name}
-                </p>
-                <p className="text-xs text-gray-400 mt-1">
-                  {item.isLongEvent ? `${item.fromTime} – ${item.toTime}` : item.toTime}
-                </p>
+                <div className="md:space-y-2 space-y-1">
+                  {activeDayEntries
+                    .slice()
+                    .sort((a, b) => {
+                      const timeA = a.fromTime || a.toTime;
+                      const timeB = b.fromTime || b.toTime;
+                      return timeA.localeCompare(timeB);
+                    })
+                    .map(item => (
+                      <button
+                        key={item.id}
+                        onClick={() => {
+                          onSelectDate(item.toDate);
+                          onClose();
+                          setTimeout(() => {
+                            scrollToActivity(item.id, item.toDate);
+                          }, 400);
+                        }}
+                        className={`w-full text-left p-3 rounded-2xl transition-all border ${
+                          goals.some(g => g.code === item.code && g.achievedAt === item.toDate)
+                            ? 'border-emerald-500/40 shadow-md shadow-emerald-500/10 bg-emerald-500/[0.02] dark:bg-emerald-500/[0.01]' 
+                            : 'border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900'
+                        } hover:border-emerald-500/60`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-black text-gray-800 dark:text-white">
+                              {item.name}
+                            </p>
+                            <p className="text-xs text-gray-400 mt-1">
+                              {item.isLongEvent ? `${item.fromTime} – ${item.toTime}` : item.toTime}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-emerald-500 font-black">
+                              {item.points >= 0 ? `+${item.points}` : item.points}
+                            </p>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                </div>
               </div>
-
-              <div className="text-right">
-                <p className="text-emerald-500 font-black">
-                  {item.points >= 0 ? `+${item.points}` : item.points}
-                </p>
-              </div>
-            </div>
-          </button>
-        ))}
-    </div>
-  </div>
-)}
+            )}
 
             {/* MONTH */}
-
             {type === 'monthly_pts' && (
               <div className="space-y-4">
-
                 <div className="flex items-center justify-between">
-
                   <button
                     onClick={() => setActiveYear(prev => prev - 1)}
                     className="p-2 rounded-xl bg-slate-100 dark:bg-slate-700"
@@ -509,12 +449,10 @@ const totalPointsYear = entriesYear.reduce((sum, e) => sum + (e.points || 0), 0)
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
-
                   <div className="bg-blue-500/5 p-4 rounded-xl border border-blue-500/10 text-center">
                     <p className="text-[10px] font-bold text-gray-400 uppercase">
-                      Total Months <span className="md:hidden">Pts</span><span className="hidden md:inline">Points</span>
+                      Total Months Points
                     </p>
-
                     <p className="text-3xl font-black text-blue-600 font-digital mt-1">
                       {activeYearEntries.reduce((s, e) => s + e.points, 0)}
                     </p>
@@ -524,13 +462,9 @@ const totalPointsYear = entriesYear.reduce((sum, e) => sum + (e.points || 0), 0)
                     <p className="text-[10px] font-bold text-gray-400 uppercase">
                       Month Progress %
                     </p>
-
                     <p className="text-3xl font-black text-purple-600 font-digital mt-1">
                       {Math.min(
-                        (
-                          activeYearEntries.reduce((s, e) => s + e.points, 0) /
-                          (365 * 100)
-                        ) * 100,
+                        (activeYearEntries.reduce((s, e) => s + e.points, 0) / (365 * 100)) * 100,
                         100
                       ).toFixed(0)}
                     </p>
@@ -540,64 +474,41 @@ const totalPointsYear = entriesYear.reduce((sum, e) => sum + (e.points || 0), 0)
                 <div className="md:space-y-2 space-y-1">
                   {[...Array(12)].map((_, i) => {
                     const monthDate = `${activeYear}-${String(i + 1).padStart(2, '0')}`;
-
-                    const data = entries.filter(e =>
-                      e.toDate.startsWith(monthDate)
-                    );
-
+                    const data = entries.filter(e => e.toDate.startsWith(monthDate));
                     const score = data.reduce((s, e) => s + e.points, 0);
-
-                    const progress = Math.min(
-                      (score / (30 * 100)) * 100,
-                      100
-                    );
+                    const progress = Math.min((score / (30 * 100)) * 100, 100);
 
                     return (
                       <button
                         key={monthDate}
                         onClick={() => {
                           const firstDate = `${monthDate}-01`;
-
                           onSelectDate(firstDate);
-
                           onClose();
-
                           setTimeout(() => {
                             scrollToActivities();
                           }, 300);
                         }}
                         disabled={score === 0}
-className={`w-full p-3 rounded-2xl border border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 ${
-  score === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:border-blue-500/30'
-} transition-all`}>
+                        className={`w-full p-3 rounded-2xl border border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 ${
+                          score === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:border-blue-500/30'
+                        } transition-all`}
+                      >
                         <div className="flex items-center justify-between">
-
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center font-black text-blue-500">
-                                {activeYear.toString().slice(-2)}
+                              {activeYear.toString().slice(-2)}
                             </div>
-
                             <div className="text-left">
                               <p className="font-black text-gray-800 dark:text-white">
-                              {new Date(`${monthDate}-01`).toLocaleString('default', {
-                                month: 'long',
-                              })}
+                                {new Date(`${monthDate}-01`).toLocaleString('default', { month: 'long' })}
                               </p>
-
-                              <p className="text-xs text-gray-400">
-                                Month Analytics
-                              </p>
+                              <p className="text-xs text-gray-400">Month Analytics</p>
                             </div>
                           </div>
-
                           <div className="text-right">
-                            <p className="font-black text-blue-500">
-                              {score}
-                            </p>
-
-                            <p className="text-xs text-gray-400">
-                              {progress.toFixed(0)}%
-                            </p>
+                            <p className="font-black text-blue-500">{score}</p>
+                            <p className="text-xs text-gray-400">{progress.toFixed(0)}%</p>
                           </div>
                         </div>
                       </button>
@@ -608,323 +519,258 @@ className={`w-full p-3 rounded-2xl border border-gray-100 dark:border-slate-700 
             )}
 
             {/* YEARLY POINTS */}
+            {type === 'yearly_pts' && (
+              <div className="md:space-y-3 space-y-1">
+                {Array.from(new Set([new Date().getFullYear(), ...entries.map(e => new Date(e.toDate).getFullYear())]))
+                  .sort((a, b) => (b as number) - (a as number))
+                  .map(year => {
+                    const score = entries
+                      .filter(e => new Date(e.toDate).getFullYear() === year)
+                      .reduce((s, e) => s + (e.points || 0), 0);
 
-{type === 'yearly_pts' && (
-  <div className="md:space-y-3 space-y-1">
-    {Array.from(new Set([new Date().getFullYear(), ...entries.map(e => new Date(e.toDate).getFullYear())]))
-      .sort((a, b) => (b as number) - (a as number))
-      .map(year => {
-        const score = entries
-        .filter(e => new Date(e.toDate).getFullYear() === year)
-        .reduce((s, e) => s + (e.points || 0), 0);
-
-        return (
-          <button
-            key={year}
-            onClick={() => {
-              // Construct string date format: YYYY-01-01 (1st January)
-              const targetDate = `${year}-01-01`;
-              
-              // Route to the selected date
-              onSelectDate(targetDate);
-              
-              // Close modal overlay/drawer
-              onClose();
-            }}
-            className="w-full text-left p-4 rounded-2xl border border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 hover:border-indigo-500/40 transition-all cursor-pointer block"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs uppercase text-gray-400">
-                  Year
-                </p>
-                <h3 className="text-2xl font-black text-gray-800 dark:text-white">
-                  {year}
-                </h3>
+                    return (
+                      <button
+                        key={year}
+                        onClick={() => {
+                          const targetDate = `${year}-01-01`;
+                          onSelectDate(targetDate);
+                          onClose();
+                        }}
+                        className="w-full text-left p-4 rounded-2xl border border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 hover:border-indigo-500/40 transition-all cursor-pointer block"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-xs text-gray-400 uppercase">Year</p>
+                            <h3 className="text-2xl font-black text-gray-800 dark:text-white">{year}</h3>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-3xl font-black text-indigo-500 font-digital">{score}</p>
+                            <p className="text-xs text-gray-400">Total Points</p>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
               </div>
-
-              <div className="text-right">
-                <p className="text-3xl font-black text-indigo-500 font-digital">
-                  {score}
-                </p>
-                <p className="text-xs text-gray-400">
-                  Total Points
-                </p>
-              </div>
-            </div>
-          </button>
-        );
-      })}
-  </div>
-)}
+            )}
 
             {/* YEARLY GOALS */}
+            {type === 'yearly_goals' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <button
+                    onClick={() => setActiveYear(prev => prev - 1)}
+                    className="p-2 rounded-xl bg-slate-100 dark:bg-slate-700"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
 
-{type === 'yearly_goals' && (
-  <div className="space-y-4">
-    {/* YEAR NAVIGATION */}
-    <div className="flex items-center justify-between">
-      <button
-        onClick={() => setActiveYear(prev => prev - 1)}
-        className="p-2 rounded-xl bg-slate-100 dark:bg-slate-700"
-      >
-        <ChevronLeft size={16} />
-      </button>
+                  <div className="text-center">
+                    <p className="text-xs uppercase text-gray-400">Goals of</p>
+                    <h3 className="text-lg font-black text-gray-800 dark:text-white">{activeYear}</h3>
+                  </div>
 
-      <div className="text-center">
-        <p className="text-xs uppercase text-gray-400">Goals of</p>
-        <h3 className="text-lg font-black text-gray-800 dark:text-white">
-          {activeYear}
-        </h3>
-      </div>
-
-      <button
-        onClick={() => setActiveYear(prev => prev + 1)}
-        className="p-2 rounded-xl bg-slate-100 dark:bg-slate-700"
-      >
-        <ChevronRight size={16} />
-      </button>
-    </div>
-
-    {/* TOTAL YEARLY GOALS SUMMARY BOX */}
-    <div className="bg-purple-500/5 border border-purple-500/10 p-4 rounded-2xl text-center">
-      <p className="text-xs uppercase tracking-widest text-gray-400">Yearly Goals Achieved</p>
-      <p className="text-5xl font-black text-purple-500 font-digital mt-2">
-        {
-          goals.filter(
-            g => g.achievedAt && new Date(g.achievedAt).getFullYear() === activeYear
-          ).length
-        }
-      </p>
-    </div>
-
-    {/* YEAR ITEMS LISTING */}
-    <div className="md:space-y-2 space-y-1">
-      {goals
-        .filter(
-          g => g.achievedAt && new Date(g.achievedAt).getFullYear() === activeYear
-        )
-        .slice() // Copy to avoid mutation
-        .sort((a, b) => {
-          // 1. Sort by Date Ascending
-          const dateA = new Date(a.achievedAt!).getTime();
-          const dateB = new Date(b.achievedAt!).getTime();
-          if (dateA !== dateB) return dateA - dateB;
-
-          // 2. Sort by Time Ascending (if dates are identical)
-          const timeA = entries.find(e => e.toDate === a.achievedAt && e.code === a.code)?.fromTime || "";
-          const timeB = entries.find(e => e.toDate === b.achievedAt && e.code === b.code)?.fromTime || "";
-          return timeA.localeCompare(timeB);
-        })
-        .map(g => (
-          <button
-            key={g.id}
-            onClick={() => {
-              if (!g.achievedAt) return;
-              onSelectDate(g.achievedAt);
-              onClose();
-              setTimeout(() => {
-                const found = entries.find(
-                  e => e.toDate === g.achievedAt && e.code === g.code
-                );
-                if (found) {
-                  scrollToActivity(found.id, found.toDate);
-                }
-              }, 400);
-            }}
-            className="w-full p-3 rounded-2xl border border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 hover:border-purple-500/30 transition-all"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3 text-left">
-                <div className="w-11 h-11 rounded-xl bg-purple-500/10 flex items-center justify-center">
-                  <Star
-                    size={16}
-                    className="text-purple-500"
-                    fill="currentColor"
-                  />
+                  <button
+                    onClick={() => setActiveYear(prev => prev + 1)}
+                    className="p-2 rounded-xl bg-slate-100 dark:bg-slate-700"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
                 </div>
 
-                <div>
-                  <p className="font-black text-gray-800 dark:text-white leading-tight">
-                    {g.name}
-                  </p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    {new Date(g.achievedAt!).toLocaleDateString('en-GB', {
-                      day: '2-digit',
-                      month: 'short',
-                      year: 'numeric'
-                    })}
+                <div className="bg-purple-500/5 border border-purple-500/10 p-4 rounded-2xl text-center">
+                  <p className="text-xs uppercase tracking-widest text-gray-400">Yearly Goals Achieved</p>
+                  <p className="text-5xl font-black text-purple-500 font-digital mt-2">
+                    {goals.filter(g => g.achievedAt && new Date(g.achievedAt).getFullYear() === activeYear).length}
                   </p>
                 </div>
+
+                <div className="md:space-y-2 space-y-1">
+                  {goals
+                    .filter(g => g.achievedAt && new Date(g.achievedAt).getFullYear() === activeYear)
+                    .slice()
+                    .sort((a, b) => {
+                      const dateA = new Date(a.achievedAt!).getTime();
+                      const dateB = new Date(b.achievedAt!).getTime();
+                      if (dateA !== dateB) return dateA - dateB;
+
+                      const timeA = entries.find(e => e.toDate === a.achievedAt && e.code === a.code)?.fromTime || "";
+                      const timeB = entries.find(e => e.toDate === b.achievedAt && e.code === b.code)?.fromTime || "";
+                      return timeA.localeCompare(timeB);
+                    })
+                    .map(g => (
+                      <button
+                        key={g.id}
+                        onClick={() => {
+                          if (!g.achievedAt) return;
+                          onSelectDate(g.achievedAt);
+                          onClose();
+                          setTimeout(() => {
+                            const found = entries.find(e => e.toDate === g.achievedAt && e.code === g.code);
+                            if (found) scrollToActivity(found.id, found.toDate);
+                          }, 400);
+                        }}
+                        className="w-full p-3 rounded-2xl border border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 hover:border-purple-500/30 transition-all"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3 text-left">
+                            <div className="w-11 h-11 rounded-xl bg-purple-500/10 flex items-center justify-center">
+                              <Star size={16} className="text-purple-500" fill="currentColor" />
+                            </div>
+                            <div>
+                              <p className="font-black text-gray-800 dark:text-white leading-tight">{g.name}</p>
+                              <p className="text-xs text-gray-400 mt-1">
+                                {new Date(g.achievedAt!).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-black text-emerald-500">{g.points >= 0 ? `+${g.points}` : g.points}</p>
+                            <p className="text-[10px] text-gray-400 uppercase">Goal</p>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+
+                  {goals.filter(g => g.achievedAt && new Date(g.achievedAt).getFullYear() === activeYear).length === 0 && (
+                    <div className="text-center py-10 text-sm text-gray-400">
+                      No Goals Found in {activeYear}
+                    </div>
+                  )}
+                </div>
               </div>
-
-              <div className="text-right">
-                <p className="font-black text-emerald-500">
-                  +{g.points}
-                </p>
-                <p className="text-[10px] text-gray-400 uppercase">
-                  Goal
-                </p>
-              </div>
-            </div>
-          </button>
-        ))}
-
-      {goals.filter(
-        g => g.achievedAt && new Date(g.achievedAt).getFullYear() === activeYear
-      ).length === 0 && (
-        <div className="text-center py-10 text-sm text-gray-400">
-          No Goals Found in {activeYear}
-        </div>
-      )}
-    </div>
-  </div>
-)}
-
+            )}
 
             {/* TRANSACTION */}
-{type === 'financial' && (
-  <div className="space-y-4">
-    <div className="flex items-center justify-between">
-      <button
-        onClick={() => {
-          const d = new Date(activeDate);
-          d.setMonth(d.getMonth() - 1);
-          setActiveDate(d.toISOString().split('T')[0]);
-        }}
-        className="p-2 rounded-xl bg-slate-100 dark:bg-slate-700"
-      >
-        <ChevronLeft size={16} />
-      </button>
+            {type === 'financial' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <button
+                    onClick={() => {
+                      const d = new Date(activeDate);
+                      d.setMonth(d.getMonth() - 1);
+                      setActiveDate(d.toISOString().split('T')[0]);
+                    }}
+                    className="p-2 rounded-xl bg-slate-100 dark:bg-slate-700"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
 
-      <h3 className="text-lg font-black text-gray-800 dark:text-white">
-        {new Date(activeDate).toLocaleString('default', {
-          month: 'long',
-          year: 'numeric'
-        })}
-      </h3>
+                  <h3 className="text-lg font-black text-gray-800 dark:text-white">
+                    {new Date(activeDate).toLocaleString('default', { month: 'long', year: 'numeric' })}
+                  </h3>
 
-      <button
-        onClick={() => {
-          const d = new Date(activeDate);
-          d.setMonth(d.getMonth() + 1);
-          setActiveDate(d.toISOString().split('T')[0]);
-        }}
-        className="p-2 rounded-xl bg-slate-100 dark:bg-slate-700"
-      >
-        <ChevronRight size={16} />
-      </button>
-    </div>
+                  <button
+                    onClick={() => {
+                      const d = new Date(activeDate);
+                      d.setMonth(d.getMonth() + 1);
+                      setActiveDate(d.toISOString().split('T')[0]);
+                    }}
+                    className="p-2 rounded-xl bg-slate-100 dark:bg-slate-700"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
 
-<div className="flex flex-wrap-reverse gap-2 w-full">
+                <div className="flex flex-wrap-reverse gap-2 w-full">
+                  <div className="flex-grow flex-shrink-0 basis-[calc(33.333%-0.5rem)] min-w-[105px] p-3 rounded-xl bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/10 dark:border-emerald-500/20 text-center">
+                    <p className="text-[10px] uppercase text-gray-400">Credit</p>
+                    <p className="text-xs sm:text-base font-black mt-1 text-emerald-500 break-all">+ {financialSummary.credit}</p>
+                  </div>
 
-  {/* Credit Card */}
-  <div className="flex-grow flex-shrink-0 basis-[calc(33.333%-0.5rem)] min-w-[105px] p-3 rounded-xl bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/10 dark:border-emerald-500/20 text-center">
-    <p className="text-[10px] uppercase text-gray-400">Credit</p>
-    <p className="text-xs sm:text-base font-black mt-1 text-emerald-500 break-all">
-      + {financialSummary.credit}
-    </p>
-  </div>
+                  <div className="flex-grow flex-shrink-0 basis-[calc(33.333%-0.5rem)] min-w-[105px] p-3 rounded-xl bg-red-500/5 dark:bg-red-500/10 border border-red-500/10 dark:border-red-500/20 text-center">
+                    <p className="text-[10px] uppercase text-gray-400">Debit</p>
+                    <p className="text-xs sm:text-base font-black mt-1 text-red-500 break-all">- {financialSummary.debit}</p>
+                  </div>
+                  
+                  <div className={`flex-grow flex-shrink-0 basis-[calc(33.333%-0.5rem)] min-w-[105px] p-3 rounded-xl text-center ${
+                    financialSummary.balance >= 0
+                      ? 'bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/10 dark:border-emerald-500/20'
+                      : 'bg-red-500/5 dark:bg-red-500/10 border border-red-500/10 dark:border-red-500/20'
+                  }`}>
+                    <p className="text-[10px] uppercase text-gray-400">Balance</p>
+                    <p className={`text-xs sm:text-base font-black mt-1 break-all ${financialSummary.balance >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                      {financialSummary.balance >= 0 ? '' : ''}
+                       {getCurrencySymbol(getAggregateCurrencyDisplay(activeMonthEntries))} 
+                      {Math.abs(financialSummary.balance)}
+                    </p>
+                  </div>
+                </div>
 
-  {/* Debit Card */}
-  <div className="flex-grow flex-shrink-0 basis-[calc(33.333%-0.5rem)] min-w-[105px] p-3 rounded-xl bg-red-500/5 dark:bg-red-500/10 border border-red-500/10 dark:border-red-500/20 text-center">
-    <p className="text-[10px] uppercase text-gray-400">Debit</p>
-    <p className="text-xs sm:text-base font-black mt-1 text-red-500 break-all">
-      - {financialSummary.debit}
-    </p>
-  </div>
-  
-  {/* Balance Card */}
-  <div className={`flex-grow flex-shrink-0 basis-[calc(33.333%-0.5rem)] min-w-[105px] p-3 rounded-xl text-center ${
-    financialSummary.balance >= 0
-      ? 'bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/10 dark:border-emerald-500/20'
-      : 'bg-red-500/5 dark:bg-red-500/10 border border-red-500/10 dark:border-red-500/20'
-  }`}>
-     <p className="text-[10px] uppercase text-gray-400">Balance</p>
-     <p className={`text-xs sm:text-base font-black mt-1 break-all ${
-       financialSummary.balance >= 0 ? 'text-emerald-500' : 'text-red-500'
-     }`}>
-       {getCurrencySymbol(getAggregateCurrencyDisplay(activeMonthEntries))} {financialSummary.balance}
-     </p>
-   </div>
-
-</div>
-
-
-
-
-    <div className="md:space-y-2 space-y-1">
-  {activeMonthEntries
-    .filter(e => e.credit || e.debit)
-    .slice()
-    .sort((a, b) => {
-      // 1. Sort by Date first
-      const dateCompare = a.toDate.localeCompare(b.toDate);
-      if (dateCompare !== 0) return dateCompare;
-
-      // 2. If dates are the same, sort by Time (fromTime or toTime)
-      const timeA = a.fromTime || a.toTime || "";
-      const timeB = b.fromTime || b.toTime || "";
-      return timeA.localeCompare(timeB);
-    })
-    .map(item => {
-      const isGoalAchieved = goals.some(g => g.code === item.code && g.achievedAt === item.toDate);
-      
-      return (
-        <button
-          key={item.id}
-          onClick={() => {
-            onSelectDate(item.toDate);
-            onClose();
-            setTimeout(() => {
-              scrollToActivity(item.id, item.toDate);
-            }, 350);
-          }}
-          className={`w-full p-3 rounded-2xl border transition-all ${
-            isGoalAchieved
-              ? 'border-emerald-500/40 shadow-md shadow-emerald-500/10 bg-emerald-500/[0.02] dark:bg-emerald-500/[0.01]' 
-              : 'border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900'
-          } hover:border-emerald-500/40`}
-        >
-          <div className="flex items-center justify-between">
-            {/* LEFT SIDE: Name and Time */}
-            <div className="text-left">
-              <p className="font-black text-gray-800 dark:text-white leading-tight">
-                {item.name}
-              </p>
-              <p className="text-[10px] font-bold text-blue-500 dark:text-blue-400 uppercase tracking-tight mt-0.5">
-                {item.isLongEvent ? `${item.fromTime} – ${item.toTime}` : item.toTime}
-              </p>
-            </div>
-
-            {/* RIGHT SIDE: Date and Amount */}
-            <div className="text-right">
-              <p className="text-[10px] font-black text-gray-400 dark:text-slate-500 uppercase mb-1">
-                {new Date(item.toDate).toLocaleDateString('en-US', { month: 'short', day: '2-digit' }).toUpperCase()}
-              </p>
-              
-              {item.credit > 0 && (
-                <p className="font-black text-emerald-500 leading-none">
-                  +{item.credit}{getCurrencySymbol(item.moneyCode)}
-                </p>
-              )}
-              {item.debit > 0 && (
-                <p className="font-black text-red-500 leading-none">
-                  -{item.debit}{getCurrencySymbol(item.moneyCode)}
-                </p>
-              )}
-            </div>
-          </div>
-        </button>
-      );
-    })}
-    </div>
-  </div>
-)}
+                <div className="md:space-y-2 space-y-1">
+                  {activeMonthEntries
+                    .filter(e => e.credit || e.debit)
+                    .slice()
+                    .sort((a, b) => {
+                      const dateCompare = a.toDate.localeCompare(b.toDate);
+                      if (dateCompare !== 0) return dateCompare;
+                      const timeA = a.fromTime || a.toTime || "";
+                      const timeB = b.fromTime || b.toTime || "";
+                      return timeA.localeCompare(timeB);
+                    })
+                    .map(item => {
+                      const isGoalAchieved = goals.some(g => g.code === item.code && g.achievedAt === item.toDate);
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => {
+                            onSelectDate(item.toDate);
+                            onClose();
+                            setTimeout(() => {
+                              scrollToActivity(item.id, item.toDate);
+                            }, 350);
+                          }}
+                          className={`w-full p-3 rounded-2xl border transition-all ${
+                            isGoalAchieved
+                              ? 'border-emerald-500/40 shadow-md shadow-emerald-500/10 bg-emerald-500/[0.02] dark:bg-emerald-500/[0.01]' 
+                              : 'border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900'
+                          } hover:border-emerald-500/40`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="text-left">
+                              <p className="font-black text-gray-800 dark:text-white leading-tight">{item.name}</p>
+                              <p className="text-[10px] font-bold text-blue-500 dark:text-blue-400 uppercase tracking-tight mt-0.5">
+                                {item.isLongEvent ? `${item.fromTime} – ${item.toTime}` : item.toTime}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-[10px] font-black text-gray-400 dark:text-slate-500 uppercase mb-1">
+                                {new Date(item.toDate).toLocaleDateString('en-US', { month: 'short', day: '2-digit' }).toUpperCase()}
+                              </p>
+                              {item.credit > 0 && <p className="font-black text-emerald-500 leading-none">+{item.credit}{getCurrencySymbol(item.moneyCode)}</p>}
+                              {item.debit > 0 && <p className="font-black text-red-500 leading-none">-{item.debit}{getCurrencySymbol(item.moneyCode)}</p>}
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
 
             {/* PROFILE PERFORMANCE CARD */}
-                        {type === 'profile' && (
+            {type === 'profile' && (
               <div className="space-y-4">
+                {/* Global Profile Year Controls Navigation Block */}
+                <div className="flex items-center justify-between bg-slate-100 dark:bg-slate-900/60 border border-gray-100 dark:border-slate-800 p-2.5 rounded-2xl">
+                  <button
+                    onClick={() => setProfileYear(prev => prev - 1)}
+                    className="p-2 rounded-xl bg-white dark:bg-slate-800 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <div className="text-center">
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400">Inspecting Journal Year</p>
+                    <h4 className="text-base font-black text-indigo-500 dark:text-indigo-400 font-digital">{profileYear}</h4>
+                  </div>
+                  <button
+                    onClick={() => setProfileYear(prev => prev + 1)}
+                    className="p-2 rounded-xl bg-white dark:bg-slate-800 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+
                 {/* Profile Header Card */}
                 <div className={`p-6 rounded-3xl ${currentTimeClass || 'bg-slate-900'} relative overflow-hidden flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg border border-white/10`}>
                   <div className="absolute right-[-10px] bottom-[-20px] opacity-[0.08]">
@@ -932,68 +778,68 @@ className={`w-full p-3 rounded-2xl border border-gray-100 dark:border-slate-700 
                   </div>
                   
                   <div className="text-center sm:text-left z-10 space-y-1 w-full sm:w-auto">
-                  <AnimatePresence mode="wait" initial={false}>
-                    {isEditingName ? (
-                      <motion.div
-                        key="editing"
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -8 }}
-                        transition={{ duration: 0.2, ease: 'easeOut' }}
-                        onClick={(e) => e.stopPropagation()}
-                        className="flex items-center gap-2 justify-center sm:justify-start"
-                      >
-                        <input
-                          ref={nameInputRef}
-                          type="text"
-                          value={editNameValue}
-                          onChange={(e) => setEditNameValue(e.target.value)}
-                          onKeyDown={handleKeyDown}
-                          className="w-[70%] sm:w-auto sm:min-w-[240px] text-2xl font-black uppercase tracking-tight bg-white/20 border-b-2 border-white outline-none text-white px-2 py-1 rounded-t-lg"
-                          autoFocus
-                        />
-                        <motion.button
-                          whileTap={{ scale: 0.92 }}
-                          onClick={(e) => { e.stopPropagation(); handleSaveName(); }}
-                          className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-full transition-colors backdrop-blur-sm"
+                    <AnimatePresence mode="wait" initial={false}>
+                      {isEditingName ? (
+                        <motion.div
+                          key="editing"
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -8 }}
+                          transition={{ duration: 0.2, ease: 'easeOut' }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="flex items-center gap-2 justify-center sm:justify-start"
                         >
-                          <Check size={18} />
-                        </motion.button>
-                        <motion.button
-                          whileTap={{ scale: 0.92 }}
-                          onClick={(e) => { e.stopPropagation(); setEditNameValue(userName); setIsEditingName(false); }}
-                          className="p-2 bg-white/10 hover:bg-white/20 text-white/80 rounded-full transition-colors backdrop-blur-sm"
+                          <input
+                            ref={nameInputRef}
+                            type="text"
+                            value={editNameValue}
+                            onChange={(e) => setEditNameValue(e.target.value)}
+                            onKeyDown={handleKeyDown}
+                            className="w-[70%] sm:w-auto sm:min-w-[240px] text-2xl font-black uppercase tracking-tight bg-white/20 border-b-2 border-white outline-none text-white px-2 py-1 rounded-t-lg"
+                            autoFocus
+                          />
+                          <motion.button
+                            whileTap={{ scale: 0.92 }}
+                            onClick={(e) => { e.stopPropagation(); setIsEditingName(false); }}
+                            className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-full transition-colors backdrop-blur-sm"
+                          >
+                            <Check size={18} />
+                          </motion.button>
+                          <motion.button
+                            whileTap={{ scale: 0.92 }}
+                            onClick={(e) => { e.stopPropagation(); setEditNameValue(userName); setIsEditingName(false); }}
+                            className="p-2 bg-white/10 hover:bg-white/20 text-white/80 rounded-full transition-colors backdrop-blur-sm"
+                          >
+                            <X size={18} />
+                          </motion.button>
+                        </motion.div>
+                      ) : (
+                        <motion.div
+                          key="viewing"
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -8 }}
+                          transition={{ duration: 0.2, ease: 'easeOut' }}
+                          className="flex items-center gap-2 justify-center sm:justify-start group text-left cursor-pointer"
+                          onClick={(e) => { e.stopPropagation(); setIsEditingName(true); }}
                         >
-                          <X size={18} />
-                        </motion.button>
-                      </motion.div>
-                    ) : (
-                      <motion.div
-                        key="viewing"
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -8 }}
-                        transition={{ duration: 0.2, ease: 'easeOut' }}
-                        className="flex items-center gap-2 justify-center sm:justify-start group text-left cursor-pointer"
-                        onClick={(e) => { e.stopPropagation(); setIsEditingName(true); }}
-                      >
-                        <h3 className="text-3xl md:text-4xl uppercase font-black tracking-tight leading-none text-white group-hover:underline decoration-dotted decoration-2">
-                          {userName || "Guest"}
-                        </h3>
-                        <motion.button
-                          whileTap={{ scale: 0.9 }}
-                          className="opacity-0 group-hover:opacity-100 text-white/60 hover:text-white transition-all p-1"
-                          title="Edit name"
-                        >
-                          <Edit2 size={16} />
-                        </motion.button>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                  <p className="text-[10px] pt-2 font-black tracking-widest uppercase opacity-80 text-white/90">
-                    Annual Journal Performance Card
-                  </p>
-                </div>
+                          <h3 className="text-3xl md:text-4xl uppercase font-black tracking-tight leading-none text-white group-hover:underline decoration-dotted decoration-2">
+                            {userName || "Guest"}
+                          </h3>
+                          <motion.button
+                            whileTap={{ scale: 0.9 }}
+                            className="opacity-0 group-hover:opacity-100 text-white/60 hover:text-white transition-all p-1"
+                            title="Edit name"
+                          >
+                            <Edit2 size={16} />
+                          </motion.button>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                    <p className="text-[10px] pt-2 font-black tracking-widest uppercase opacity-80 text-white/90">
+                      Annual Journal Performance Card
+                    </p>
+                  </div>
 
                   <div className="text-center sm:text-right z-10 flex flex-col items-center sm:items-end gap-1">
                     <div className="px-4 py-2 rounded-2xl border font-black text-xs inline-flex items-center gap-2 backdrop-blur-md bg-white/20 border-white/30 shadow-sm">
@@ -1007,51 +853,42 @@ className={`w-full p-3 rounded-2xl border border-gray-100 dark:border-slate-700 
                 </div>
 
                 {/* Rank Progression */}
-{(() => {
-  // 1. Get the current tracking year safely
-const year = parseInt(profileStats.trackingYear) || new Date().getFullYear();
-const isLeapYear = (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
-const maxYearPoints = isLeapYear ? 36600 : 36500;
-  
-  // 3. Calculate metrics safely
-  const progressPercent = Math.min(
-  Math.max((profileStats.totalPointsYear / maxYearPoints) * 100, 0),
-  100
-);
-  const pointsLeft = maxYearPoints - profileStats.totalPointsYear;
+                {(() => {
+                  const isLeapYear = (profileYear % 4 === 0 && profileYear % 100 !== 0) || (profileYear % 400 === 0);
+                  const maxYearPoints = isLeapYear ? 36600 : 36500;
+                  const progressPercent = Math.min(Math.max((profileStats.totalPointsYear / maxYearPoints) * 100, 0), 100);
+                  const pointsLeft = maxYearPoints - profileStats.totalPointsYear;
 
-  return (
-    <div className="bg-slate-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-5 rounded-3xl shadow-sm space-y-3">
-      <div className="flex justify-between items-end text-xs">
-        <div className="space-y-0.5">
-          <span className="text-gray-400 font-bold uppercase text-[9px] tracking-widest block">Rank Progression</span>
-          <span className="text-sm font-black text-gray-800 dark:text-gray-200">{profileStats.rank}</span>
-        </div>
-        <div className="text-right">
-          <span className="text-[9px] font-bold text-indigo-500 dark:text-indigo-400 uppercase tracking-widest block leading-tight">{profileStats.trackingYear}</span>
-          <span className="text-xs font-black text-gray-600 dark:text-gray-400">
-            {pointsLeft > 0 ? `${pointsLeft} pts left` : 'Max level reached!'}
-          </span>
-        </div>
-      </div>
-      
-      <div className="relative">
-        <div className="w-full h-4 bg-gray-200/60 dark:bg-slate-800/85 rounded-full overflow-hidden p-[3px] border border-gray-100 dark:border-slate-800">
-          <div 
-            className="h-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-600 rounded-full transition-all duration-1000 shadow-[0_0_8px_rgba(99,102,241,0.5)]"
-            style={{ width: `${progressPercent}%` }}
-          />
-        </div>
-        <div className="flex justify-between items-center mt-2 px-1 text-[9px] font-mono text-gray-400 font-bold uppercase tracking-wider">
-          <span className="text-indigo-600 dark:text-indigo-400">
-            {Math.round(progressPercent)}% LEVEL SECURED
-          </span>
-          <span>{profileStats.totalPointsYear} / {maxYearPoints} pts</span>
-        </div>
-      </div>
-    </div>
-  );
-})()}
+                  return (
+                    <div className="bg-slate-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-5 rounded-3xl shadow-sm space-y-3">
+                      <div className="flex justify-between items-end text-xs">
+                        <div className="space-y-0.5">
+                          <span className="text-gray-400 font-bold uppercase text-[9px] tracking-widest block">Rank Progression</span>
+                          <span className="text-sm font-black text-gray-800 dark:text-gray-200">{profileStats.rank}</span>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-[9px] font-bold text-indigo-500 dark:text-indigo-400 uppercase tracking-widest block leading-tight">{profileStats.trackingYear}</span>
+                          <span className="text-xs font-black text-gray-600 dark:text-gray-400">
+                            {pointsLeft > 0 ? `${pointsLeft} pts left` : 'Max level reached!'}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="relative">
+                        <div className="w-full h-4 bg-gray-200/60 dark:bg-slate-800/85 rounded-full overflow-hidden p-[3px] border border-gray-100 dark:border-slate-800">
+                          <div 
+                            className="h-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-600 rounded-full transition-all duration-1000 shadow-[0_0_8px_rgba(99,102,241,0.5)]"
+                            style={{ width: `${progressPercent}%` }}
+                          />
+                        </div>
+                        <div className="flex justify-between items-center mt-2 px-1 text-[9px] font-mono text-gray-400 font-bold uppercase tracking-wider">
+                          <span className="text-indigo-600 dark:text-indigo-400">{Math.round(progressPercent)}% LEVEL SECURED</span>
+                          <span>{profileStats.totalPointsYear} / {maxYearPoints} pts</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Annual Calendar Heatmap Card */}
                 <div className="bg-slate-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-5 rounded-3xl shadow-sm space-y-3">
@@ -1069,15 +906,14 @@ const maxYearPoints = isLeapYear ? 36600 : 36500;
                         GRADE {profileStats.annualGradeYear}
                       </div>
                       <div className="text-[10px] text-gray-500 dark:text-gray-400 font-bold">
-                          {profileStats.activeDaysCountYear} / {profileStats.trackingYear % 4 === 0 ? 366 : 365} Days
+                        {profileStats.activeDaysCountYear} / {profileStats.trackingYear % 4 === 0 ? 366 : 365} Days
                       </div>
                     </div>
                   </div>
 
-                  {/* The Heatmap Matrix */}
                   <div className="relative pt-1">
                     <HeatMap
-                      year={parseInt(profileStats.trackingYear) || new Date().getFullYear()}
+                      year={profileStats.trackingYear}
                       entries={entries}
                       themeColor="indigo"
                       onDayClick={(dateStr) => {
@@ -1090,36 +926,33 @@ const maxYearPoints = isLeapYear ? 36600 : 36500;
                     />
                   </div>
 
-                    {/* Legend & Summary Info */}
-                    <div className="flex items-center justify-between text-[9px] font-bold text-gray-405 dark:text-gray-500 pt-2.5 border-t border-gray-100 dark:border-slate-850 mt-1">
-                      <div className="flex items-center gap-1.5">
-                        <span>Less active</span>
-                        <div className="w-2.5 h-2.5 rounded-[2.5px] bg-gray-200/60 dark:bg-slate-800/80" />
-                        <div className="w-2.5 h-2.5 rounded-[2.5px] bg-indigo-500/20 dark:bg-indigo-500/20" />
-                        <div className="w-2.5 h-2.5 rounded-[2.5px] bg-indigo-500/40 dark:bg-indigo-500/45" />
-                        <div className="w-2.5 h-2.5 rounded-[2.5px] bg-indigo-500/75 dark:bg-indigo-500/80" />
-                        <div className="w-2.5 h-2.5 rounded-[2.5px] bg-indigo-600 dark:bg-indigo-500" />
-                        <span>More active</span>
-                      </div>
-                      <div className="uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                        <span>Classification: </span>
-                        <span className="text-gray-700 dark:text-gray-300">
-                          {profileStats.annualGradeDescription}
-                        </span>
-                      </div>
+                  <div className="flex items-center justify-between text-[9px] font-bold text-gray-400 dark:text-gray-500 pt-2.5 border-t border-gray-100 dark:border-slate-850 mt-1">
+                    <div className="flex items-center gap-1.5">
+                      <span>Less active</span>
+                      <div className="w-2.5 h-2.5 rounded-[2.5px] bg-gray-200/60 dark:bg-slate-800/80" />
+                      <div className="w-2.5 h-2.5 rounded-[2.5px] bg-indigo-500/20 dark:bg-indigo-500/20" />
+                      <div className="w-2.5 h-2.5 rounded-[2.5px] bg-indigo-500/40 dark:bg-indigo-500/45" />
+                      <div className="w-2.5 h-2.5 rounded-[2.5px] bg-indigo-500/75 dark:bg-indigo-500/80" />
+                      <div className="w-2.5 h-2.5 rounded-[2.5px] bg-indigo-600 dark:bg-indigo-500" />
+                      <span>More active</span>
+                    </div>
+                    <div className="uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                      <span>Classification: </span>
+                      <span className="text-gray-700 dark:text-gray-300">{profileStats.annualGradeDescription}</span>
                     </div>
                   </div>
+                </div>
 
-                {/* Statistics Bento Grid */}
+                {/* Statistics Bento Grid (Strictly Filtered by Year Navigation Selection) */}
                 <div className="grid grid-cols-2 gap-3">
-                  {/* Total Points */}
+                  {/* Yearly Points */}
                   <div className="bg-gradient-to-br from-amber-500/[0.03] to-amber-500/[0.07] border border-amber-500/10 p-4 rounded-3xl flex flex-col justify-between min-h-[3rem] h-auto relative overflow-hidden group hover:border-amber-500/25 transition-all shadow-sm">
                     <div className="absolute top-2 right-2 opacity-10 group-hover:scale-110 transition-transform">
                       <Star size={40} className="text-amber-500" />
                     </div>
-                    <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Lifetime Points</p>
+                    <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Yearly Points</p>
                     <div className="flex flex-wrap items-baseline gap-1 mt-1">
-                      <span className="text-2xl sm:text-3xl font-black text-amber-500 font-digital leading-none break-all">{profileStats.totalPoints}</span>
+                      <span className="text-2xl sm:text-3xl font-black text-amber-500 font-digital leading-none break-all">{profileStats.totalPointsYear}</span>
                       <span className="text-[10px] sm:text-xs text-amber-500/70 font-bold uppercase tracking-wider ml-0.5">PTS</span>
                     </div>
                   </div>
@@ -1131,7 +964,7 @@ const maxYearPoints = isLeapYear ? 36600 : 36500;
                     </div>
                     <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Total Actions</p>
                     <div className="flex flex-wrap items-baseline gap-1 mt-1">
-                      <span className="text-2xl sm:text-3xl font-black text-blue-500 font-digital leading-none break-all">{profileStats.totalActivities}</span>
+                      <span className="text-2xl sm:text-3xl font-black text-blue-500 font-digital leading-none break-all">{profileStats.totalActivitiesYear}</span>
                       <span className="text-[10px] sm:text-xs text-blue-500/70 font-bold uppercase tracking-wider ml-0.5">logs</span>
                     </div>
                   </div>
@@ -1144,10 +977,10 @@ const maxYearPoints = isLeapYear ? 36600 : 36500;
                     <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Target Goals Met</p>
                     <div className="flex flex-wrap items-baseline gap-1 mt-1">
                       <span className="text-2xl sm:text-3xl font-black text-pink-500 font-digital leading-none break-all">
-                        {profileStats.completedGoals.length}
+                        {profileStats.completedGoalsYear.length}
                       </span>
                       <span className="text-[10px] sm:text-xs text-pink-500/80 font-bold uppercase tracking-wider ml-0.5">
-                        / {goals.length}
+                        / {profileStats.totalGoalsInYear.length}
                       </span>
                     </div>
                   </div>
@@ -1159,7 +992,7 @@ const maxYearPoints = isLeapYear ? 36600 : 36500;
                     </div>
                     <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Daily Score Avg</p>
                     <div className="flex flex-wrap items-baseline gap-1 mt-1">
-                      <span className="text-2xl sm:text-3xl font-black text-emerald-500 font-digital leading-none break-all">{profileStats.avgPointsPerDay}</span>
+                      <span className="text-2xl sm:text-3xl font-black text-emerald-500 font-digital leading-none break-all">{profileStats.avgPointsPerDayYear}</span>
                       <span className="text-[10px] sm:text-xs text-emerald-500/70 font-bold uppercase tracking-wider ml-0.5">pts/d</span>
                     </div>
                   </div>
@@ -1169,27 +1002,32 @@ const maxYearPoints = isLeapYear ? 36600 : 36500;
                 <div className="bg-slate-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-4 rounded-3xl shadow-sm">
                   <div className="flex items-center gap-2 mb-3">
                     <Coins size={16} className="text-teal-500" />
-                    <h4 className="text-[10px] font-black uppercase text-gray-500 dark:text-gray-400 tracking-wider">Financial Standings</h4>
+                    <h4 className="text-[10px] font-black uppercase text-gray-500 dark:text-gray-400 tracking-wider">Financial Standings ({profileYear})</h4>
                   </div>
                   
-                  {/* Flexible responsive Grid with dynamic sizing */}
                   <div className="grid grid-cols-3 gap-1">
                     <div className="p-1 rounded-2xl bg-emerald-500/[0.02] dark:bg-emerald-500/[0.01] border border-emerald-500/10 flex flex-col justify-between items-center min-h-[2.5rem] h-auto text-center">
                       <p className="text-[9px] uppercase font-bold text-gray-400">Total Credit</p>
-                      <p className="text-xs sm:text-sm font-black text-emerald-500 mt-1 break-all leading-snug">+{getAggregateCurrencyDisplay(entries)} {profileStats.totalCredit}</p>
+                      <p className="text-xs sm:text-sm font-black text-emerald-500 mt-1 break-all leading-snug">
+                        + {getCurrencySymbol(getAggregateCurrencyDisplay(entries))} {profileStats.totalCreditYear}
+                      </p>
                     </div>
                     <div className="p-1 rounded-2xl bg-red-500/[0.02] dark:bg-red-500/[0.01] border border-red-500/10 flex flex-col justify-between items-center min-h-[2.5rem] h-auto text-center">
                       <p className="text-[9px] uppercase font-bold text-gray-400">Total Debit</p>
-                      <p className="text-xs sm:text-sm font-black text-red-500 mt-1 break-all leading-snug">-{getAggregateCurrencyDisplay(entries)} {profileStats.totalDebit}</p>
+                      <p className="text-xs sm:text-sm font-black text-red-500 mt-1 break-all leading-snug">
+                        - {getCurrencySymbol(getAggregateCurrencyDisplay(entries))} {profileStats.totalDebitYear}
+                      </p>
                     </div>
-                    <div className={`p-1 rounded-2xl border flex flex-col justify-between items-center min-h-[2.5rem] h-auto text-center ${profileStats.netBalance >= 0 ? 'bg-emerald-500/[0.02] dark:bg-emerald-500/[0.01] border-emerald-500/10' : 'bg-red-500/[0.02] dark:bg-red-500/[0.01] border-red-500/10'}`}>
+                    <div className={`p-1 rounded-2xl border flex flex-col justify-between items-center min-h-[2.5rem] h-auto text-center ${profileStats.netBalanceYear >= 0 ? 'bg-emerald-500/[0.02] dark:bg-emerald-500/[0.01] border-emerald-500/10' : 'bg-red-500/[0.02] dark:bg-red-500/[0.01] border-red-500/10'}`}>
                       <p className="text-[9px] uppercase font-bold text-gray-400">Net Wealth</p>
-                      <p className={`text-xs sm:text-sm font-black mt-1 break-all leading-snug ${profileStats.netBalance >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{getAggregateCurrencyDisplay(entries)} {profileStats.netBalance}</p>
+                      <p className={`text-xs sm:text-sm font-black mt-1 break-all leading-snug ${profileStats.netBalanceYear >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                        {getCurrencySymbol(getAggregateCurrencyDisplay(entries))} {profileStats.netBalanceYear}
+                      </p>
                     </div>
                   </div>
                 </div>
 
-                {/* Goals Overview */}
+                {/* Goals Overview Block (Now Filtered By profileYear State Navigation Window) */}
                 <div className="bg-slate-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-4 rounded-2xl shadow-sm">
                   <div className="flex items-center justify-between mb-3 border-b border-gray-100 dark:border-slate-850 pb-2">
                     <div className="flex items-center gap-2">
@@ -1197,71 +1035,74 @@ const maxYearPoints = isLeapYear ? 36600 : 36500;
                       <h4 className="text-[10px] font-black uppercase text-gray-500 dark:text-gray-400 tracking-wider">Target Goals Status</h4>
                     </div>
                     <span className="text-[10px] font-black bg-purple-500/10 text-purple-650 dark:text-purple-400 px-2.5 py-0.5 rounded-full uppercase">
-                      {profileStats.completedGoals.length} / {goals.length} Achieved
+                      {profileStats.completedGoalsYear.length} / {profileStats.totalGoalsInYear.length} Achieved
                     </span>
                   </div>
 
                   <div className="space-y-2 w-full">
-                    {goals.map(g => {
-                      const matchedEntry = entries
-                        .filter(e => e.code === g.code && (g.achievedAt ? e.toDate === g.achievedAt : true))
-                        .sort((a, b) => a.toDate.localeCompare(b.toDate) || a.toTime.localeCompare(b.toTime))[0];
+                    {goals
+                      .filter(g => 
+                        (g.achievedAt && new Date(g.achievedAt).getFullYear() === profileYear) || 
+                        (!g.achievedAt && parseInt(g.deadlineYear) === profileYear)
+                      )
+                      .map(g => {
+                        const matchedEntry = entries
+                          .filter(e => e.code === g.code && (g.achievedAt ? e.toDate === g.achievedAt : true))
+                          .sort((a, b) => a.toDate.localeCompare(b.toDate) || a.toTime.localeCompare(b.toTime))[0];
 
-                      return (
-                        <div 
-                          key={g.id} 
-                          onClick={() => {
-                            if (matchedEntry) {
-                              onSelectDate(matchedEntry.toDate);
-                              onClose();
-                              setTimeout(() => {
-                                scrollToActivity(matchedEntry.id, matchedEntry.toDate);
-                              }, 400);
-                            }
-                          }}
-                          className={`flex items-center justify-between p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-gray-50 dark:border-slate-700/50 shadow-sm gap-4 transition-all ${
-                            matchedEntry 
-                              ? 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-purple-300 dark:hover:border-purple-800/85 hover:shadow-md active:scale-[0.995]' 
-                              : ''
-                          }`}
-                        >
-                          
-                          {/* Left Side: Icon & Details */}
-                          <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                            <div className={`w-6 h-6 rounded-lg flex-shrink-0 ${g.achievedAt ? 'bg-emerald-500/10 text-emerald-500' : 'bg-slate-200 dark:bg-slate-700 text-gray-400'} flex items-center justify-center`}>
-                              <Star size={12} fill={g.achievedAt ? "currentColor" : "none"} />
-                            </div>
-                            
-                            <div className="text-left min-w-0 flex flex-col justify-center">
-                              <p className="text-xs font-black text-gray-800 dark:text-white leading-tight truncate mb-0.5">
-                                {g.name}
-                              </p>
-                              <p className="text-[9px] font-medium text-gray-400 dark:text-gray-400">
-                                Code: {g.code}
-                              </p>
-                            </div>
-                          </div>
-
-                          {/* Right Side: Points, Date & Status */}
-                          <div className="text-right flex flex-col items-end justify-center flex-shrink-0 gap-1.5">
-                            <div className="flex items-baseline gap-1.5">
-                              <span className="text-xs text-slate-500 dark:text-slate-400 font-digital font-bold">
-                                +{g.points} p
-                              </span>
+                        return (
+                          <div 
+                            key={g.id} 
+                            onClick={() => {
+                              if (matchedEntry) {
+                                onSelectDate(matchedEntry.toDate);
+                                onClose();
+                                setTimeout(() => {
+                                  scrollToActivity(matchedEntry.id, matchedEntry.toDate);
+                                }, 400);
+                              }
+                            }}
+                            className={`flex items-center justify-between p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-gray-50 dark:border-slate-700/50 shadow-sm gap-4 transition-all ${
+                              matchedEntry 
+                                ? 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-purple-300 dark:hover:border-purple-800/85 hover:shadow-md active:scale-[0.995]' 
+                                : ''
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                              <div className={`w-6 h-6 rounded-lg flex-shrink-0 ${g.achievedAt ? 'bg-emerald-500/10 text-emerald-500' : 'bg-slate-200 dark:bg-slate-700 text-gray-400'} flex items-center justify-center`}>
+                                <Star size={12} fill={g.achievedAt ? "currentColor" : "none"} />
+                              </div>
                               
+                              <div className="text-left min-w-0 flex flex-col justify-center">
+                                <p className="text-xs font-black text-gray-800 dark:text-white leading-tight truncate mb-0.5">
+                                  {g.name}
+                                </p>
+                                <p className="text-[9px] font-medium text-gray-400 dark:text-gray-400">
+                                  Code: {g.code}
+                                </p>
+                              </div>
                             </div>
-                            
-                            <span className="text-[9px] font-mono font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+
+                            <div className="text-right flex flex-col items-end justify-center flex-shrink-0 gap-1.5">
+                              <div className="flex items-baseline gap-1.5">
+                                <span className="text-xs text-slate-500 dark:text-slate-400 font-digital font-bold">
+                                  {g.points >= 0 ? `+${g.points}` : g.points} p
+                                </span>
+                              </div>
+                              
+                              <span className="text-[9px] font-mono font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                                 {g.achievedAt ? formatGoalDate(g.achievedAt) : `${g.deadlineMonth.substring(0, 3).toUpperCase()} ${g.deadlineYear}`}
                               </span>
+                            </div>
                           </div>
-
-                        </div>
-                      );
-                    })}
-                    {goals.length === 0 && (
+                        );
+                      })}
+                    {goals.filter(g => 
+                      (g.achievedAt && new Date(g.achievedAt).getFullYear() === profileYear) || 
+                      (!g.achievedAt && parseInt(g.deadlineYear) === profileYear)
+                    ).length === 0 && (
                       <div className="text-center py-4 text-xs text-gray-400">
-                        No goals configured
+                        No goals configured for {profileYear}
                       </div>
                     )}
                   </div>
@@ -1271,9 +1112,9 @@ const maxYearPoints = isLeapYear ? 36600 : 36500;
                 <div className="flex justify-between text-[9px] text-gray-400 dark:text-gray-500 p-1 font-mono">
                   <span>FIRST ENTRY: {entries.length > 0 ? entries.slice().sort((a,b) => a.toDate.localeCompare(b.toDate))[0].toDate : 'Never'}</span>
                   <span>LAST ENTRY: {entries.length > 0 ? entries.slice().sort((a,b) => b.toDate.localeCompare(a.toDate))[0].toDate : 'Never'}</span>
-</div>
-  </div>
-)}
+                </div>
+              </div>
+            )}
           </div>
         </motion.div>
       </div>
