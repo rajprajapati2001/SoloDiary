@@ -8,9 +8,10 @@ interface CalendarViewProps {
   selectedDate: string;
   onSelectDate: (date: string) => void;
   onMonthChange?: (month: string, year: string) => void;
+  disableActiveHighlight?: boolean;
 }
 
-const CalendarView: React.FC<CalendarViewProps> = ({ entries, goals, selectedDate, onSelectDate, onMonthChange }) => {
+const CalendarView: React.FC<CalendarViewProps> = ({ entries, goals, selectedDate, onSelectDate, onMonthChange, disableActiveHighlight = false, }) => {
   const [currentMonth, setCurrentMonth] = useState(() => {
     if (selectedDate) return new Date(selectedDate);
     return new Date();
@@ -75,7 +76,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ entries, goals, selectedDat
           const day = i + 1;
           const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
           const points = pointsByDate[dateStr] || 0;
-          const isActive = selectedDate === dateStr;
+          const isActive = !disableActiveHighlight && selectedDate === dateStr;
           const hasAchievedGoal = goals.some(g => g.achievedAt === dateStr);
 
           // Determine badge color for the point values

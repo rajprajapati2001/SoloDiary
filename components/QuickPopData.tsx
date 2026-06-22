@@ -301,7 +301,7 @@ const QuickPopData: React.FC<QuickPopDataProps> = ({
 
   return createPortal(
     <AnimatePresence>
-      <div className="fixed inset-0 z-[150] flex items-center justify-center md:p-4 p-2">
+      <div className="fixed inset-0 z-[150] flex items-center justify-center md:p-4 p-2 pt-0 pb-0">
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

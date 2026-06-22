@@ -1820,6 +1820,7 @@ const [showLabels, setShowLabels] = useState(true);
                   setSelectedYear(y);
                   setSelectedDate(`${y}-${m}-01`);
               }}
+                disableActiveHighlight={true}
              />
           </div>
           <div className="space-y-3 flex flex-col h-full">
