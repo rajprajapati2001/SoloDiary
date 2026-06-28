@@ -36,6 +36,7 @@ interface QuickPopDataProps {
   scrollToActivity: (entryId: string, date?: string) => void;
   userName?: string;
   currentTimeClass?: string;
+  onUpdateUserName?: (newName: string) => void;
 }
 
 const formatGoalDate = (dateStr?: string) => {
@@ -60,7 +61,8 @@ const QuickPopData: React.FC<QuickPopDataProps> = ({
   scrollToActivities,
   scrollToActivity,
   userName = 'User',
-  currentTimeClass = ''
+  currentTimeClass = '',
+  onUpdateUserName
 }) => {
   // State for name editing
   const [isEditingName, setIsEditingName] = useState(false);
@@ -84,6 +86,11 @@ const QuickPopData: React.FC<QuickPopDataProps> = ({
 
   // Save handler
   const handleSaveName = () => {
+      if (editNameValue.trim() && editNameValue.trim() !== userName) {
+      if (onUpdateUserName) {
+        onUpdateUserName(editNameValue.trim());
+      }
+    }
     setIsEditingName(false);
   };
 
@@ -800,7 +807,7 @@ const QuickPopData: React.FC<QuickPopDataProps> = ({
                           />
                           <motion.button
                             whileTap={{ scale: 0.92 }}
-                            onClick={(e) => { e.stopPropagation(); setIsEditingName(false); }}
+                            onClick={(e) => { e.stopPropagation(); handleSaveName(); }}
                             className="p-2 bg-white/20 hover:bg-white/30 text-white rounded-full transition-colors backdrop-blur-sm"
                           >
                             <Check size={18} />

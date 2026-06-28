@@ -722,6 +722,7 @@ const totalYearlyPoints = useMemo(
         scrollToActivity={scrollToActivity}
         userName={userName}
         currentTimeClass={currentTimeClass}
+        onUpdateUserName={onUpdateUserName}
       />
     </div>
   );

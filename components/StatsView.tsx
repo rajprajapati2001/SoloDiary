@@ -9,6 +9,7 @@ import { getDB } from '../db';
 import HeatMap from './HeatMap';
 import MainLogo from "../assets/icons/solodiary_icon.ico";
 import AndroidIcon from "../assets/icons/android.png"
+import BGSDReport from "../assets/SoloDiaryReport-25kb.jpg"
 // html2canvas and jsPDF are loaded dynamically when needed
 import { Browser } from '@capacitor/browser';
 import { Share } from '@capacitor/share';
@@ -514,7 +515,9 @@ const showToast = (message: string) => {
   console.log(message);
 };
 
-  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const [isImporting, setIsImporting] = useState(false);
+  
+const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -523,6 +526,9 @@ const showToast = (message: string) => {
       try {
         const data = JSON.parse(event.target?.result as string);
         if (window.confirm('This will merge the imported data with your existing records. Continue?')) {
+          // 1. Turn on loading screen overlay
+          setIsImporting(true);
+          
           const db = await getDB();
           
           if (data.entries) {
@@ -552,6 +558,9 @@ const showToast = (message: string) => {
       } catch (err) {
         alert('Error importing data. Please check the file format.');
         console.error(err);
+      } finally {
+        // 2. Safely turn off loading overlay when fully complete or on breakdown catch
+        setIsImporting(false);
       }
     };
     reader.readAsText(file);
@@ -1439,9 +1448,33 @@ const [showLabels, setShowLabels] = useState(true);
 
 
   return (
-    <div className="space-y-4 animate-in fade-in duration-500 pb-20">
-{!isDesktop && (
 <>
+{isImporting && (
+
+<div className="relative w-full md:max-w-full mx-auto pt-20 pb-20 p-8 bg-slate-900 border border-slate-800 rounded-2xl flex flex-col items-center justify-center text-white shadow-2xl overflow-hidden">
+  {/* The Spinner Section */}
+  <div className="relative flex items-center justify-center mb-4">
+    <div className="w-16 h-16 border-4 border-pink-500/20 border-t-pink-500 rounded-full animate-spin"></div>
+    <Zap size={24} className="absolute text-pink-500 animate-pulse" />
+  </div>
+  
+  {/* Text Content */}
+  <h3 className="text-xl font-black tracking-tight uppercase">Importing Database...</h3>
+  <p className="text-xs text-gray-400 font-bold tracking-widest mt-1 uppercase text-center">
+    Please do not close or refresh this page
+  </p>
+  </div>
+
+)}
+
+<div className={`${isImporting ? 'hidden' : 'space-y-4 animate-in fade-in duration-500 pb-20'}`}>
+  
+    {/* 1. Global Importing Loader Overlay */}
+
+
+    {/* 2. Main Content Blocks (Wrapped and handled by your !isDesktop logic) */}
+    {!isDesktop && (
+      <>
 {/* SoloDiary Website Link Section */}
 {/* SoloDiary Branding Section */}
 <div className="max-w-[850px] mx-auto bg-white dark:bg-slate-900 p-2 md:p-3 rounded-2xl border border-gray-200/60 dark:border-slate-700/50 shadow-xl shadow-rose-500/5 no-print">
@@ -1676,34 +1709,39 @@ const [showLabels, setShowLabels] = useState(true);
       {/*Android Web View Report*/}
       
       <div className="lg:hidden max-w-[850px] mx-auto no-print">
-      <button 
-        onClick={() => setIsDesktop(true)}
-        className="group relative w-full h-40 overflow-hidden rounded-xl active:scale-[0.98] transition-all duration-200 border border-slate-200 dark:border-slate-700"
-      >
-        {/* Pattern background */}
-        <div className="absolute inset-0 bg-slate-50 dark:bg-slate-800">
-          <svg className="absolute inset-0 w-full h-full opacity-[0.08] dark:opacity-[0.06]" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <pattern id="grid-pattern" width="20" height="20" patternUnits="userSpaceOnUse">
-                <circle cx="1" cy="1" r="1" fill="currentColor" />
-              </pattern>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#grid-pattern)" className="text-slate-900 dark:text-slate-300" />
-          </svg>
-        </div>
-        
-        {/* Shimmer sweep */}
-        <div className="absolute inset-0 -translate-x-full animate-[shimmer_3s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-white/40 dark:via-white/10 to-transparent" />
-        
-        {/* Content overlay */}
-        <div className="relative z-10 flex flex-col items-center justify-center h-full gap-2">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-xl shadow-blue-500/30 group-active:scale-90 transition-transform">
-            <FileChartColumn size={26} className="text-white" />
-          </div>
-          <p className="text-base font-black text-slate-800 dark:text-white uppercase tracking-tight">View PDF Report</p>
-          <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-[0.2em]">Tap to Explore more</p>
-        </div>
-      </button>
+<button 
+  onClick={() => setIsDesktop(true)}
+  className="group relative w-full overflow-hidden rounded-xl active:scale-[0.98] transition-all duration-200 border border-slate-200 dark:border-slate-700"
+>
+  {/* 1. The Driving Image (No h-[150px] on parent, image dictates the height) */}
+  <img 
+    src={BGSDReport} 
+    alt=""
+    className="w-full h-auto object-cover blur-[4px] scale-105 block" 
+  />
+
+  {/* 2. Tint Overlay */}
+  <div className="absolute inset-0 bg-slate-50/40 dark:bg-slate-900/40" />
+  
+  {/* 3. Shimmer sweep */}
+  <div className="absolute inset-0 -translate-x-full animate-[shimmer_3s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-white/30 to-transparent" />
+  
+  {/* 4. Large "REPORT" Watermark */}
+  <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
+    <span className="text-[120px] font-semibold text-black/50 tracking-[-0.04em] rotate-[-20deg] leading-none">
+      REPORT
+    </span>
+  </div>
+  
+  {/* 5. Content overlay */}
+  <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2">
+    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-xl shadow-blue-500/30 group-active:scale-90 transition-transform">
+      <FileChartColumn size={26} className="text-white" />
+    </div>
+    <p className="text-base font-black text-slate-800 dark:text-white uppercase tracking-tight">View PDF Report</p>
+    <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-[0.2em]">Tap to Explore more</p>
+  </div>
+</button>
       </div>
 
     </>
@@ -1713,7 +1751,7 @@ const [showLabels, setShowLabels] = useState(true);
   ref={reportWrapperRef}
   className={isDesktop
     ? `desktop-view-active${isClosingDesktop ? ' desktop-view-closing' : ''}`
-    : 'max-w-[850px] mx-auto'}
+    : 'max-w-[850px] mx-auto md:block hidden'}
 >
       {/* PRINTABLE TRANSCRIPT AREA */}
       <div 
@@ -1954,6 +1992,12 @@ const [showLabels, setShowLabels] = useState(true);
       </h4>
 
       {/* 3. Right Button */}
+            {/* Legend - Only visible if NOT in dashboard */}
+  
+        <div className="absolute top-2 right-10 text-[8px] font-bold dark:text-slate-100 text-slate-600 uppercase tracking-widest bg-white/80 dark:bg-slate-800/60 px-2 py-0 rounded-md border border-slate-100 dark:border-slate-700">
+          1 Day = 100 Points
+        </div>
+
       <button 
         onClick={(e) => {
           e.preventDefault();
@@ -2392,19 +2436,19 @@ const [showLabels, setShowLabels] = useState(true);
       {/* LEFT: Official Credentials */}
       <div className="flex-1 space-y-2">
         <div className="flex items-center gap-2">
-          {/* Icon using Emerald for 'Verified' status */}
-          <div className="flex items-center justify-center">
-            <BadgeCheck size={20} strokeWidth={2.5} className="text-emerald-400" />
-          </div>
-          <div>
-            <p className="m-0 text-[7px] font-medium text-slate-500 uppercase tracking-widest">
-              SoloDiary • EST 2026
-            </p>
-            <h4 className="m-0 text-[10px]  font-semibold uppercase tracking-tight text-slate-900 leading-none">
-              Verified Transcript
-            </h4>
-          </div>
-        </div>
+  {/* Icon using Emerald for 'Verified' status */}
+  <div className="flex items-center justify-center">
+    <BadgeCheck size={22} strokeWidth={2.5} className="text-emerald-400" />
+  </div>
+  <div>
+    <p className="m-0 text-[7px] font-medium text-slate-500 uppercase tracking-widest">
+      SoloDiary • EST 2026
+    </p>
+    <h4 className="m-0 text-[10px] font-semibold uppercase tracking-tight text-slate-900 leading-none">
+      Verified Transcript
+    </h4>
+  </div>
+</div>
 
         {/* Legal/Verification Text */}
         <p className="text-[7.5px] text-slate-600 leading-relaxed m-0 border-l-2 border-slate-200 pl-2 italic">
@@ -2412,7 +2456,7 @@ const [showLabels, setShowLabels] = useState(true);
         </p>
         
         {/* Signature Line */}
-        <div className="pt-1 flex items-center gap-1">
+        <div className="pt-0 flex items-center gap-1">
           <span className="text-[7px]  font-semibold text-slate-900 uppercase">Authorized Signatory:</span>
           <span className="text-[8px] font-medium text-slate-700 border-b border-slate-300 px-2 min-w-[80px]">
             {userName.toUpperCase()}
@@ -2528,6 +2572,7 @@ tr.highlighted {
 }
       `}</style>
     </div>
+</>    
   );
 };
 

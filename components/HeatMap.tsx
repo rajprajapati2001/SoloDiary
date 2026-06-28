@@ -169,7 +169,7 @@ const HeatMap: React.FC<HeatMapProps> = ({
 
         {/* Outer scrolling container */}
         <div className="flex-1 overflow-x-auto pb-1.5 [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-gray-350 dark:[&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar-track]:bg-transparent no-scrollbar">
-          <div className="min-w-[420px] space-y-1 select-none">
+           <div className="w-max min-w-max space-y-1 select-none">
             
             {/* Month Labels row */}
             <div className="flex gap-[2px] h-4">
@@ -196,7 +196,7 @@ const HeatMap: React.FC<HeatMapProps> = ({
             {/* Heatmap Matrix Row */}
             <div className="flex gap-[2px] h-[82px]">
               {yearGrid.map((week, wIdx) => (
-                <div key={wIdx} className="flex flex-col gap-[2px] justify-between h-full">
+                <div key={wIdx} className="flex flex-col gap-[2px] justify-between h-full w-[10px] shrink-0">
                   {week.map((day, dIdx) => {
                     const isFutureMonth = maxMonth !== undefined && day.month > maxMonth;
                     const isClickable = day.isCurrentYear && !isFutureMonth;
@@ -233,7 +233,7 @@ const HeatMap: React.FC<HeatMapProps> = ({
                             onDayClick(day.dateStr, day.points, day.count);
                           }
                         }}
-                        className={`w-[10px] h-[10px] rounded-[2px] transition-all duration-200 relative ${shadeClass} ${activeBorder} group/day ${
+                        className={`w-[10px] h-[10px] shrink-0 rounded-[2px] transition-all duration-200 relative ${shadeClass} ${activeBorder} group/day ${
                           isClickable ? 'cursor-pointer hover:scale-110 shadow-sm' : ''
                         }`}
                         title={formattedTip}

@@ -88,12 +88,12 @@ const LineGraph: React.FC<LineGraphProps> = ({
       className="linegraph-container relative w-full overflow-x-auto overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] no-scrollbar"
     >
       
-      {/* Legend - Only visible if NOT in dashboard */}
+      {/* Legend - Only visible if NOT in dashboard 
       {variant !== 'dashboard' && (
         <div className="absolute top-2 right-4 text-[8px] font-bold dark:text-slate-100 text-slate-600 uppercase tracking-widest bg-white/80 dark:bg-slate-800/60 px-2 py-1 rounded-md border border-slate-100 dark:border-slate-700">
           1 Day = 100 Points
         </div>
-      )}
+      )}*/}
 
       <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto min-w-[600px]">
         <defs>
