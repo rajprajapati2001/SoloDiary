@@ -97,17 +97,18 @@ const HeatMap: React.FC<HeatMapProps> = ({
       });
     } else {
       entries.forEach(e => {
-        // Critical Fix: Ensure e.toDate is a valid string before splitting to prevent blank screens
-        if (e && e.toDate && typeof e.toDate === 'string') {
-          const parts = e.toDate.split('-');
+        const eDate = e.fromDate || e.toDate;
+        // Critical Fix: Ensure eDate is a valid string before splitting to prevent blank screens
+        if (e && eDate && typeof eDate === 'string') {
+          const parts = eDate.split('-');
           if (parts.length === 3) {
             const yy = Number(parts[0]);
             if (yy === selectedYear) {
-              if (!contributionsMap[e.toDate]) {
-                contributionsMap[e.toDate] = { count: 0, points: 0 };
+              if (!contributionsMap[eDate]) {
+                contributionsMap[eDate] = { count: 0, points: 0 };
               }
-              contributionsMap[e.toDate].count += 1;
-              contributionsMap[e.toDate].points += e.points || 0;
+              contributionsMap[eDate].count += 1;
+              contributionsMap[eDate].points += e.points || 0;
             }
           }
         }

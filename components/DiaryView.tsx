@@ -29,7 +29,7 @@ const DiaryView: React.FC<DiaryViewProps> = ({ entries, goals, onEdit, onDelete 
   // Description sorting filter: 'all' | 'with-desc' | 'no-desc'
   const [descFilter, setDescFilter] = useState<'all' | 'with-desc' | 'no-desc'>('all');
 
-  const isGoalEntry = (entry: ActivityEntry) => goals.some(g => g.code === entry.code && g.achievedAt === entry.toDate);
+  const isGoalEntry = (entry: ActivityEntry) => goals.some(g => g.code === entry.code && g.achievedAt === (entry.fromDate || entry.toDate));
   const isCashEntry = (entry: ActivityEntry) => !!(entry.debit || entry.credit);
 
   // Helper to switch target month from quick selection clicks
@@ -41,8 +41,9 @@ const DiaryView: React.FC<DiaryViewProps> = ({ entries, goals, onEdit, onDelete 
   const diaryEntries = entries
     .filter(e => {
       // 1. Month validation
-      const matchesMonth = seeAllMonths ? true : (e.toDate && e.toDate.startsWith(selectedMonth));
-      
+      const eDate = e.fromDate || e.toDate;
+      const matchesMonth = seeAllMonths ? true : (eDate && eDate.startsWith(selectedMonth));
+
       // 2. Search term validation
       const searchLower = searchTerm.toLowerCase();
       const matchesSearch = 
@@ -65,14 +66,15 @@ const DiaryView: React.FC<DiaryViewProps> = ({ entries, goals, onEdit, onDelete 
       return matchesMonth && matchesSearch && matchesViewType && matchesDesc;
     })
     .sort((a, b) => {
-      const dateCompare = sortAsc ? a.toDate.localeCompare(b.toDate) : b.toDate.localeCompare(a.toDate);
-      return dateCompare || a.toTime.localeCompare(b.toTime);
+      const dateCompare = sortAsc ? (a.fromDate || a.toDate).localeCompare(b.fromDate || b.toDate) : (b.fromDate || b.toDate).localeCompare(a.fromDate || a.toDate);
+      return dateCompare || (a.fromTime || a.toTime).localeCompare(b.fromTime || b.toTime);
     });
 
   // Dynamic grouping logic to construct the structured chronological timeline database
   const chronologicalTimeline = Object.entries(
     diaryEntries.reduce((acc, entry) => {
-      const monthKey = entry.toDate.substring(0, 7); // Extract YYYY-MM
+      const entryDate = entry.fromDate || entry.toDate;
+      const monthKey = entryDate.substring(0, 7); // Extract YYYY-MM
       if (!acc[monthKey]) {
         acc[monthKey] = {
           monthKey,
@@ -93,9 +95,9 @@ const DiaryView: React.FC<DiaryViewProps> = ({ entries, goals, onEdit, onDelete 
       mGroup.monthDebit += entry.debit || 0;
       mGroup.currencies.push(entry);
       
-      if (!mGroup.days[entry.toDate]) mGroup.days[entry.toDate] = [];
-      mGroup.days[entry.toDate].push(entry);
-      
+      if (!mGroup.days[entryDate]) mGroup.days[entryDate] = [];
+      mGroup.days[entryDate].push(entry);
+       
       return acc;
     }, {} as Record<string, any>)
   ).map(([_, value]) => value);
@@ -414,7 +416,7 @@ const DiaryView: React.FC<DiaryViewProps> = ({ entries, goals, onEdit, onDelete 
                                     </div>
                                     <div className="flex flex-wrap items-center gap-4 text-xs font-bold text-gray-500 dark:text-slate-400">
                                       <span className="flex items-center gap-1.5">
-                                        <Clock size={14} /> {item.isLongEvent ? `${item.fromTime} - ${item.toTime}` : item.toTime}
+                                        <Clock size={14} /> {item.isLongEvent ? `${item.fromTime || item.toTime} - ${item.toTime || item.fromTime}` : item.fromTime || item.toTime}
                                       </span>
                                       <span className={` ${
                                         item.points >= 0 

@@ -2,10 +2,10 @@
 export interface ActivityEntry {
   id: string;
   isLongEvent: boolean;
-  fromDate: string | null;
-  fromTime: string | null;
-  toDate: string;
-  toTime: string;
+  fromDate: string;
+  fromTime: string;
+  toDate: string | null;
+  toTime: string | null;
   code: string;
   name: string;
   points: number;

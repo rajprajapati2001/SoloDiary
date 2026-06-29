@@ -285,7 +285,7 @@ const AutoFill: React.FC<AutoFillProps> = ({ onAddEntries, templates: activityTe
 
     const now = new Date();
     const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    const alreadyFilled = entries.some(e => e.toDate === today);
+    const alreadyFilled = entries.some(e => (e.fromDate || e.toDate) === today);
 
     if (alreadyFilled && !window.confirm('Records for today already exist. Add again?')) return;
     if (!window.confirm(`Add ${enabledTemplates.length} records to today?`)) return;
@@ -293,9 +293,9 @@ const AutoFill: React.FC<AutoFillProps> = ({ onAddEntries, templates: activityTe
     const newEntries: ActivityEntry[] = enabledTemplates.map(t => ({
       id: crypto.randomUUID(),
       isLongEvent: t.isLongEvent,
-      fromDate: t.isLongEvent ? today : null,
+      fromDate: today,
       fromTime: t.fromTime,
-      toDate: today,
+      toDate: t.isLongEvent ? today : null,
       toTime: t.toTime,
       code: t.code,
       name: t.name,

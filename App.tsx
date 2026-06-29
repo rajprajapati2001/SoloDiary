@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { Plus, Home, List, Target, BarChart3, Sun, Moon, BookText, Loader2, User, CalendarSync } from 'lucide-react';
+import { motion } from 'motion/react';
 const Dashboard = lazy(() => import('./components/Dashboard'));
 import EntryForm from './components/EntryForm';
 const GoalsView = lazy(() => import('./components/GoalsView'));
@@ -509,16 +510,19 @@ const App: React.FC = () => {
 
       {!isStatsFullscreen && <Footer isFull={currentPage === 'home' || currentPage === 'chart'} />}
 
-      <button
-  onClick={() => openEntryForm(null)}
-  className={`group fixed bottom-4 right-4 w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-700 text-white rounded-full shadow-[0_10px_25px_-5px_rgba(59,130,246,0.5)] flex items-center justify-center hover:scale-110 hover:shadow-[0_20px_35px_-5px_rgba(59,130,246,0.6)] active:scale-95 transition-all duration-500 ease-out z-40 no-print ${fabReady && currentPage === 'home' ? 'translate-y-0 opacity-100' : 'translate-y-24 opacity-0 pointer-events-none'}`}
->
-  <Plus 
-    size={32} 
-    strokeWidth={3} 
-    className="transition-transform duration-500 group-hover:rotate-180 drop-shadow-md" 
-  />
-</button>
+      <motion.button
+        whileHover={{ scale: 1.15, rotate: 90, shadow: "0px 15px 30px rgba(59,130,246,0.45)" }}
+        whileTap={{ scale: 0.9 }}
+        transition={{ type: "spring", stiffness: 400, damping: 15 }}
+        onClick={() => openEntryForm(null)}
+        className={`fixed bottom-4 right-4 w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-700 text-white rounded-full shadow-[0_10px_25px_-5px_rgba(59,130,246,0.5)] flex items-center justify-center z-40 no-print cursor-pointer ${fabReady && currentPage === 'home' ? 'translate-y-0 opacity-100' : 'translate-y-24 opacity-0 pointer-events-none'} transition-transform duration-300`}
+      >
+        <Plus 
+          size={32} 
+          strokeWidth={3} 
+          className="drop-shadow-md" 
+        />
+      </motion.button>
 
       {hasBootedForm && (
         <EntryForm

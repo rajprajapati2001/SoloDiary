@@ -195,7 +195,7 @@ const selectedYear = dateObj.getFullYear();
   const selectedMonthStr = selectedDate.substring(0, 7);
 
   const selectedDateEntries = useMemo(() =>
-    entries.filter(e => e.toDate === selectedDate).sort((a, b) => a.toTime.localeCompare(b.toTime)),
+    entries.filter(e => (e.fromDate || e.toDate) === selectedDate).sort((a, b) => (a.fromTime || a.toTime).localeCompare(b.fromTime || b.toTime)),
     [entries, selectedDate]
   );
 
@@ -206,7 +206,7 @@ const selectedYear = dateObj.getFullYear();
   const daysInMonth = useMemo(() => new Date(selectedYear, dateObj.getMonth() + 1, 0).getDate(), [selectedYear, dateObj]);
   const monthTarget = daysInMonth * 100;
 
-  const monthEntries = useMemo(() => entries.filter(e => e.toDate.startsWith(selectedMonthStr)), [entries, selectedMonthStr]);
+  const monthEntries = useMemo(() => entries.filter(e => (e.fromDate || e.toDate).startsWith(selectedMonthStr)), [entries, selectedMonthStr]);
   const totalMonthPoints = useMemo(() => monthEntries.reduce((sum, e) => sum + e.points, 0), [monthEntries]);
   const monthProgressPercent = (totalMonthPoints / monthTarget) * 100;
 
@@ -217,7 +217,7 @@ const selectedYear = dateObj.getFullYear();
 const yearlyEntries = useMemo(
   () => entries.filter(e => {
     try {
-      return new Date(e.toDate).getFullYear() === selectedYear;
+      return new Date(e.fromDate || e.toDate).getFullYear() === selectedYear;
     } catch {
       return false;
     }
@@ -240,7 +240,7 @@ const totalYearlyPoints = useMemo(
 
     while (current <= lastDay) {
       const dStr = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
-      const pts = entries.filter(e => e.toDate === dStr).reduce((sum, e) => sum + e.points, 0);
+      const pts = entries.filter(e => (e.fromDate || e.toDate) === dStr).reduce((sum, e) => sum + e.points, 0);
       const achievedInDay = goals.filter(g => g.achievedAt === dStr);
       data.push({
         day: current.getDate(),
@@ -632,7 +632,7 @@ const totalYearlyPoints = useMemo(
               ) : (
                 <AnimatePresence initial={false} mode="sync">
                   {selectedDateEntries.map(entry => {
-                    const isGoal = goals.some(g => g.code === entry.code && g.achievedAt === entry.toDate);
+                    const isGoal = goals.some(g => g.code === entry.code && g.achievedAt === (entry.fromDate || entry.toDate));
                     const isCash = !!(entry.debit || entry.credit);
                     return (
                       <motion.div
@@ -661,7 +661,7 @@ const totalYearlyPoints = useMemo(
 
                             <div className="inline-flex items-center gap-2 mt-1.5 px-2 py-1 rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 text-[10px] font-bold text-gray-500 dark:text-gray-400 shadow-sm">
                               <Clock size={10} />
-                              <span>{entry.isLongEvent ? `${entry.fromTime} — ${entry.toTime}` : entry.toTime}</span>
+                              <span>{entry.isLongEvent ? `${entry.fromTime || entry.toTime} — ${entry.toTime || entry.fromTime}` : entry.fromTime || entry.toTime}</span>
                               {isCash && (
                                 <div className="flex gap-2 ml-1 border-l pl-2 border-gray-200 dark:border-slate-700">
                                   {entry.debit > 0 && <span className="text-red-500">-{entry.debit}{getCurrencySymbol(entry.moneyCode)}</span>}

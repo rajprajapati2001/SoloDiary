@@ -34,7 +34,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({ entries, goals, selectedDat
   const firstDayOfMonth = new Date(year, month, 1).getDay();
 
   const pointsByDate: Record<string, number> = entries.reduce((acc, entry) => {
-    acc[entry.toDate] = (acc[entry.toDate] || 0) + entry.points;
+    const entryDate = entry.fromDate || entry.toDate;
+    acc[entryDate] = (acc[entryDate] || 0) + entry.points;
     return acc;
   }, {} as Record<string, number>);
 

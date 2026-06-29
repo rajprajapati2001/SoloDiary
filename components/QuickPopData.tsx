@@ -21,7 +21,7 @@ import {
   ListTodo
 } from 'lucide-react';
 
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import HeatMap from './HeatMap';
 
 interface QuickPopDataProps {
@@ -64,6 +64,13 @@ const QuickPopData: React.FC<QuickPopDataProps> = ({
   currentTimeClass = '',
   onUpdateUserName
 }) => {
+  // Animation states
+  const shouldReduceMotion = useReducedMotion();
+  const [shouldRender, setShouldRender] = useState(isOpen);
+  const [isVisible, setIsVisible] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
+  const [isHeavyUiReady, setIsHeavyUiReady] = useState(false);
+
   // State for name editing
   const [isEditingName, setIsEditingName] = useState(false);
   const [editNameValue, setEditNameValue] = useState(userName || "");
@@ -86,7 +93,7 @@ const QuickPopData: React.FC<QuickPopDataProps> = ({
 
   // Save handler
   const handleSaveName = () => {
-      if (editNameValue.trim() && editNameValue.trim() !== userName) {
+    if (editNameValue.trim() && editNameValue.trim() !== userName) {
       if (onUpdateUserName) {
         onUpdateUserName(editNameValue.trim());
       }
@@ -103,28 +110,83 @@ const QuickPopData: React.FC<QuickPopDataProps> = ({
   const [profileYear, setProfileYear] = useState(currentYear);
 
   useEffect(() => {
-    setActiveDate(selectedDate);
-    setActiveYear(currentYear);
-    setProfileYear(currentYear);
-  }, [selectedDate, currentYear]);
+    if (isOpen) {
+      setShouldRender(true);
+      setIsClosing(false);
+      setIsVisible(false);
+      setIsHeavyUiReady(false);
+      const frame = window.requestAnimationFrame(() => {
+        setIsVisible(true);
+      });
+      const timer = window.setTimeout(() => {
+        setIsHeavyUiReady(true);
+      }, 220); // Delay heavy UI rendering until the opening animation finishes
+      return () => {
+        window.cancelAnimationFrame(frame);
+        window.clearTimeout(timer);
+      };
+    } else {
+      setIsClosing(true);
+      setIsVisible(false);
+      setIsHeavyUiReady(false);
+      const closeTimer = window.setTimeout(() => {
+        setShouldRender(false);
+        setIsClosing(false);
+      }, 180);
+      return () => {
+        window.clearTimeout(closeTimer);
+      };
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (shouldRender) {
+      setActiveDate(selectedDate);
+      setActiveYear(currentYear);
+      setProfileYear(currentYear);
+    }
+  }, [selectedDate, currentYear, shouldRender]);
 
   const activeMonth = activeDate.substring(0, 7);
 
-  const activeDayEntries = entries.filter(
-    e => e.toDate === activeDate
-  );
+  const activeDayEntries = useMemo(() => {
+    if (!shouldRender) return [];
+    return entries.filter(
+      e => (e.fromDate || e.toDate) === activeDate
+    );
+  }, [entries, activeDate, shouldRender]);
 
-  const activeMonthEntries = entries.filter(
-    e => e.toDate.startsWith(activeMonth)
-  );
+  const activeMonthEntries = useMemo(() => {
+    if (!shouldRender) return [];
+    return entries.filter(
+      e => (e.fromDate || e.toDate).startsWith(activeMonth)
+    );
+  }, [entries, activeMonth, shouldRender]);
 
-  const activeYearEntries = entries.filter(
-    e => new Date(e.toDate).getFullYear() === activeYear
-  );
+  const activeYearEntries = useMemo(() => {
+    if (!shouldRender) return [];
+    return entries.filter(
+      e => {
+        try {
+          return new Date(e.fromDate || e.toDate).getFullYear() === activeYear;
+        } catch {
+          return false;
+        }
+      }
+    );
+  }, [entries, activeYear, shouldRender]);
 
   const financialSummary = useMemo(() => {
     let credit = 0;
     let debit = 0;
+
+    if (!shouldRender) {
+      return {
+        credit,
+        debit,
+        balance: 0
+      };
+    }
 
     activeMonthEntries.forEach(e => {
       if (e.credit) credit += e.credit;
@@ -136,13 +198,34 @@ const QuickPopData: React.FC<QuickPopDataProps> = ({
       debit,
       balance: credit - debit
     };
-  }, [activeMonthEntries]);
+  }, [activeMonthEntries, shouldRender]);
   
   // Profile Stats Calculation
   const profileStats = useMemo(() => {
+    if (!shouldRender || (type === 'profile' && !isHeavyUiReady)) {
+      return {
+        entriesYear: [],
+        totalPointsYear: 0,
+        totalActivitiesYear: 0,
+        completedGoalsYear: [],
+        totalGoalsInYear: [],
+        avgPointsPerDayYear: 0,
+        currentStreak: 0,
+        rank: "Novice Logger",
+        totalDebitYear: 0,
+        totalCreditYear: 0,
+        netBalanceYear: 0,
+        trackingYear: profileYear,
+        activeDaysCountYear: 0,
+        annualGradeYear: "D",
+        annualGradeDescription: "Aspirant",
+        yearGrid: []
+      };
+    }
+
     const entriesYear = entries.filter(e => {
       try {
-        return new Date(e.toDate).getFullYear() === profileYear;
+        return new Date(e.fromDate || e.toDate).getFullYear() === profileYear;
       } catch {
         return false;
       }
@@ -159,11 +242,12 @@ const QuickPopData: React.FC<QuickPopDataProps> = ({
 
     const entriesByDateInYear: Record<string, { count: number; points: number }> = {};
     entriesYear.forEach(e => {
-      if (!entriesByDateInYear[e.toDate]) {
-        entriesByDateInYear[e.toDate] = { count: 0, points: 0 };
+      const eDate = e.fromDate || e.toDate;
+      if (!entriesByDateInYear[eDate]) {
+        entriesByDateInYear[eDate] = { count: 0, points: 0 };
       }
-      entriesByDateInYear[e.toDate].count += 1;
-      entriesByDateInYear[e.toDate].points += (e.points || 0);
+      entriesByDateInYear[eDate].count += 1;
+      entriesByDateInYear[eDate].points += (e.points || 0);
     });
 
     const activeDaysCountYear = Object.keys(entriesByDateInYear).length;
@@ -171,7 +255,7 @@ const QuickPopData: React.FC<QuickPopDataProps> = ({
     const avgPointsPerDayYear = Math.round(totalPointsYear / totalActiveDaysCount);
 
     // Streaks calculations
-    const sortedDates = (Array.from(new Set(entries.map(e => e.toDate))) as string[])
+    const sortedDates = (Array.from(new Set(entries.map(e => e.fromDate || e.toDate))) as string[])
       .sort((a, b) => b.localeCompare(a));
 
     let currentStreak = 0;
@@ -269,7 +353,7 @@ const QuickPopData: React.FC<QuickPopDataProps> = ({
       annualGradeDescription,
       yearGrid
     };
-  }, [entries, goals, profileYear]);
+  }, [entries, goals, profileYear, shouldRender, isHeavyUiReady, type]);
 
   const metadata = {
     daily: {
@@ -304,43 +388,76 @@ const QuickPopData: React.FC<QuickPopDataProps> = ({
     }
   }[type];
 
-  if (!isOpen) return null;
+  const handleCloseWithAnimation = () => {
+    if (isClosing) return;
+    onClose();
+  };
+
+  if (!shouldRender) return null;
 
   return createPortal(
     <AnimatePresence>
-      <div className="fixed inset-0 z-[150] flex items-center justify-center md:p-4 p-2 pt-0 pb-0">
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={onClose}
-          className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm"
-        />
+      {isOpen && (
+        <>
+          <motion.div
+            key="backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            onClick={handleCloseWithAnimation}
+            className="fixed inset-0 z-[150] bg-black/70 backdrop-blur-[1px] cursor-pointer"
+          />
 
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 15 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 15 }}
-          transition={{ type: 'spring', duration: 0.4 }}
-          className="relative w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-slate-800 border border-gray-100 dark:border-slate-700 z-10"
-        >
-          <div className={`flex items-center justify-between border-b p-4 ${metadata.headerBg}`}>
-            <div className="flex items-center gap-3">
-              {metadata.icon}
-              <h3 className={`text-lg font-black uppercase tracking-tight ${type === 'profile' ? 'text-inherit' : 'text-gray-800 dark:text-white'}`}>
-                {metadata.title}
-              </h3>
-            </div>
-
-            <button
-              onClick={onClose}
-              className={`rounded-lg p-1.5 hover:bg-black/5 dark:hover:bg-white/10 ${type === 'profile' ? 'text-inherit opacity-80 hover:opacity-100' : 'text-gray-400'}`}
+          <motion.div
+            key="modal"
+            initial={shouldReduceMotion ? { opacity: 0, y: 15 } : {
+              opacity: 0,
+              scale: 0.95,
+              y: 20,
+              rotateX: -5,
+              transformPerspective: 1000
+            }}
+            animate={{
+              opacity: 1,
+              scale: 1,
+              y: 0,
+              rotateX: 0,
+              transition: {
+                type: "spring",
+                stiffness: 280,
+                damping: 26,
+              }
+            }}
+            exit={shouldReduceMotion ? { opacity: 0, y: 15 } : {
+              opacity: 0,
+              scale: 0.95,
+              y: 20,
+              rotateX: 5,
+              transition: { duration: 0.18, ease: "easeOut" }
+            }}
+            className="fixed inset-0 z-[151] flex items-center justify-center md:p-4 p-2 pointer-events-none"
+          >
+            <div
+              className="relative w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-slate-800 border border-gray-100 dark:border-slate-700 z-10 pointer-events-auto"
             >
-              <X size={18} />
-            </button>
+        <div className={`flex items-center justify-between border-b p-4 ${metadata.headerBg}`}>
+          <div className="flex items-center gap-3">
+            {metadata.icon}
+            <h3 className={`text-lg font-black uppercase tracking-tight ${type === 'profile' ? 'text-inherit' : 'text-gray-800 dark:text-white'}`}>
+              {metadata.title}
+            </h3>
           </div>
 
-          <div className="md:p-5 p-3 max-h-[70vh] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] space-y-4">
+          <button
+            onClick={handleCloseWithAnimation}
+            className={`rounded-lg p-1.5 hover:bg-black/5 dark:hover:bg-white/10 ${type === 'profile' ? 'text-inherit opacity-80 hover:opacity-100' : 'text-gray-400'}`}
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="md:p-5 p-3 max-h-[70vh] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] space-y-4">
             
             {/* DAILY */}
             {type === 'daily' && (
@@ -399,14 +516,15 @@ const QuickPopData: React.FC<QuickPopDataProps> = ({
                       <button
                         key={item.id}
                         onClick={() => {
-                          onSelectDate(item.toDate);
-                          onClose();
+                          const itemDate = item.fromDate || item.toDate;
+                          onSelectDate(itemDate);
+                          handleCloseWithAnimation();
                           setTimeout(() => {
-                            scrollToActivity(item.id, item.toDate);
+                            scrollToActivity(item.id, itemDate);
                           }, 400);
                         }}
                         className={`w-full text-left p-3 rounded-2xl transition-all border ${
-                          goals.some(g => g.code === item.code && g.achievedAt === item.toDate)
+                          goals.some(g => g.code === item.code && g.achievedAt === (item.fromDate || item.toDate))
                             ? 'border-emerald-500/40 shadow-md shadow-emerald-500/10 bg-emerald-500/[0.02] dark:bg-emerald-500/[0.01]' 
                             : 'border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900'
                         } hover:border-emerald-500/60`}
@@ -417,7 +535,7 @@ const QuickPopData: React.FC<QuickPopDataProps> = ({
                               {item.name}
                             </p>
                             <p className="text-xs text-gray-400 mt-1">
-                              {item.isLongEvent ? `${item.fromTime} – ${item.toTime}` : item.toTime}
+                              {item.isLongEvent ? `${item.fromTime || item.toTime} – ${item.toTime || item.fromTime}` : item.fromTime || item.toTime}
                             </p>
                           </div>
                           <div className="text-right">
@@ -481,7 +599,7 @@ const QuickPopData: React.FC<QuickPopDataProps> = ({
                 <div className="md:space-y-2 space-y-1">
                   {[...Array(12)].map((_, i) => {
                     const monthDate = `${activeYear}-${String(i + 1).padStart(2, '0')}`;
-                    const data = entries.filter(e => e.toDate.startsWith(monthDate));
+                    const data = entries.filter(e => (e.fromDate || e.toDate).startsWith(monthDate));
                     const score = data.reduce((s, e) => s + e.points, 0);
                     const progress = Math.min((score / (30 * 100)) * 100, 100);
 
@@ -491,7 +609,7 @@ const QuickPopData: React.FC<QuickPopDataProps> = ({
                         onClick={() => {
                           const firstDate = `${monthDate}-01`;
                           onSelectDate(firstDate);
-                          onClose();
+                          handleCloseWithAnimation();
                           setTimeout(() => {
                             scrollToActivities();
                           }, 300);
@@ -528,11 +646,11 @@ const QuickPopData: React.FC<QuickPopDataProps> = ({
             {/* YEARLY POINTS */}
             {type === 'yearly_pts' && (
               <div className="md:space-y-3 space-y-1">
-                {Array.from(new Set([new Date().getFullYear(), ...entries.map(e => new Date(e.toDate).getFullYear())]))
+                {Array.from(new Set([new Date().getFullYear(), ...entries.map(e => new Date(e.fromDate || e.toDate).getFullYear())]))
                   .sort((a, b) => (b as number) - (a as number))
                   .map(year => {
                     const score = entries
-                      .filter(e => new Date(e.toDate).getFullYear() === year)
+                      .filter(e => new Date(e.fromDate || e.toDate).getFullYear() === year)
                       .reduce((s, e) => s + (e.points || 0), 0);
 
                     return (
@@ -541,7 +659,7 @@ const QuickPopData: React.FC<QuickPopDataProps> = ({
                         onClick={() => {
                           const targetDate = `${year}-01-01`;
                           onSelectDate(targetDate);
-                          onClose();
+                          handleCloseWithAnimation();
                         }}
                         className="w-full text-left p-4 rounded-2xl border border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 hover:border-indigo-500/40 transition-all cursor-pointer block"
                       >
@@ -601,8 +719,8 @@ const QuickPopData: React.FC<QuickPopDataProps> = ({
                       const dateB = new Date(b.achievedAt!).getTime();
                       if (dateA !== dateB) return dateA - dateB;
 
-                      const timeA = entries.find(e => e.toDate === a.achievedAt && e.code === a.code)?.fromTime || "";
-                      const timeB = entries.find(e => e.toDate === b.achievedAt && e.code === b.code)?.fromTime || "";
+                      const timeA = entries.find(e => (e.fromDate || e.toDate) === a.achievedAt && e.code === a.code)?.fromTime || "";
+                      const timeB = entries.find(e => (e.fromDate || e.toDate) === b.achievedAt && e.code === b.code)?.fromTime || "";
                       return timeA.localeCompare(timeB);
                     })
                     .map(g => (
@@ -611,10 +729,10 @@ const QuickPopData: React.FC<QuickPopDataProps> = ({
                         onClick={() => {
                           if (!g.achievedAt) return;
                           onSelectDate(g.achievedAt);
-                          onClose();
+                          handleCloseWithAnimation();
                           setTimeout(() => {
-                            const found = entries.find(e => e.toDate === g.achievedAt && e.code === g.code);
-                            if (found) scrollToActivity(found.id, found.toDate);
+                            const found = entries.find(e => (e.fromDate || e.toDate) === g.achievedAt && e.code === g.code);
+                            if (found) scrollToActivity(found.id, found.fromDate || found.toDate);
                           }, 400);
                         }}
                         className="w-full p-3 rounded-2xl border border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 hover:border-purple-500/30 transition-all"
@@ -709,22 +827,23 @@ const QuickPopData: React.FC<QuickPopDataProps> = ({
                     .filter(e => e.credit || e.debit)
                     .slice()
                     .sort((a, b) => {
-                      const dateCompare = a.toDate.localeCompare(b.toDate);
+                      const dateCompare = (a.fromDate || a.toDate).localeCompare(b.fromDate || b.toDate);
                       if (dateCompare !== 0) return dateCompare;
                       const timeA = a.fromTime || a.toTime || "";
                       const timeB = b.fromTime || b.toTime || "";
                       return timeA.localeCompare(timeB);
                     })
                     .map(item => {
-                      const isGoalAchieved = goals.some(g => g.code === item.code && g.achievedAt === item.toDate);
+                      const isGoalAchieved = goals.some(g => g.code === item.code && g.achievedAt === (item.fromDate || item.toDate));
                       return (
                         <button
                           key={item.id}
                           onClick={() => {
-                            onSelectDate(item.toDate);
-                            onClose();
+                            const itemDate = item.fromDate || item.toDate;
+                            onSelectDate(itemDate);
+                            handleCloseWithAnimation();
                             setTimeout(() => {
-                              scrollToActivity(item.id, item.toDate);
+                              scrollToActivity(item.id, itemDate);
                             }, 350);
                           }}
                           className={`w-full p-3 rounded-2xl border transition-all ${
@@ -737,12 +856,12 @@ const QuickPopData: React.FC<QuickPopDataProps> = ({
                             <div className="text-left">
                               <p className="font-black text-gray-800 dark:text-white leading-tight">{item.name}</p>
                               <p className="text-[10px] font-bold text-blue-500 dark:text-blue-400 uppercase tracking-tight mt-0.5">
-                                {item.isLongEvent ? `${item.fromTime} – ${item.toTime}` : item.toTime}
+                                {item.isLongEvent ? `${item.fromTime || item.toTime} – ${item.toTime || item.fromTime}` : item.fromTime || item.toTime}
                               </p>
                             </div>
                             <div className="text-right">
                               <p className="text-[10px] font-black text-gray-400 dark:text-slate-500 uppercase mb-1">
-                                {new Date(item.toDate).toLocaleDateString('en-US', { month: 'short', day: '2-digit' }).toUpperCase()}
+                                {new Date(item.fromDate || item.toDate).toLocaleDateString('en-US', { month: 'short', day: '2-digit' }).toUpperCase()}
                               </p>
                               {item.credit > 0 && <p className="font-black text-emerald-500 leading-none">+{item.credit}{getCurrencySymbol(item.moneyCode)}</p>}
                               {item.debit > 0 && <p className="font-black text-red-500 leading-none">-{item.debit}{getCurrencySymbol(item.moneyCode)}</p>}
@@ -757,8 +876,57 @@ const QuickPopData: React.FC<QuickPopDataProps> = ({
 
             {/* PROFILE PERFORMANCE CARD */}
             {type === 'profile' && (
-              <div className="space-y-4">
-                {/* Global Profile Year Controls Navigation Block */}
+              !isHeavyUiReady ? (
+                <div className="space-y-4 ">
+                  {/* Skeleton for Navigation Block */}
+                  <div className="flex items-center justify-between bg-slate-100/60 dark:bg-slate-950/40 border border-gray-100/50 dark:border-slate-800/50 p-2.5 rounded-2xl h-[58px]">
+                    <div className="w-8 h-8 bg-gray-200 dark:bg-slate-800 rounded-xl" />
+                    <div className="space-y-1.5 flex flex-col items-center">
+                      <div className="w-24 h-2 bg-gray-200 dark:bg-slate-800 rounded-full" />
+                      <div className="w-12 h-3.5 bg-gray-200 dark:bg-slate-800 rounded-full" />
+                    </div>
+                    <div className="w-8 h-8 bg-gray-200 dark:bg-slate-800 rounded-xl" />
+                  </div>
+
+                  {/* Skeleton for Profile Header Card */}
+                  <div className="p-6 rounded-3xl bg-slate-100/60 dark:bg-slate-950/40 border border-gray-100/50 dark:border-slate-800/50 flex flex-col sm:flex-row items-center justify-between gap-4 h-42">
+                    <div className="space-y-3 w-full sm:w-auto flex flex-col items-center sm:items-start">
+                      <div className="w-40 h-7 bg-gray-200 dark:bg-slate-800 rounded-xl" />
+                      <div className="w-24 h-2.5 bg-gray-200 dark:bg-slate-800 rounded-full" />
+                    </div>
+                    <div className="w-32 h-9 bg-gray-200 dark:bg-slate-800 rounded-xl" />
+                  </div>
+
+                  {/* Skeleton for Rank Progression */}
+                  <div className="bg-slate-100/60 dark:bg-slate-950/40 border border-gray-100/50 dark:border-slate-800/50 p-5 rounded-3xl space-y-4 h-[100px] flex flex-col justify-center">
+                    <div className="flex justify-between items-end">
+                      <div className="space-y-1.5">
+                        <div className="w-20 h-2 bg-gray-200 dark:bg-slate-800 rounded-full" />
+                        <div className="w-32 h-3.5 bg-gray-200 dark:bg-slate-800 rounded-full" />
+                      </div>
+                      <div className="space-y-1.5 flex flex-col items-end">
+                        <div className="w-12 h-2 bg-gray-200 dark:bg-slate-800 rounded-full" />
+                        <div className="w-16 h-3 bg-gray-200 dark:bg-slate-800 rounded-full" />
+                      </div>
+                    </div>
+                    <div className="w-full h-3 bg-gray-200 dark:bg-slate-800 rounded-full" />
+                  </div>
+
+                  {/* Skeleton for Heatmap */}
+                  <div className="bg-slate-100/60 dark:bg-slate-950/40 border border-gray-100/50 dark:border-slate-800/50 p-5 rounded-3xl space-y-4 h-[180px] flex flex-col justify-center">
+                    <div className="flex justify-between items-center">
+                      <div className="space-y-2">
+                        <div className="w-48 h-3.5 bg-gray-200 dark:bg-slate-800 rounded-full" />
+                        <div className="w-32 h-2 bg-gray-200 dark:bg-slate-800 rounded-full" />
+                      </div>
+                      <div className="w-12 h-5 bg-gray-200 dark:bg-slate-800 rounded-full" />
+                    </div>
+                    <div className="w-full h-24 bg-gray-200 dark:bg-slate-800 rounded-2xl" />
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Global Profile Year Controls Navigation Block */}
                 <div className="flex items-center justify-between bg-slate-100 dark:bg-slate-900/60 border border-gray-100 dark:border-slate-800 p-2.5 rounded-2xl">
                   <button
                     onClick={() => setProfileYear(prev => prev - 1)}
@@ -850,7 +1018,7 @@ const QuickPopData: React.FC<QuickPopDataProps> = ({
 
                   <div className="text-center sm:text-right z-10 flex flex-col items-center sm:items-end gap-1">
                     <div className="px-4 py-2 rounded-2xl border font-black text-xs inline-flex items-center gap-2 backdrop-blur-md bg-white/20 border-white/30 shadow-sm">
-                      <Trophy size={14} className="text-amber-300 animate-pulse" />
+                      <Trophy size={14} className="text-amber-300" />
                       <span className="tracking-wide">{profileStats.rank}</span>
                     </div>
                     <p className="text-[9px] mt-1 text-white/75 uppercase tracking-wider font-semibold">
@@ -925,7 +1093,7 @@ const QuickPopData: React.FC<QuickPopDataProps> = ({
                       themeColor="indigo"
                       onDayClick={(dateStr) => {
                         onSelectDate(dateStr);
-                        onClose();
+                        handleCloseWithAnimation();
                         setTimeout(() => {
                           scrollToActivities();
                         }, 300);
@@ -1054,18 +1222,19 @@ const QuickPopData: React.FC<QuickPopDataProps> = ({
                       )
                       .map(g => {
                         const matchedEntry = entries
-                          .filter(e => e.code === g.code && (g.achievedAt ? e.toDate === g.achievedAt : true))
-                          .sort((a, b) => a.toDate.localeCompare(b.toDate) || a.toTime.localeCompare(b.toTime))[0];
+                          .filter(e => e.code === g.code && (g.achievedAt ? (e.fromDate || e.toDate) === g.achievedAt : true))
+                          .sort((a, b) => (a.fromDate || a.toDate).localeCompare(b.fromDate || b.toDate) || (a.fromTime || a.toTime).localeCompare(b.fromTime || b.toTime))[0];
 
                         return (
                           <div 
                             key={g.id} 
                             onClick={() => {
                               if (matchedEntry) {
-                                onSelectDate(matchedEntry.toDate);
-                                onClose();
+                                const mDate = matchedEntry.fromDate || matchedEntry.toDate;
+                                onSelectDate(mDate);
+                                handleCloseWithAnimation();
                                 setTimeout(() => {
-                                  scrollToActivity(matchedEntry.id, matchedEntry.toDate);
+                                  scrollToActivity(matchedEntry.id, mDate);
                                 }, 400);
                               }
                             }}
@@ -1117,16 +1286,25 @@ const QuickPopData: React.FC<QuickPopDataProps> = ({
 
                 {/* Journey Timeline details */}
                 <div className="flex justify-between text-[9px] text-gray-400 dark:text-gray-500 p-1 font-mono">
-                  <span>FIRST ENTRY: {entries.length > 0 ? entries.slice().sort((a,b) => a.toDate.localeCompare(b.toDate))[0].toDate : 'Never'}</span>
-                  <span>LAST ENTRY: {entries.length > 0 ? entries.slice().sort((a,b) => b.toDate.localeCompare(a.toDate))[0].toDate : 'Never'}</span>
+                  <span>FIRST ENTRY: {entries.length > 0 ? (() => {
+                    const sorted = entries.slice().sort((a,b) => (a.fromDate || a.toDate).localeCompare(b.fromDate || b.toDate));
+                    return sorted[0].fromDate || sorted[0].toDate;
+                  })() : 'Never'}</span>
+                  <span>LAST ENTRY: {entries.length > 0 ? (() => {
+                    const sorted = entries.slice().sort((a,b) => (b.fromDate || b.toDate).localeCompare(a.fromDate || a.toDate));
+                    return sorted[0].fromDate || sorted[0].toDate;
+                  })() : 'Never'}</span>
                 </div>
               </div>
-            )}
+            )
+          )}
           </div>
-        </motion.div>
-      </div>
-    </AnimatePresence>,
-    document.body
+        </div>
+      </motion.div>
+    </>
+  )}
+</AnimatePresence>,
+document.body
   );
 };
 
