@@ -43,7 +43,7 @@ const DiaryView: React.FC<DiaryViewProps> = ({ entries, goals, onEdit, onDelete 
       // 1. Month validation
       const eDate = e.fromDate || e.toDate;
       const matchesMonth = seeAllMonths ? true : (eDate && eDate.startsWith(selectedMonth));
-
+      
       // 2. Search term validation
       const searchLower = searchTerm.toLowerCase();
       const matchesSearch = 
@@ -66,14 +66,16 @@ const DiaryView: React.FC<DiaryViewProps> = ({ entries, goals, onEdit, onDelete 
       return matchesMonth && matchesSearch && matchesViewType && matchesDesc;
     })
     .sort((a, b) => {
-      const dateCompare = sortAsc ? (a.fromDate || a.toDate).localeCompare(b.fromDate || b.toDate) : (b.fromDate || b.toDate).localeCompare(a.fromDate || a.toDate);
-      return dateCompare || (a.fromTime || a.toTime).localeCompare(b.fromTime || b.toTime);
+      const dateCompare = sortAsc 
+        ? (a.fromDate || a.toDate || '').localeCompare(b.fromDate || b.toDate || '') 
+        : (b.fromDate || b.toDate || '').localeCompare(a.fromDate || a.toDate || '');
+      return dateCompare || (a.fromTime || a.toTime || '').localeCompare(b.fromTime || b.toTime || '');
     });
 
   // Dynamic grouping logic to construct the structured chronological timeline database
   const chronologicalTimeline = Object.entries(
     diaryEntries.reduce((acc, entry) => {
-      const entryDate = entry.fromDate || entry.toDate;
+      const entryDate = entry.fromDate || entry.toDate || '';
       const monthKey = entryDate.substring(0, 7); // Extract YYYY-MM
       if (!acc[monthKey]) {
         acc[monthKey] = {
@@ -97,7 +99,7 @@ const DiaryView: React.FC<DiaryViewProps> = ({ entries, goals, onEdit, onDelete 
       
       if (!mGroup.days[entryDate]) mGroup.days[entryDate] = [];
       mGroup.days[entryDate].push(entry);
-       
+      
       return acc;
     }, {} as Record<string, any>)
   ).map(([_, value]) => value);

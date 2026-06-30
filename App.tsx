@@ -159,7 +159,14 @@ const App: React.FC = () => {
         db.get('settings', 'userName')
       ]);
 
-      setEntries((entriesData as ActivityEntry[]).sort((a, b) => b.toDate.localeCompare(a.toDate) || b.toTime.localeCompare(a.toTime)));
+      const sortedEntries = (entriesData as ActivityEntry[]).sort((a, b) => {
+        const dateA = a.toDate || a.fromDate || '';
+        const dateB = b.toDate || b.fromDate || '';
+        const timeA = a.toTime || a.fromTime || '';
+        const timeB = b.toTime || b.fromTime || '';
+        return dateB.localeCompare(dateA) || timeB.localeCompare(timeA);
+      });
+      setEntries(sortedEntries);
       setGoals((goalsData as Goal[]).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)));
 
       if (storedName) {
@@ -206,9 +213,15 @@ const App: React.FC = () => {
       const updatedGoals = prevGoals.map(g => {
         const matches = currentEntries
           .filter(e => e.code === g.code)
-          .sort((a, b) => a.toDate.localeCompare(b.toDate) || a.toTime.localeCompare(b.toTime));
+          .sort((a, b) => {
+            const dateA = a.toDate || a.fromDate || '';
+            const dateB = b.toDate || b.fromDate || '';
+            const timeA = a.toTime || a.fromTime || '';
+            const timeB = b.toTime || b.fromTime || '';
+            return dateA.localeCompare(dateB) || timeA.localeCompare(timeB);
+          });
 
-        const achievedAt = matches.length > 0 ? matches[0].toDate : null;
+        const achievedAt = matches.length > 0 ? (matches[0].toDate || matches[0].fromDate) : null;
         if (achievedAt !== g.achievedAt) {
           db.put('goals', { ...g, achievedAt: achievedAt || undefined });
           return { ...g, achievedAt: achievedAt || undefined };
@@ -290,6 +303,16 @@ const App: React.FC = () => {
     } else {
       newEntries = [entry, ...entries];
     }
+    
+    // Sort safely descending
+    newEntries.sort((a, b) => {
+      const dateA = a.toDate || a.fromDate || '';
+      const dateB = b.toDate || b.fromDate || '';
+      const timeA = a.toTime || a.fromTime || '';
+      const timeB = b.toTime || b.fromTime || '';
+      return dateB.localeCompare(dateA) || timeB.localeCompare(timeA);
+    });
+
     setEntries(newEntries);
     syncGoalsWithEntries(newEntries);
     setIsFormOpen(false);
@@ -302,7 +325,13 @@ const App: React.FC = () => {
     await Promise.all(newEntries.map(e => tx.store.put(e)));
     await tx.done;
     
-    const updatedEntries = [...newEntries, ...entries].sort((a, b) => b.toDate.localeCompare(a.toDate) || b.toTime.localeCompare(a.toTime));
+    const updatedEntries = [...newEntries, ...entries].sort((a, b) => {
+      const dateA = a.toDate || a.fromDate || '';
+      const dateB = b.toDate || b.fromDate || '';
+      const timeA = a.toTime || a.fromTime || '';
+      const timeB = b.toTime || b.fromTime || '';
+      return dateB.localeCompare(dateA) || timeB.localeCompare(timeA);
+    });
     setEntries(updatedEntries);
     syncGoalsWithEntries(updatedEntries);
   };

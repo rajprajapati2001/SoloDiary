@@ -35,13 +35,7 @@ const cleanObject = (obj: any): any => {
   const cleaned = { ...obj };
   Object.keys(cleaned).forEach((key) => {
     const value = cleaned[key];
-    if (
-      value === null ||
-      value === undefined ||
-      value === "" ||
-      value === 0 ||
-      value === false
-    ) {
+    if (value === undefined) {
       delete cleaned[key];
     }
   });

@@ -594,9 +594,9 @@ const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
 
   const currentMonthEntries = useMemo(() => {
     return entries.filter(e => {
-      const parts = (e.fromDate || e.toDate).split('-');
+      const parts = (e.fromDate || e.toDate || '').split('-');
       return parts[0] === selectedYear && parts[1] === selectedMonth;
-    }).sort((a, b) => (a.fromDate || a.toDate).localeCompare(b.fromDate || b.toDate) || (a.fromTime || a.toTime).localeCompare(b.fromTime || b.toTime));
+    }).sort((a, b) => (a.fromDate || a.toDate || '').localeCompare(b.fromDate || b.toDate || '') || (a.fromTime || a.toTime || '').localeCompare(b.fromTime || b.toTime || ''));
   }, [entries, selectedMonth, selectedYear]);
 
   const reportGoals = useMemo(() => {
@@ -1451,31 +1451,21 @@ const [showLabels, setShowLabels] = useState(true);
   return (
 <>
 {isImporting && (
-  <div className="relative w-full mx-auto py-12 px-6 bg-slate-950 border border-slate-800/80 rounded-2xl flex flex-col items-center justify-center text-white shadow-2xl overflow-hidden backdrop-blur-xl">
-    
-    {/* Background Decorative Glow & Grid */}
-    <div className="absolute inset-0 bg-[linear-gradient(to_right,#0f172a_1px,transparent_1px),linear-gradient(to_bottom,#0f172a_1px,transparent_1px)] bg-[size:1.5rem_1.5rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-60 pointer-events-none" />
-    <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-48 h-48 bg-pink-500/10 blur-[60px] rounded-full pointer-events-none" />
 
-    {/* The Spinner Section */}
-    <div className="relative flex items-center justify-center mb-6 z-10">
-      {/* Outer Glow Ring */}
-      <div className="absolute inset-0 w-16 h-16 rounded-full border border-pink-500/30 blur-sm" />
-      {/* Animated Spinner */}
-      <div className="w-16 h-16 border-[3px] border-pink-500/10 border-t-pink-500 rounded-full animate-spin [animation-duration:0.8s]"></div>
-      <Zap size={22} className="absolute text-pink-500 animate-pulse drop-shadow-[0_0_8px_rgba(236,72,153,0.5)]" />
-    </div>
-    
-    {/* Text Content */}
-    <div className="relative z-10 text-center space-y-1.5">
-      <h3 className="text-lg font-semibold tracking-tight text-slate-100">
-        Importing Database...
-      </h3>
-      <p className="text-xs text-slate-400 font-medium max-w-[240px] leading-relaxed">
-        Please do not close or refresh this page while the setup finishes.
-      </p>
-    </div>
+<div className="relative w-full md:max-w-full mx-auto pt-20 pb-20 p-8 bg-slate-900 border border-slate-800 rounded-2xl flex flex-col items-center justify-center text-white shadow-2xl overflow-hidden">
+  {/* The Spinner Section */}
+  <div className="relative flex items-center justify-center mb-4">
+    <div className="w-16 h-16 border-4 border-pink-500/20 border-t-pink-500 rounded-full animate-spin"></div>
+    <Zap size={24} className="absolute text-pink-500 animate-pulse" />
   </div>
+  
+  {/* Text Content */}
+  <h3 className="text-xl font-black tracking-tight uppercase">Importing Database...</h3>
+  <p className="text-xs text-gray-400 font-bold tracking-widest mt-1 uppercase text-center">
+    Please do not close or refresh this page
+  </p>
+  </div>
+
 )}
 
 <div className={`${isImporting ? 'hidden' : 'space-y-4 animate-in fade-in duration-500 pb-20'}`}>
@@ -1739,9 +1729,9 @@ const [showLabels, setShowLabels] = useState(true);
   
   {/* 4. Large "REPORT" Watermark */}
   <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
-<span className="text-[120px] font-semibold text-black/50 tracking-[-0.04em] rotate-[-20deg] leading-none drop-shadow-[0_10px_8px_rgba(0,0,0,0.3)]">
-  REPORT
-</span>
+    <span className="text-[120px] font-semibold text-black/50 tracking-[-0.04em] rotate-[-20deg] leading-none">
+      REPORT
+    </span>
   </div>
   
   {/* 5. Content overlay */}
@@ -1760,6 +1750,7 @@ const [showLabels, setShowLabels] = useState(true);
 
 <div
   ref={reportWrapperRef}
+  id="report-wrapper"
   className={isDesktop
     ? `desktop-view-active${isClosingDesktop ? ' desktop-view-closing' : ''}`
     : 'max-w-[850px] mx-auto md:block hidden'}
@@ -2524,6 +2515,19 @@ const [showLabels, setShowLabels] = useState(true);
             print-color-adjust: exact !important;
           }
           .no-print { display: none !important; }
+          #report-wrapper {
+            display: block !important;
+            position: relative !important;
+            inset: auto !important;
+            width: auto !important;
+            height: auto !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: visible !important;
+            z-index: auto !important;
+            animation: none !important;
+            transform: none !important;
+          }
           body { 
             color: black !important;
             margin: 0 !important;
@@ -2532,7 +2536,7 @@ const [showLabels, setShowLabels] = useState(true);
           #printable-report { 
             box-shadow: none !important; 
             border: none !important; 
-            padding: 10mm !important; 
+            padding: 5mm !important; 
             margin: 0 !important;
             width: 210mm !important;
             max-width: none !important;

@@ -877,7 +877,7 @@ const QuickPopData: React.FC<QuickPopDataProps> = ({
             {/* PROFILE PERFORMANCE CARD */}
             {type === 'profile' && (
               !isHeavyUiReady ? (
-                <div className="space-y-4 ">
+                <div className="space-y-4 animate-pulse">
                   {/* Skeleton for Navigation Block */}
                   <div className="flex items-center justify-between bg-slate-100/60 dark:bg-slate-950/40 border border-gray-100/50 dark:border-slate-800/50 p-2.5 rounded-2xl h-[58px]">
                     <div className="w-8 h-8 bg-gray-200 dark:bg-slate-800 rounded-xl" />
@@ -889,7 +889,7 @@ const QuickPopData: React.FC<QuickPopDataProps> = ({
                   </div>
 
                   {/* Skeleton for Profile Header Card */}
-                  <div className="p-6 rounded-3xl bg-slate-100/60 dark:bg-slate-950/40 border border-gray-100/50 dark:border-slate-800/50 flex flex-col sm:flex-row items-center justify-between gap-4 h-42">
+                  <div className="p-6 rounded-3xl bg-slate-100/60 dark:bg-slate-950/40 border border-gray-100/50 dark:border-slate-800/50 flex flex-col sm:flex-row items-center justify-between gap-4 h-32">
                     <div className="space-y-3 w-full sm:w-auto flex flex-col items-center sm:items-start">
                       <div className="w-40 h-7 bg-gray-200 dark:bg-slate-800 rounded-xl" />
                       <div className="w-24 h-2.5 bg-gray-200 dark:bg-slate-800 rounded-full" />
@@ -1018,7 +1018,7 @@ const QuickPopData: React.FC<QuickPopDataProps> = ({
 
                   <div className="text-center sm:text-right z-10 flex flex-col items-center sm:items-end gap-1">
                     <div className="px-4 py-2 rounded-2xl border font-black text-xs inline-flex items-center gap-2 backdrop-blur-md bg-white/20 border-white/30 shadow-sm">
-                      <Trophy size={14} className="text-amber-300" />
+                      <Trophy size={14} className="text-amber-300 animate-pulse" />
                       <span className="tracking-wide">{profileStats.rank}</span>
                     </div>
                     <p className="text-[9px] mt-1 text-white/75 uppercase tracking-wider font-semibold">
@@ -1091,6 +1091,7 @@ const QuickPopData: React.FC<QuickPopDataProps> = ({
                       year={profileStats.trackingYear}
                       entries={entries}
                       themeColor="indigo"
+                      isScrollable={true}
                       onDayClick={(dateStr) => {
                         onSelectDate(dateStr);
                         handleCloseWithAnimation();

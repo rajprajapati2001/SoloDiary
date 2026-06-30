@@ -18,6 +18,7 @@ interface HeatMapProps {
   onDayClick?: (dateStr: string, points: number, count: number) => void;
   themeColor?: 'indigo' | 'emerald' | 'amber' | 'rose' | 'purple' | 'blue';
   maxMonth?: number; // 0-indexed (0 is Jan, 11 is Dec)
+  isScrollable?: boolean;
 }
 
 const themeColors = {
@@ -77,7 +78,8 @@ const HeatMap: React.FC<HeatMapProps> = ({
   customData,
   onDayClick,
   themeColor = 'indigo',
-  maxMonth
+  maxMonth,
+  isScrollable = false
 }) => {
   const selectedYear = year || new Date().getFullYear();
   const colors = themeColors[themeColor] || themeColors.indigo;
@@ -150,54 +152,53 @@ const HeatMap: React.FC<HeatMapProps> = ({
     return grid;
   }, [entries, customData, selectedYear]);
 
-  return (
-    <div 
-      onTouchStartCapture={(e) => e.stopPropagation()} 
-      onTouchEndCapture={(e) => e.stopPropagation()}
-      className="relative pt-1 w-full"
-    >
-      <div className="flex items-start gap-1">
-        {/* Day of Week Labels */}
-        <div className="flex flex-col justify-between h-[82px] pr-2 text-[8px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest leading-none shrink-0 select-none mt-[20px]">
-          <span className="h-[10px] flex items-center justify-end">Sun</span>
-          <span className="h-[10px] flex items-center justify-end">Mon</span>
-          <span className="h-[10px] flex items-center justify-end">Tue</span>
-          <span className="h-[10px] flex items-center justify-end">Wed</span>
-          <span className="h-[10px] flex items-center justify-end">Thu</span>
-          <span className="h-[10px] flex items-center justify-end">Fri</span>
-          <span className="h-[10px] flex items-center justify-end">Sat</span>
-        </div>
+  if (!isScrollable) {
+    return (
+      <div 
+        onTouchStartCapture={(e) => e.stopPropagation()} 
+        onTouchEndCapture={(e) => e.stopPropagation()}
+        className="relative pt-1 w-full"
+      >
+        <div className="w-full select-none space-y-1">
+          {/* Month Labels row */}
+          <div className="flex gap-[2px] h-4 w-full pl-8">
+            {yearGrid.map((week, wIdx) => {
+              const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+              const firstDayInYear = week.find(d => d.isCurrentYear) || week[0];
+              const m = firstDayInYear.month;
+              const prevWeek = yearGrid[wIdx - 1];
+              const prevMonth = prevWeek ? (prevWeek.find(d => d.isCurrentYear)?.month ?? -1) : -1;
+              const isFirstWeekOfThisMonth = wIdx === 0 || (prevMonth !== m);
 
-        {/* Outer scrolling container */}
-        <div className="flex-1 overflow-x-auto pb-1.5 [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-gray-350 dark:[&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar-track]:bg-transparent no-scrollbar">
-           <div className="w-max min-w-max space-y-1 select-none">
-            
-            {/* Month Labels row */}
-            <div className="flex gap-[2px] h-4">
-              {yearGrid.map((week, wIdx) => {
-                const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-                const firstDayInYear = week.find(d => d.isCurrentYear) || week[0];
-                const m = firstDayInYear.month;
-                const prevWeek = yearGrid[wIdx - 1];
-                const prevMonth = prevWeek ? (prevWeek.find(d => d.isCurrentYear)?.month ?? -1) : -1;
-                const isFirstWeekOfThisMonth = wIdx === 0 || (prevMonth !== m);
+              return (
+                <div key={wIdx} className="flex-1 min-w-0 relative">
+                  {isFirstWeekOfThisMonth && (
+                    <span className={`absolute left-0 text-[8px] font-black ${colors.text} uppercase tracking-wider whitespace-nowrap`}>
+                      {monthNames[m]}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
 
-                return (
-                  <div key={wIdx} className="w-[10px] relative shrink-0">
-                    {isFirstWeekOfThisMonth && (
-                      <span className={`absolute left-0 text-[8px] font-black ${colors.text} uppercase tracking-wider whitespace-nowrap`}>
-                        {monthNames[m]}
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
+          {/* Matrix Row with integrated weekday labels for perfect align-stretch */}
+          <div className="flex items-stretch gap-1 w-full">
+            {/* Day of Week Labels (Stretched to match matrix height perfectly) */}
+            <div className="w-7 pr-1 flex flex-col justify-between text-[8px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest leading-none shrink-0 select-none py-[2px]">
+              <span className="flex items-center justify-end">Sun</span>
+              <span className="flex items-center justify-end">Mon</span>
+              <span className="flex items-center justify-end">Tue</span>
+              <span className="flex items-center justify-end">Wed</span>
+              <span className="flex items-center justify-end">Thu</span>
+              <span className="flex items-center justify-end">Fri</span>
+              <span className="flex items-center justify-end">Sat</span>
             </div>
 
-            {/* Heatmap Matrix Row */}
-            <div className="flex gap-[2px] h-[82px]">
+            {/* Heatmap Matrix Grid */}
+            <div className="flex gap-[2px] flex-1">
               {yearGrid.map((week, wIdx) => (
-                <div key={wIdx} className="flex flex-col gap-[2px] justify-between h-full w-[10px] shrink-0">
+                <div key={wIdx} className="flex-1 min-w-0 flex flex-col gap-[2px]">
                   {week.map((day, dIdx) => {
                     const isFutureMonth = maxMonth !== undefined && day.month > maxMonth;
                     const isClickable = day.isCurrentYear && !isFutureMonth;
@@ -234,7 +235,113 @@ const HeatMap: React.FC<HeatMapProps> = ({
                             onDayClick(day.dateStr, day.points, day.count);
                           }
                         }}
-                        className={`w-[10px] h-[10px] shrink-0 rounded-[2px] transition-all duration-200 relative ${shadeClass} ${activeBorder} group/day ${
+                        className={`w-full aspect-square shrink-0 rounded-[2px] transition-all duration-200 relative ${shadeClass} ${activeBorder} group/day ${
+                          isClickable ? 'cursor-pointer hover:scale-110 shadow-sm' : ''
+                        }`}
+                        title={formattedTip}
+                      >
+                        {isClickable && (
+                          <div className="absolute bottom-5 left-1/2 -translate-x-1/2 bg-slate-900 border border-slate-750 text-white text-[9px] px-2 py-1 rounded shadow-xl whitespace-nowrap opacity-0 group-hover/day:opacity-100 pointer-events-none transition-all duration-150 z-50 font-bold">
+                            {formattedTip}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div 
+      onTouchStartCapture={(e) => e.stopPropagation()} 
+      onTouchEndCapture={(e) => e.stopPropagation()}
+      className="relative pt-1 w-full"
+    >
+      <div className="flex items-start gap-1 w-full">
+        {/* Day of Week Labels */}
+        <div className="flex flex-col gap-[2px] pr-2 text-[8px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest leading-none shrink-0 select-none pt-4">
+          <span className="h-[12px] flex items-center justify-end">Sun</span>
+          <span className="h-[12px] flex items-center justify-end">Mon</span>
+          <span className="h-[12px] flex items-center justify-end">Tue</span>
+          <span className="h-[12px] flex items-center justify-end">Wed</span>
+          <span className="h-[12px] flex items-center justify-end">Thu</span>
+          <span className="h-[12px] flex items-center justify-end">Fri</span>
+          <span className="h-[12px] flex items-center justify-end">Sat</span>
+        </div>
+
+        {/* Outer scrolling container for horizontal scroll support */}
+        <div className="flex-1 overflow-x-auto pb-1.5 [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar-track]:bg-transparent no-scrollbar">
+          <div className="w-max min-w-max space-y-1 select-none">
+            
+            {/* Month Labels row */}
+            <div className="flex gap-[2px] h-4">
+              {yearGrid.map((week, wIdx) => {
+                const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                const firstDayInYear = week.find(d => d.isCurrentYear) || week[0];
+                const m = firstDayInYear.month;
+                const prevWeek = yearGrid[wIdx - 1];
+                const prevMonth = prevWeek ? (prevWeek.find(d => d.isCurrentYear)?.month ?? -1) : -1;
+                const isFirstWeekOfThisMonth = wIdx === 0 || (prevMonth !== m);
+
+                return (
+                  <div key={wIdx} className="w-[12px] relative shrink-0">
+                    {isFirstWeekOfThisMonth && (
+                      <span className={`absolute left-0 text-[8px] font-black ${colors.text} uppercase tracking-wider whitespace-nowrap`}>
+                        {monthNames[m]}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Heatmap Matrix Row */}
+            <div className="flex gap-[2px]">
+              {yearGrid.map((week, wIdx) => (
+                <div key={wIdx} className="flex flex-col gap-[2px] w-[12px] shrink-0">
+                  {week.map((day, dIdx) => {
+                    const isFutureMonth = maxMonth !== undefined && day.month > maxMonth;
+                    const isClickable = day.isCurrentYear && !isFutureMonth;
+
+                    let shadeClass = "bg-gray-200/60 dark:bg-slate-800/80";
+                    let activeBorder = "border-[0.5px] border-gray-150/40 dark:border-slate-800/40";
+                    
+                    if (day.isCurrentYear && !isFutureMonth && day.count > 0) {
+                      if (day.points >= 100) {
+                        shadeClass = colors.full;
+                      } else if (day.points >= 60) {
+                        shadeClass = colors.high;
+                      } else if (day.points >= 30) {
+                        shadeClass = colors.med;
+                      } else {
+                        shadeClass = colors.low;
+                      }
+                      activeBorder = colors.activeBorder;
+                    } else if (!day.isCurrentYear) {
+                      shadeClass = "bg-transparent opacity-0 pointer-events-none";
+                      activeBorder = "border-transparent";
+                    }
+
+                    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                    const formattedTip = isClickable
+                      ? `${monthNames[day.month]} ${day.dayOfMonth}, ${selectedYear}: ${day.count} log${day.count !== 1 ? 's' : ''} (${day.points} pts)`
+                      : "";
+
+                    return (
+                      <div
+                        key={dIdx}
+                        onClick={() => {
+                          if (isClickable && onDayClick) {
+                            onDayClick(day.dateStr, day.points, day.count);
+                          }
+                        }}
+                        className={`w-[12px] h-[12px] shrink-0 rounded-[2px] transition-all duration-200 relative ${shadeClass} ${activeBorder} group/day ${
                           isClickable ? 'cursor-pointer hover:scale-110 shadow-sm' : ''
                         }`}
                         title={formattedTip}
