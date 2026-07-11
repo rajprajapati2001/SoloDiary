@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import CalendarView from './CalendarView';
 import LineGraph from './LineGraph';
 import QuickPopData from './QuickPopData';
+import TimeProgressBar from './TimeProgressBar';
 import { ActivityEntry, Goal } from '../types';
 import { TrendingUp, Award, Clock, Edit2, Trash2, Star, Banknote, Eye, EyeOff, Target, Calendar, Paperclip, Snowflake , ChartLine, ScrollText, Check, X as CloseIcon, ChevronLeft, ChevronRight, Sun, MoonStar, CloudSun, CloudMoon, Cloud, Wind, CloudDrizzle, CloudRain, CloudHail, CloudSnow, CloudLightning, Moon, Bubbles , type LucideIcon, ThermometerSun, Cloudy, Droplets } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
@@ -482,7 +483,7 @@ const totalYearlyPoints = useMemo(
         </div>
       </div>
       <div className="text-right">
-        <span className="text-4xl font-black text-emerald-600 leading-none font-digital">{totalPointsSelectedDay}</span>
+        <span className="text-4xl text-emerald-600 leading-none font-digital">{totalPointsSelectedDay}</span>
         <span className="text-xs font-bold text-gray-400 ml-1">pts</span>
       </div>
     </div>
@@ -508,7 +509,7 @@ const totalYearlyPoints = useMemo(
         </div>
       </div>
       <div className="text-right">
-        <span className="text-4xl font-black text-blue-600 leading-none font-digital">{monthProgressPercent.toFixed(0)}</span>
+        <span className="text-4xl  text-blue-600 leading-none font-digital">{monthProgressPercent.toFixed(0)}</span>
         <span className="text-1xl font-black text-gray-400 leading-none">%</span>
       </div>
     </div>
@@ -609,8 +610,8 @@ const totalYearlyPoints = useMemo(
           </div>
 
           <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 md:p-6 p-0">
-            <div className="flex items-center justify-between md:p-0 p-3 pb-0">
-              <h3 className="inline-flex items-center md:gap-5 gap-2 text-lg font-bold mb-6 text-gray-800 dark:text-white uppercase tracking-tighter">
+            <div className="flex items-center justify-between md:p-0 p-3 pb-0 mb-1">
+              <h3 className="inline-flex items-center md:gap-5 gap-2 text-lg font-bold text-gray-800 dark:text-white uppercase tracking-tighter">
                 <ScrollText className="text-pink-500 shrink-0" size={30} />
                 <span>
                   Activities <span className="hidden sm:inline">for {formattedFullActivitiesDate}</span>
@@ -693,12 +694,35 @@ const totalYearlyPoints = useMemo(
                         )}
 
                         {entry.attachment && (
-                          <div className="mt-3">
-                            <a href={entry.attachment} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-blue-500 dark:text-blue-400 bg-blue-500/5 px-3 py-1.5 rounded-xl hover:bg-blue-500/10 transition-all border border-blue-500/20 shadow-sm">
-                              <Paperclip size={12} /> View Attachment
+                          <div className="mt-2">
+                            <a 
+                              href={entry.attachment} 
+                              target="_blank" 
+                              rel="noreferrer" 
+                              className="inline-flex items-center gap-2.5 max-w-full sm:max-w-md text-xs text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-800/80 px-1 py-1 rounded-lg border border-slate-200 dark:border-slate-800/60 shadow-sm transition-all duration-200 group active:scale-[0.99]"
+                              title={entry.attachment}
+                            >
+                              {/* Icon Wrapper */}
+                              <div className="flex items-center justify-center shrink-0 w-6 h-6 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 group-hover:bg-blue-500 group-hover:text-white transition-colors duration-200">
+                                <Paperclip size={13} className="transition-transform group-hover:-rotate-12" />
+                              </div>
+
+                              {/* Truncated Link text */}
+                              <span className="block truncate font-medium tracking-wide text-[11px] font-mono text-left select-all">
+                                {entry.attachment}
+                              </span>
                             </a>
                           </div>
                         )}
+
+                        {entry.fromTime && (
+                          <TimeProgressBar
+                            startTime={entry.fromTime}
+                            endTime={entry.toTime}
+                            isGoal={isGoal}
+                          />
+                        )}
+
                       </motion.div>
                     );
                   })}

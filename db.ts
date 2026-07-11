@@ -25,61 +25,59 @@ class SoloDiaryDatabase extends Dexie {
 
 export const dexieDB = new SoloDiaryDatabase();
 
-/**
- * Utility function to clean objects before persistence.
- * Removes empty string, zero, false, null, and undefined properties to minimize DB size.
- */
 const cleanObject = (obj: any): any => {
   if (!obj || typeof obj !== 'object') return obj;
   
   const cleaned = { ...obj };
   Object.keys(cleaned).forEach((key) => {
     const value = cleaned[key];
-    if (value === undefined) {
+    // Strips out undefined, null, empty strings, 0, and false
+    if (value === undefined || value === null || value === '' || value === 0 || value === false) {
       delete cleaned[key];
     }
   });
   return cleaned;
 };
 
-// Compatibility wrapper matching the idb API used in the application
+const generateId = async (table: Table<any, string>): Promise<string> => {
+  const now = new Date();
+  const dd = String(now.getDate()).padStart(2, '0');
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const yy = String(now.getFullYear()).slice(-2);
+  const dateStr = `${dd}${mm}${yy}`;
+
+  // Count existing records to calculate the next sequence number
+  const count = await table.count();
+  const sequence = String(count + 1).padStart(4, '0');
+
+  return `${dateStr}-${sequence}`;
+};
+
 export const getDB = async (): Promise<any> => {
   return {
     getAll: async (storeName: string): Promise<any[]> => {
-      if (storeName === 'entries') {
-        return await dexieDB.entries.toArray();
-      }
-      if (storeName === 'goals') {
-        return await dexieDB.goals.toArray();
-      }
-      if (storeName === 'activity_templates') {
-        return await dexieDB.activity_templates.toArray();
-      }
-      if (storeName === 'auto_templates') {
-        return await dexieDB.auto_templates.toArray();
-      }
-      if (storeName === 'settings') {
-        return await dexieDB.settings.toArray();
-      }
-      return [];
+      let results: any[] = [];
+      
+      if (storeName === 'entries') results = await dexieDB.entries.toArray();
+      else if (storeName === 'goals') results = await dexieDB.goals.toArray();
+      else if (storeName === 'activity_templates') results = await dexieDB.activity_templates.toArray();
+      else if (storeName === 'auto_templates') results = await dexieDB.auto_templates.toArray();
+      else if (storeName === 'settings') results = await dexieDB.settings.toArray();
+      else return [];
+
+      // Sort with oldest on top, newest at the bottom
+      return results.sort((a, b) => {
+        if (a.timestamp && b.timestamp) return a.timestamp - b.timestamp;
+        return a.id && b.id ? a.id.localeCompare(b.id) : 0;
+      });
     },
 
     get: async (storeName: string, key: string): Promise<any> => {
-      if (storeName === 'settings') {
-        return await dexieDB.settings.get(key);
-      }
-      if (storeName === 'entries') {
-        return await dexieDB.entries.get(key);
-      }
-      if (storeName === 'goals') {
-        return await dexieDB.goals.get(key);
-      }
-      if (storeName === 'activity_templates') {
-        return await dexieDB.activity_templates.get(key);
-      }
-      if (storeName === 'auto_templates') {
-        return await dexieDB.auto_templates.get(key);
-      }
+      if (storeName === 'settings') return await dexieDB.settings.get(key);
+      if (storeName === 'entries') return await dexieDB.entries.get(key);
+      if (storeName === 'goals') return await dexieDB.goals.get(key);
+      if (storeName === 'activity_templates') return await dexieDB.activity_templates.get(key);
+      if (storeName === 'auto_templates') return await dexieDB.auto_templates.get(key);
       return undefined;
     },
 
@@ -93,35 +91,29 @@ export const getDB = async (): Promise<any> => {
       const optimizedValue = cleanObject(value);
 
       if (storeName === 'entries') {
+        if (!optimizedValue.id) optimizedValue.id = await generateId(dexieDB.entries);
         return await dexieDB.entries.put(optimizedValue);
       }
       if (storeName === 'goals') {
+        if (!optimizedValue.id) optimizedValue.id = await generateId(dexieDB.goals);
         return await dexieDB.goals.put(optimizedValue);
       }
       if (storeName === 'activity_templates') {
+        if (!optimizedValue.id) optimizedValue.id = await generateId(dexieDB.activity_templates);
         return await dexieDB.activity_templates.put(optimizedValue);
       }
       if (storeName === 'auto_templates') {
+        if (!optimizedValue.id) optimizedValue.id = await generateId(dexieDB.auto_templates);
         return await dexieDB.auto_templates.put(optimizedValue);
       }
     },
 
     delete: async (storeName: string, key: string): Promise<any> => {
-      if (storeName === 'settings') {
-        return await dexieDB.settings.delete(key);
-      }
-      if (storeName === 'entries') {
-        return await dexieDB.entries.delete(key);
-      }
-      if (storeName === 'goals') {
-        return await dexieDB.goals.delete(key);
-      }
-      if (storeName === 'activity_templates') {
-        return await dexieDB.activity_templates.delete(key);
-      }
-      if (storeName === 'auto_templates') {
-        return await dexieDB.auto_templates.delete(key);
-      }
+      if (storeName === 'settings') return await dexieDB.settings.delete(key);
+      if (storeName === 'entries') return await dexieDB.entries.delete(key);
+      if (storeName === 'goals') return await dexieDB.goals.delete(key);
+      if (storeName === 'activity_templates') return await dexieDB.activity_templates.delete(key);
+      if (storeName === 'auto_templates') return await dexieDB.auto_templates.delete(key);
     },
 
     transaction: (storeName: string, mode: string) => {
@@ -134,16 +126,19 @@ export const getDB = async (): Promise<any> => {
                if (!key) throw new Error('Key is required for settings table transaction');
                p = dexieDB.settings.put(value, key);
              } else {
-               // Clean data in transactions as well
                const optimizedValue = cleanObject(value);
                
                if (storeName === 'entries') {
+                 if (!optimizedValue.id) optimizedValue.id = await generateId(dexieDB.entries);
                  p = dexieDB.entries.put(optimizedValue);
                } else if (storeName === 'goals') {
+                 if (!optimizedValue.id) optimizedValue.id = await generateId(dexieDB.goals);
                  p = dexieDB.goals.put(optimizedValue);
                } else if (storeName === 'activity_templates') {
+                 if (!optimizedValue.id) optimizedValue.id = await generateId(dexieDB.activity_templates);
                  p = dexieDB.activity_templates.put(optimizedValue);
                } else if (storeName === 'auto_templates') {
+                 if (!optimizedValue.id) optimizedValue.id = await generateId(dexieDB.auto_templates);
                  p = dexieDB.auto_templates.put(optimizedValue);
                }
              }

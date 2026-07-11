@@ -2,6 +2,7 @@ import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { ActivityEntry, Goal } from '../types';
 import { getCurrencySymbol, getAggregateCurrencyDisplay } from '../constants';
+import TimeProgressBar from './TimeProgressBar';
 
 import {
   X,
@@ -280,33 +281,294 @@ const QuickPopData: React.FC<QuickPopDataProps> = ({
       }
     }
 
-    // Rank evaluation based on selected profile tracking year
-    let rank = "Novice Logger";
-    if (totalPointsYear >= 100 && totalPointsYear < 500) rank = "Aspirant Scholar";
-    else if (totalPointsYear >= 500 && totalPointsYear < 1500) rank = "Elite Chronicler";
-    else if (totalPointsYear >= 1500 && totalPointsYear < 4000) rank = "Master Navigator";
-    else if (totalPointsYear >= 4000) rank = "Legendary Voyager";
+// 1. Calculate the max baseline points for the year
+const pointsPerDay = 100;
+const isLeapYear = new Date(new Date().getFullYear(), 1, 29).getMonth() === 1;
+const daysInYear = isLeapYear ? 366 : 365;
+const perfectYearPoints = daysInYear * pointsPerDay; // 36,500 or 36,600
+
+// 2. Your exact point calculation logic
+//const totalPointsYear = entriesYear.reduce((sum, e) => sum + (e.points || 0), 0);
+
+// 3. Calculate the percentage (e.g., 50, 100, 105, 120)
+const completionPercentage = (totalPointsYear / perfectYearPoints) * 100;
+
+// 4. Assign ranks based on the percentage achieved
+let rank = "Zero-G Cadence";
+
+if (completionPercentage >= 0.0 && completionPercentage < 0.5) {
+    rank = "Zero-G Cadence";
+} else if (completionPercentage >= 0.5 && completionPercentage < 1.0) {
+    rank = "Terrestrial Tether";
+} else if (completionPercentage >= 1.0 && completionPercentage < 1.5) {
+    rank = "Grounded Observer";
+} else if (completionPercentage >= 1.5 && completionPercentage < 2.0) {
+    rank = "Gravity Bound";
+} else if (completionPercentage >= 2.0 && completionPercentage < 2.5) {
+    rank = "Atmos Apprentice";
+} else if (completionPercentage >= 2.5 && completionPercentage < 3.0) {
+    rank = "Launchpad Larva";
+} else if (completionPercentage >= 3.0 && completionPercentage < 3.5) {
+    rank = "Stratosphere Scanner";
+} else if (completionPercentage >= 3.5 && completionPercentage < 4.0) {
+    rank = "Sub-Orbital Spotter";
+} else if (completionPercentage >= 4.0 && completionPercentage < 4.5) {
+    rank = "Orbit Initiate";
+} else if (completionPercentage >= 4.5 && completionPercentage < 5.0) {
+    rank = "Perigee Plebeian";
+} else if (completionPercentage >= 5.0 && completionPercentage < 5.5) {
+    rank = "Horizon Chaser";
+} else if (completionPercentage >= 5.5 && completionPercentage < 6.0) {
+    rank = "Velocity Vestige";
+} else if (completionPercentage >= 6.0 && completionPercentage < 7.0) {
+    rank = "Vacuum Venture";
+} else if (completionPercentage >= 7.0 && completionPercentage < 8.0) {
+    rank = "Cosmic Cadet";
+} else if (completionPercentage >= 8.0 && completionPercentage < 9.0) {
+    rank = "Nebula Neophyte";
+} else if (completionPercentage >= 9.0 && completionPercentage < 10.0) {
+    rank = "Apogee Aspirant";
+} else if (completionPercentage >= 10.0 && completionPercentage < 11.0) {
+    rank = "Solar Scouter";
+} else if (completionPercentage >= 11.0 && completionPercentage < 12.0) {
+    rank = "Flare Finder";
+} else if (completionPercentage >= 12.0 && completionPercentage < 13.0) {
+    rank = "Zenith Zealot";
+} else if (completionPercentage >= 13.0 && completionPercentage < 14.0) {
+    rank = "Eclipse Escort";
+} else if (completionPercentage >= 14.0 && completionPercentage < 15.0) {
+    rank = "Orbit Operator";
+} else if (completionPercentage >= 15.0 && completionPercentage < 16.0) {
+    rank = "Interstellar Intern";
+} else if (completionPercentage >= 16.0 && completionPercentage < 17.0) {
+    rank = "Meteor Midshipman";
+} else if (completionPercentage >= 17.0 && completionPercentage < 18.0) {
+    rank = "Comet Courier";
+} else if (completionPercentage >= 18.0 && completionPercentage < 19.0) {
+    rank = "Nova Novice";
+} else if (completionPercentage >= 19.0 && completionPercentage < 20.0) {
+    rank = "Pulsar Pacer";
+} else if (completionPercentage >= 20.0 && completionPercentage < 21.0) {
+    rank = "Astral Apprentice";
+} else if (completionPercentage >= 21.0 && completionPercentage < 22.0) {
+    rank = "Asteroid Auditor";
+} else if (completionPercentage >= 22.0 && completionPercentage < 23.0) {
+    rank = "Rocket Rigging";
+} else if (completionPercentage >= 23.0 && completionPercentage < 24.0) {
+    rank = "Void Venture";
+} else if (completionPercentage >= 24.0 && completionPercentage < 25.0) {
+    rank = "Cluster Clerk";
+} else if (completionPercentage >= 25.0 && completionPercentage < 26.0) {
+    rank = "Elite Chronicler";
+} else if (completionPercentage >= 26.0 && completionPercentage < 27.0) {
+    rank = "Cosmos Cataloger";
+} else if (completionPercentage >= 27.0 && completionPercentage < 28.0) {
+    rank = "Nebula Notary";
+} else if (completionPercentage >= 28.0 && completionPercentage < 29.0) {
+    rank = "Stellar Scribe";
+} else if (completionPercentage >= 29.0 && completionPercentage < 30.0) {
+    rank = "Orbit Overseer";
+} else if (completionPercentage >= 30.0 && completionPercentage < 31.0) {
+    rank = "Galaxy Archivist";
+} else if (completionPercentage >= 31.0 && completionPercentage < 32.0) {
+    rank = "System Surveyor";
+} else if (completionPercentage >= 32.0 && completionPercentage < 33.0) {
+    rank = "Vector Validator";
+} else if (completionPercentage >= 33.0 && completionPercentage < 34.0) {
+    rank = "Sector Supervisor";
+} else if (completionPercentage >= 34.0 && completionPercentage < 35.0) {
+    rank = "Eclipse Evaluator";
+} else if (completionPercentage >= 35.0 && completionPercentage < 36.0) {
+    rank = "Celestial Curator";
+} else if (completionPercentage >= 36.0 && completionPercentage < 37.0) {
+    rank = "Flare Forecaster";
+} else if (completionPercentage >= 37.0 && completionPercentage < 38.0) {
+    rank = "Constellation Clerk";
+} else if (completionPercentage >= 38.0 && completionPercentage < 39.0) {
+    rank = "Parallax Paladin";
+} else if (completionPercentage >= 39.0 && completionPercentage < 40.0) {
+    rank = "Zenith Warden";
+} else if (completionPercentage >= 40.0 && completionPercentage < 41.0) {
+    rank = "Void Visualizer";
+} else if (completionPercentage >= 41.0 && completionPercentage < 42.0) {
+    rank = "Cosmos Cartographer";
+} else if (completionPercentage >= 42.0 && completionPercentage < 43.0) {
+    rank = "Nebula Navigator";
+} else if (completionPercentage >= 43.0 && completionPercentage < 44.0) {
+    rank = "Quasar Quorum";
+} else if (completionPercentage >= 44.0 && completionPercentage < 45.0) {
+    rank = "Continuum Keeper";
+} else if (completionPercentage >= 45.0 && completionPercentage < 46.0) {
+    rank = "Astral Analyst";
+} else if (completionPercentage >= 46.0 && completionPercentage < 47.0) {
+    rank = "Gravity Governor";
+} else if (completionPercentage >= 47.0 && completionPercentage < 48.0) {
+    rank = "Solar Sentinel";
+} else if (completionPercentage >= 48.0 && completionPercentage < 49.0) {
+    rank = "Void Vignette";
+} else if (completionPercentage >= 49.0 && completionPercentage < 50.0) {
+    rank = "Star System Sentry";
+} else if (completionPercentage >= 50.0 && completionPercentage < 51.0) {
+    rank = "Deep Space Dean";
+} else if (completionPercentage >= 51.0 && completionPercentage < 52.0) {
+    rank = "Meridian Marshal";
+} else if (completionPercentage >= 52.0 && completionPercentage < 53.0) {
+    rank = "Cluster Commander";
+} else if (completionPercentage >= 53.0 && completionPercentage < 54.0) {
+    rank = "Orbit Officer";
+} else if (completionPercentage >= 54.0 && completionPercentage < 55.0) {
+    rank = "Horizon Herald";
+} else if (completionPercentage >= 55.0 && completionPercentage < 56.0) {
+    rank = "Eclipse Enforcer";
+} else if (completionPercentage >= 56.0 && completionPercentage < 57.0) {
+    rank = "Nova Superintendent";
+} else if (completionPercentage >= 57.0 && completionPercentage < 58.0) {
+    rank = "Vector Vanguard";
+} else if (completionPercentage >= 58.0 && completionPercentage < 59.0) {
+    rank = "Epoch Examiner";
+} else if (completionPercentage >= 59.0 && completionPercentage < 60.0) {
+    rank = "Zenith Zenithith";
+} else if (completionPercentage >= 60.0 && completionPercentage < 61.0) {
+    rank = "Master Navigator";
+} else if (completionPercentage >= 61.0 && completionPercentage < 62.0) {
+    rank = "Celestial Helmsman";
+} else if (completionPercentage >= 62.0 && completionPercentage < 63.0) {
+    rank = "Starpath Skipper";
+} else if (completionPercentage >= 63.0 && completionPercentage < 64.0) {
+    rank = "Cosmic Commodore";
+} else if (completionPercentage >= 64.0 && completionPercentage < 65.0) {
+    rank = "Void Voyager";
+} else if (completionPercentage >= 65.0 && completionPercentage < 66.0) {
+    rank = "Nebula Skipper";
+} else if (completionPercentage >= 66.0 && completionPercentage < 67.0) {
+    rank = "Solar Skipper";
+} else if (completionPercentage >= 67.0 && completionPercentage < 68.0) {
+    rank = "Continuum Pilot";
+} else if (completionPercentage >= 68.0 && completionPercentage < 69.0) {
+    rank = "Deep Space Director";
+} else if (completionPercentage >= 69.0 && completionPercentage < 70.0) {
+    rank = "Stellar Steersman";
+} else if (completionPercentage >= 70.0 && completionPercentage < 71.0) {
+    rank = "Galaxy Guide";
+} else if (completionPercentage >= 71.0 && completionPercentage < 72.0) {
+    rank = "Vector Voyager";
+} else if (completionPercentage >= 72.0 && completionPercentage < 73.0) {
+    rank = "Orbit Orchestrator";
+} else if (completionPercentage >= 73.0 && completionPercentage < 74.0) {
+    rank = "Meridian Master";
+} else if (completionPercentage >= 74.0 && completionPercentage < 75.0) {
+    rank = "Zenith Pathfinder";
+} else if (completionPercentage >= 74.0 && completionPercentage < 75.0) {
+    rank = "Zenith Pathfinder";
+} else if (completionPercentage >= 75.0 && completionPercentage < 76.0) {
+    rank = "Eclipse Explorer";
+} else if (completionPercentage >= 76.0 && completionPercentage < 77.0) {
+    rank = "Cosmos Captain";
+} else if (completionPercentage >= 77.0 && completionPercentage < 78.0) {
+    rank = "Sector Skipper";
+} else if (completionPercentage >= 78.0 && completionPercentage < 79.0) {
+    rank = "Flare Fleetmaster";
+} else if (completionPercentage >= 79.0 && completionPercentage < 80.0) {
+    rank = "Cluster Captain";
+} else if (completionPercentage >= 80.0 && completionPercentage < 81.0) {
+    rank = "Void Viceroy";
+} else if (completionPercentage >= 81.0 && completionPercentage < 82.0) {
+    rank = "Starpath Sovereign";
+} else if (completionPercentage >= 82.0 && completionPercentage < 83.0) {
+    rank = "Galaxy Governor";
+} else if (completionPercentage >= 83.0 && completionPercentage < 84.0) {
+    rank = "Celestial Commander";
+} else if (completionPercentage >= 84.0 && completionPercentage < 85.0) {
+    rank = "Nebula Noble";
+} else if (completionPercentage >= 85.0 && completionPercentage < 86.0) {
+    rank = "Continuum Commander";
+} else if (completionPercentage >= 86.0 && completionPercentage < 87.0) {
+    rank = "Deep Space Dictator";
+} else if (completionPercentage >= 87.0 && completionPercentage < 88.0) {
+    rank = "Solar Sovereign";
+} else if (completionPercentage >= 88.0 && completionPercentage < 89.0) {
+    rank = "Cosmic Chancellor";
+} else if (completionPercentage >= 89.0 && completionPercentage < 90.0) {
+    rank = "Horizon High-Admiral";
+} else if (completionPercentage >= 90.0 && completionPercentage < 91.0) {
+    rank = "Legendary Voyager";
+} else if (completionPercentage >= 91.0 && completionPercentage < 92.0) {
+    rank = "Void Visionary";
+} else if (completionPercentage >= 92.0 && completionPercentage < 93.0) {
+    rank = "Starpath Sage";
+} else if (completionPercentage >= 93.0 && completionPercentage < 94.0) {
+    rank = "Celestial Paragon";
+} else if (completionPercentage >= 94.0 && completionPercentage < 95.0) {
+    rank = "Galaxy Guardian";
+} else if (completionPercentage >= 95.0 && completionPercentage < 96.0) {
+    rank = "Cosmos Champion";
+} else if (completionPercentage >= 96.0 && completionPercentage < 97.0) {
+    rank = "Nebula Nexus";
+} else if (completionPercentage >= 97.0 && completionPercentage < 98.0) {
+    rank = "Continuum Catalyst";
+} else if (completionPercentage >= 98.0 && completionPercentage < 99.0) {
+    rank = "Deep Space Deity";
+} else if (completionPercentage >= 99.0 && completionPercentage < 100.0) {
+    rank = "Zenith Zeal";
+} else if (completionPercentage === 100.0) {
+    rank = "Astral Vanguard";
+} else if (completionPercentage > 100.0) {
+    rank = "Sovereign of Space-Time";
+}
 
     // Financial calculations scaled to the selected navigation year
     const totalDebitYear = entriesYear.reduce((s, e) => s + (e.debit || 0), 0);
     const totalCreditYear = entriesYear.reduce((s, e) => s + (e.credit || 0), 0);
     const netBalanceYear = totalCreditYear - totalDebitYear;
     
-    let annualGradeYear = "D";
-    let annualGradeDescription = "Aspirant";
-    if (activeDaysCountYear >= 150) {
-      annualGradeYear = "S";
-      annualGradeDescription = "Legendary Chronicler";
-    } else if (activeDaysCountYear >= 80) {
-      annualGradeYear = "A";
-      annualGradeDescription = "Elite Companion";
-    } else if (activeDaysCountYear >= 40) {
-      annualGradeYear = "B";
-      annualGradeDescription = "Dedicated Logger";
-    } else if (activeDaysCountYear >= 15) {
-      annualGradeYear = "C";
-      annualGradeDescription = "Regular Explorer";
-    }
+const spaceRanks = [
+  "Zero-G Cadence", "Terrestrial Tether", "Grounded Observer", "Gravity Bound", "Atmos Apprentice",
+  "Launchpad Larva", "Stratosphere Scanner", "Sub-Orbital Spotter", "Orbit Initiate", "Perigee Plebeian",
+  "Horizon Chaser", "Velocity Vestige", "Vacuum Venture", "Cosmic Cadet", "Nebula Neophyte",
+  "Apogee Aspirant", "Solar Scouter", "Flare Finder", "Zenith Zealot", "Eclipse Escort",
+  "Orbit Operator", "Interstellar Intern", "Meteor Midshipman", "Comet Courier", "Nova Novice",
+  "Pulsar Pacer", "Astral Apprentice", "Asteroid Auditor", "Rocket Rigging", "Void Venture",
+  "Cluster Clerk", "Elite Chronicler", "Cosmos Cataloger", "Nebula Notary", "Stellar Scribe",
+  "Orbit Overseer", "Galaxy Archivist", "System Surveyor", "Vector Validator", "Sector Supervisor",
+  "Eclipse Evaluator", "Celestial Curator", "Flare Forecaster", "Constellation Clerk", "Parallax Paladin",
+  "Zenith Warden", "Void Visualizer", "Cosmos Cartographer", "Nebula Navigator", "Quasar Quorum",
+  "Continuum Keeper", "Astral Analyst", "Gravity Governor", "Solar Sentinel", "Void Vignette",
+  "Star System Sentry", "Deep Space Dean", "Meridian Marshal", "Cluster Commander", "Orbit Officer",
+  "Horizon Herald", "Eclipse Enforcer", "Nova Superintendent", "Vector Vanguard", "Epoch Examiner",
+  "Zenith Zenithith", "Master Navigator", "Celestial Helmsman", "Starpath Skipper", "Cosmic Commodore",
+  "Void Voyager", "Nebula Skipper", "Solar Skipper", "Continuum Pilot", "Deep Space Director",
+  "Stellar Steersman", "Galaxy Guide", "Vector Voyager", "Orbit Orchestrator", "Meridian Master",
+  "Zenith Pathfinder", "Eclipse Explorer", "Cosmos Captain", "Sector Skipper", "Flare Fleetmaster",
+  "Cluster Captain", "Void Viceroy", "Starpath Sovereign", "Galaxy Governor", "Celestial Commander",
+  "Nebula Noble", "Continuum Commander", "Deep Space Dictator", "Solar Sovereign", "Cosmic Chancellor",
+  "Horizon High-Admiral", "Legendary Voyager", "Void Visionary", "Starpath Sage", "Celestial Paragon",
+  "Galaxy Guardian" // index 100 = 100%
+];
+
+// 4. Assign dynamic rank based on calculated completionPercentage
+let annualGradeDescription = "Zero-G Cadence";
+
+if (completionPercentage > 100.0) {
+  annualGradeDescription = "Sovereign of Space-Time";
+} else if (completionPercentage === 100.0) {
+  annualGradeDescription = "Astral Vanguard";
+} else if (completionPercentage >= 0) {
+  // Finds the index using the floor integer (e.g., 25.4% becomes index 25 -> "Elite Chronicler")
+  const rankIndex = Math.floor(completionPercentage);
+  annualGradeDescription = spaceRanks[rankIndex] || "Zero-G Cadence";
+}
+
+// 5. Assign letter grades dynamically based on the percentage performance
+let annualGradeYear = "D";
+if (completionPercentage >= 85) {
+  annualGradeYear = "S";
+} else if (completionPercentage >= 60) {
+  annualGradeYear = "A";
+} else if (completionPercentage >= 35) {
+  annualGradeYear = "B";
+} else if (completionPercentage >= 15) {
+  annualGradeYear = "C";
+}
 
     const yearGrid = [];
     const firstJan = new Date(profileYear, 0, 1);
@@ -343,7 +605,7 @@ const QuickPopData: React.FC<QuickPopDataProps> = ({
       totalGoalsInYear,
       avgPointsPerDayYear,
       currentStreak,
-      rank,
+      rank: annualGradeDescription,
       totalDebitYear,
       totalCreditYear,
       netBalanceYear,
@@ -460,7 +722,7 @@ const QuickPopData: React.FC<QuickPopDataProps> = ({
         <div className="md:p-5 p-3 max-h-[70vh] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] space-y-4">
             
             {/* DAILY */}
-            {type === 'daily' && (
+{type === 'daily' && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <button
@@ -499,7 +761,7 @@ const QuickPopData: React.FC<QuickPopDataProps> = ({
 
                 <div className="bg-emerald-500/5 border border-emerald-500/10 p-4 rounded-2xl text-center">
                   <p className="text-xs uppercase tracking-widest text-gray-400">Daily Total Score</p>
-                  <p className="text-5xl font-black text-emerald-500 font-digital mt-2">
+                  <p className="text-5xl text-emerald-500 font-digital mt-2">
                     {activeDayEntries.reduce((s, e) => s + e.points, 0)}
                   </p>
                 </div>
@@ -512,40 +774,55 @@ const QuickPopData: React.FC<QuickPopDataProps> = ({
                       const timeB = b.fromTime || b.toTime;
                       return timeA.localeCompare(timeB);
                     })
-                    .map(item => (
-                      <button
-                        key={item.id}
-                        onClick={() => {
-                          const itemDate = item.fromDate || item.toDate;
-                          onSelectDate(itemDate);
-                          handleCloseWithAnimation();
-                          setTimeout(() => {
-                            scrollToActivity(item.id, itemDate);
-                          }, 400);
-                        }}
-                        className={`w-full text-left p-3 rounded-2xl transition-all border ${
-                          goals.some(g => g.code === item.code && g.achievedAt === (item.fromDate || item.toDate))
-                            ? 'border-emerald-500/40 shadow-md shadow-emerald-500/10 bg-emerald-500/[0.02] dark:bg-emerald-500/[0.01]' 
-                            : 'border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900'
-                        } hover:border-emerald-500/60`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-black text-gray-800 dark:text-white">
-                              {item.name}
-                            </p>
-                            <p className="text-xs text-gray-400 mt-1">
-                              {item.isLongEvent ? `${item.fromTime || item.toTime} – ${item.toTime || item.fromTime}` : item.fromTime || item.toTime}
-                            </p>
+                    .map(item => {
+                      {/* Determine if this item meets the goal criteria to accurately color the progress bar dynamically with the card layout */}
+                      const isItemGoalAchieved = goals.some(g => g.code === item.code && g.achievedAt === (item.fromDate || item.toDate));
+
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => {
+                            const itemDate = item.fromDate || item.toDate;
+                            onSelectDate(itemDate);
+                            handleCloseWithAnimation();
+                            setTimeout(() => {
+                              scrollToActivity(item.id, itemDate);
+                            }, 400);
+                          }}
+                          className={`w-full text-left p-3 rounded-2xl transition-all border ${
+                            isItemGoalAchieved
+                              ? 'border-emerald-500/40 shadow-md shadow-emerald-500/10 bg-emerald-500/[0.02] dark:bg-emerald-500/[0.01]' 
+                              : 'border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900'
+                          } hover:border-emerald-500/60`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="font-black text-gray-800 dark:text-white">
+                                {item.name}
+                              </p>
+                              <p className="text-xs text-gray-400 mt-1">
+                                {item.isLongEvent ? `${item.fromTime || item.toTime} – ${item.toTime || item.fromTime}` : item.fromTime || item.toTime}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-emerald-500 font-black">
+                                {item.points >= 0 ? `+${item.points}` : item.points}
+                              </p>
+                            </div>
                           </div>
-                          <div className="text-right">
-                            <p className="text-emerald-500 font-black">
-                              {item.points >= 0 ? `+${item.points}` : item.points}
-                            </p>
-                          </div>
-                        </div>
-                      </button>
-                    ))}
+
+                          {(item.fromTime || item.toTime) && (
+                            <div className="mt-2.5 pointer-events-none">
+                              <TimeProgressBar
+                                startTime={item.fromTime || item.toTime || ""}
+                                endTime={item.isLongEvent ? (item.toTime || item.fromTime) : undefined}
+                                isGoal={isItemGoalAchieved}
+                              />
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
                 </div>
               </div>
             )}
@@ -578,7 +855,7 @@ const QuickPopData: React.FC<QuickPopDataProps> = ({
                     <p className="text-[10px] font-bold text-gray-400 uppercase">
                       Total Months Points
                     </p>
-                    <p className="text-3xl font-black text-blue-600 font-digital mt-1">
+                    <p className="text-3xl text-blue-600 font-digital mt-1">
                       {activeYearEntries.reduce((s, e) => s + e.points, 0)}
                     </p>
                   </div>
@@ -587,7 +864,7 @@ const QuickPopData: React.FC<QuickPopDataProps> = ({
                     <p className="text-[10px] font-bold text-gray-400 uppercase">
                       Month Progress %
                     </p>
-                    <p className="text-3xl font-black text-purple-600 font-digital mt-1">
+                    <p className="text-3xl text-purple-600 font-digital mt-1">
                       {Math.min(
                         (activeYearEntries.reduce((s, e) => s + e.points, 0) / (365 * 100)) * 100,
                         100
@@ -601,7 +878,8 @@ const QuickPopData: React.FC<QuickPopDataProps> = ({
                     const monthDate = `${activeYear}-${String(i + 1).padStart(2, '0')}`;
                     const data = entries.filter(e => (e.fromDate || e.toDate).startsWith(monthDate));
                     const score = data.reduce((s, e) => s + e.points, 0);
-                    const progress = Math.min((score / (30 * 100)) * 100, 100);
+                    //const progress = Math.min((score / (30 * 100)) * 100, 100);
+                    const progress = (score / (30 * 100)) * 100;
 
                     return (
                       <button
@@ -616,10 +894,15 @@ const QuickPopData: React.FC<QuickPopDataProps> = ({
                         }}
                         disabled={score === 0}
                         className={`w-full p-3 rounded-2xl border border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 ${
-                          score === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:border-blue-500/30'
-                        } transition-all`}
+                          score === 0 ? 'opacity-50 cursor-not-allowed bg-gray-50 dark:bg-slate-900' : 'hover:border-blue-500/30'
+                        } transition-all relative overflow-hidden`}
+                        style={
+                          score > 0
+                            ? { background: `linear-gradient(to right, rgba(59, 130, 246, 0.1) ${progress}%, transparent ${progress}%)` }
+                            : {}
+                        }
                       >
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between relative z-10">
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center font-black text-blue-500">
                               {activeYear.toString().slice(-2)}
@@ -644,40 +927,56 @@ const QuickPopData: React.FC<QuickPopDataProps> = ({
             )}
 
             {/* YEARLY POINTS */}
-            {type === 'yearly_pts' && (
-              <div className="md:space-y-3 space-y-1">
-                {Array.from(new Set([new Date().getFullYear(), ...entries.map(e => new Date(e.fromDate || e.toDate).getFullYear())]))
-                  .sort((a, b) => (b as number) - (a as number))
-                  .map(year => {
-                    const score = entries
-                      .filter(e => new Date(e.fromDate || e.toDate).getFullYear() === year)
-                      .reduce((s, e) => s + (e.points || 0), 0);
+              {type === 'yearly_pts' && (
+                <div className="md:space-y-3 space-y-1">
+                  {Array.from(new Set([new Date().getFullYear(), ...entries.map(e => new Date(e.fromDate || e.toDate).getFullYear())]))
+                    .sort((a, b) => (b as number) - (a as number))
+                    .map(year => {
+                      const score = entries
+                        .filter(e => new Date(e.fromDate || e.toDate).getFullYear() === year)
+                        .reduce((s, e) => s + (e.points || 0), 0);
 
-                    return (
-                      <button
-                        key={year}
-                        onClick={() => {
-                          const targetDate = `${year}-01-01`;
-                          onSelectDate(targetDate);
-                          handleCloseWithAnimation();
-                        }}
-                        className="w-full text-left p-4 rounded-2xl border border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900 hover:border-indigo-500/40 transition-all cursor-pointer block"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-xs text-gray-400 uppercase">Year</p>
-                            <h3 className="text-2xl font-black text-gray-800 dark:text-white">{year}</h3>
+                      // 1. Calculate percentage based on 1 day = 100 points (Max 36500)
+                      // This calculates (score / (365 * 100)) * 100
+                      const yearlyProgress = score / 365;
+
+                      return (
+                        <button
+                          key={year}
+                          onClick={() => {
+                            const targetDate = `${year}-01-01`;
+                            onSelectDate(targetDate);
+                            handleCloseWithAnimation();
+                          }}
+                          className={`w-full text-left p-4 rounded-2xl border border-gray-100 dark:border-slate-700 hover:border-indigo-500/40 transition-all cursor-pointer block relative overflow-hidden ${
+                            score === 0 ? 'bg-gray-50 dark:bg-slate-900 opacity-50' : ''
+                          }`}
+                          // 2. Button progress background bar using indigo color
+                          style={
+                            score > 0
+                              ? {
+                                  background: `linear-gradient(to right, rgba(99, 102, 241, 0.1) ${yearlyProgress}%, transparent ${yearlyProgress}%)`,
+                                }
+                              : {}
+                          }
+                        >
+                          {/* 3. Text content sits safely on top of progress bar */}
+                          <div className="flex items-center justify-between relative z-10">
+                            <div>
+                              <p className="text-xs text-gray-400 uppercase">Year</p>
+                              <h3 className="text-2xl font-black text-gray-800 dark:text-white">{year}</h3>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-3xl text-indigo-500 font-digital">{score}</p>
+                              {/* 4. Shows the percentage out of the yearly point goal */}
+                              <p className="text-xs text-gray-400">{yearlyProgress.toFixed(0)}% • Total Points</p>
+                            </div>
                           </div>
-                          <div className="text-right">
-                            <p className="text-3xl font-black text-indigo-500 font-digital">{score}</p>
-                            <p className="text-xs text-gray-400">Total Points</p>
-                          </div>
-                        </div>
-                      </button>
-                    );
-                  })}
-              </div>
-            )}
+                        </button>
+                      );
+                    })}
+                </div>
+              )}
 
             {/* YEARLY GOALS */}
             {type === 'yearly_goals' && (
@@ -705,7 +1004,7 @@ const QuickPopData: React.FC<QuickPopDataProps> = ({
 
                 <div className="bg-purple-500/5 border border-purple-500/10 p-4 rounded-2xl text-center">
                   <p className="text-xs uppercase tracking-widest text-gray-400">Yearly Goals Achieved</p>
-                  <p className="text-5xl font-black text-purple-500 font-digital mt-2">
+                  <p className="text-5xl text-purple-500 font-digital mt-2">
                     {goals.filter(g => g.achievedAt && new Date(g.achievedAt).getFullYear() === activeYear).length}
                   </p>
                 </div>
@@ -767,7 +1066,7 @@ const QuickPopData: React.FC<QuickPopDataProps> = ({
             )}
 
             {/* TRANSACTION */}
-            {type === 'financial' && (
+{type === 'financial' && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <button
@@ -867,6 +1166,17 @@ const QuickPopData: React.FC<QuickPopDataProps> = ({
                               {item.debit > 0 && <p className="font-black text-red-500 leading-none">-{item.debit}{getCurrencySymbol(item.moneyCode)}</p>}
                             </div>
                           </div>
+
+                          {/* INTEGRATED TIME PROGRESS BAR ALIGNED WITH GOAL/THEME RULES */}
+                          {(item.fromTime || item.toTime) && (
+                            <div className="mt-2.5 pointer-events-none">
+                              <TimeProgressBar
+                                startTime={item.fromTime || item.toTime || ""}
+                                endTime={item.isLongEvent ? (item.toTime || item.fromTime) : undefined}
+                                isGoal={isGoalAchieved}
+                              />
+                            </div>
+                          )}
                         </button>
                       );
                     })}
@@ -877,7 +1187,7 @@ const QuickPopData: React.FC<QuickPopDataProps> = ({
             {/* PROFILE PERFORMANCE CARD */}
             {type === 'profile' && (
               !isHeavyUiReady ? (
-                <div className="space-y-4 animate-pulse">
+                <div className="space-y-4">
                   {/* Skeleton for Navigation Block */}
                   <div className="flex items-center justify-between bg-slate-100/60 dark:bg-slate-950/40 border border-gray-100/50 dark:border-slate-800/50 p-2.5 rounded-2xl h-[58px]">
                     <div className="w-8 h-8 bg-gray-200 dark:bg-slate-800 rounded-xl" />
@@ -1057,7 +1367,7 @@ const QuickPopData: React.FC<QuickPopDataProps> = ({
                           />
                         </div>
                         <div className="flex justify-between items-center mt-2 px-1 text-[9px] font-mono text-gray-400 font-bold uppercase tracking-wider">
-                          <span className="text-indigo-600 dark:text-indigo-400">{Math.round(progressPercent)}% LEVEL SECURED</span>
+                          <span className="text-indigo-600 dark:text-indigo-400">{progressPercent.toFixed(2)}% LEVEL SECURED</span>
                           <span>{profileStats.totalPointsYear} / {maxYearPoints} pts</span>
                         </div>
                       </div>
@@ -1065,59 +1375,62 @@ const QuickPopData: React.FC<QuickPopDataProps> = ({
                   );
                 })()}
 
-                {/* Annual Calendar Heatmap Card */}
-                <div className="bg-slate-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-5 rounded-3xl shadow-sm space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="text-indigo-500" size={18} />
-                      <div className="text-left">
-                        <h4 className="text-xs font-black uppercase tracking-wider text-gray-700 dark:text-gray-200">
-                          {profileStats.trackingYear} Annual Journey Heatmap
-                        </h4>
-                      </div>
-                    </div>
-                    <div className="text-right flex items-center gap-2">
-                      <div className="px-2 py-0.5 rounded-md text-center bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-[10px] font-black uppercase tracking-wider">
-                        GRADE {profileStats.annualGradeYear}
-                      </div>
-                      <div className="text-[10px] text-gray-500 dark:text-gray-400 font-bold">
-                        {profileStats.activeDaysCountYear} / {profileStats.trackingYear % 4 === 0 ? 366 : 365} Days
-                      </div>
-                    </div>
-                  </div>
+{/* Annual Calendar Heatmap Card */}
+<div className="bg-slate-50 dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-5 rounded-3xl shadow-sm space-y-3">
+  <div className="flex items-center justify-between">
+    <div className="flex items-center gap-2">
+      <Calendar className="text-indigo-500" size={18} />
+      <div className="text-left">
+        <h4 className="text-xs font-black uppercase tracking-wider text-gray-700 dark:text-gray-200">
+          {profileStats.trackingYear} Annual Journey Heatmap
+        </h4>
+      </div>
+    </div>
+    <div className="text-right flex items-center gap-2">
+      {/* Dynamic Grade Label */}
+      <div className="px-2 py-0.5 rounded-md text-center bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-[10px] font-black uppercase tracking-wider">
+        GRADE {profileStats.annualGradeYear}
+      </div>
+      {/* Dynamic Calendar Cap Indicator */}
+      <div className="text-[10px] text-gray-500 dark:text-gray-400 font-bold">
+        {profileStats.activeDaysCountYear} / {profileStats.trackingYear % 4 === 0 ? 366 : 365} Days
+      </div>
+    </div>
+  </div>
 
-                  <div className="relative pt-1">
-                    <HeatMap
-                      year={profileStats.trackingYear}
-                      entries={entries}
-                      themeColor="indigo"
-                      isScrollable={true}
-                      onDayClick={(dateStr) => {
-                        onSelectDate(dateStr);
-                        handleCloseWithAnimation();
-                        setTimeout(() => {
-                          scrollToActivities();
-                        }, 300);
-                      }}
-                    />
-                  </div>
+  <div className="relative pt-1">
+    <HeatMap
+      year={profileStats.trackingYear}
+      entries={entries}
+      themeColor="indigo"
+      isScrollable={true}
+      onDayClick={(dateStr) => {
+        onSelectDate(dateStr);
+        handleCloseWithAnimation();
+        setTimeout(() => {
+          scrollToActivities();
+        }, 300);
+      }}
+    />
+  </div>
 
-                  <div className="flex items-center justify-between text-[9px] font-bold text-gray-400 dark:text-gray-500 pt-2.5 border-t border-gray-100 dark:border-slate-850 mt-1">
-                    <div className="flex items-center gap-1.5">
-                      <span>Less active</span>
-                      <div className="w-2.5 h-2.5 rounded-[2.5px] bg-gray-200/60 dark:bg-slate-800/80" />
-                      <div className="w-2.5 h-2.5 rounded-[2.5px] bg-indigo-500/20 dark:bg-indigo-500/20" />
-                      <div className="w-2.5 h-2.5 rounded-[2.5px] bg-indigo-500/40 dark:bg-indigo-500/45" />
-                      <div className="w-2.5 h-2.5 rounded-[2.5px] bg-indigo-500/75 dark:bg-indigo-500/80" />
-                      <div className="w-2.5 h-2.5 rounded-[2.5px] bg-indigo-600 dark:bg-indigo-500" />
-                      <span>More active</span>
-                    </div>
-                    <div className="uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                      <span>Classification: </span>
-                      <span className="text-gray-700 dark:text-gray-300">{profileStats.annualGradeDescription}</span>
-                    </div>
-                  </div>
-                </div>
+  <div className="flex items-center justify-between text-[9px] font-bold text-gray-400 dark:text-gray-500 pt-2.5 border-t border-gray-100 dark:border-slate-850 mt-1">
+    <div className="flex items-center gap-1.5">
+      <span>Less active</span>
+      <div className="w-2.5 h-2.5 rounded-[2.5px] bg-gray-200/60 dark:bg-slate-800/80" />
+      <div className="w-2.5 h-2.5 rounded-[2.5px] bg-indigo-500/20 dark:bg-indigo-500/20" />
+      <div className="w-2.5 h-2.5 rounded-[2.5px] bg-indigo-500/40 dark:bg-indigo-500/45" />
+      <div className="w-2.5 h-2.5 rounded-[2.5px] bg-indigo-500/75 dark:bg-indigo-500/80" />
+      <div className="w-2.5 h-2.5 rounded-[2.5px] bg-indigo-600 dark:bg-indigo-500" />
+      <span>More active</span>
+    </div>
+    {/* Dynamic Classification Space Rank Label */}
+    <div className="uppercase tracking-wide text-gray-500 dark:text-gray-400">
+      <span>Classification: </span>
+      <span className="text-gray-700 dark:text-gray-300">{profileStats.annualGradeDescription}</span>
+    </div>
+  </div>
+</div>
 
                 {/* Statistics Bento Grid (Strictly Filtered by Year Navigation Selection) */}
                 <div className="grid grid-cols-2 gap-3">
@@ -1128,7 +1441,7 @@ const QuickPopData: React.FC<QuickPopDataProps> = ({
                     </div>
                     <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Yearly Points</p>
                     <div className="flex flex-wrap items-baseline gap-1 mt-1">
-                      <span className="text-2xl sm:text-3xl font-black text-amber-500 font-digital leading-none break-all">{profileStats.totalPointsYear}</span>
+                      <span className="text-2xl sm:text-3xl text-amber-500 font-digital leading-none break-all">{profileStats.totalPointsYear}</span>
                       <span className="text-[10px] sm:text-xs text-amber-500/70 font-bold uppercase tracking-wider ml-0.5">PTS</span>
                     </div>
                   </div>
@@ -1140,7 +1453,7 @@ const QuickPopData: React.FC<QuickPopDataProps> = ({
                     </div>
                     <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Total Actions</p>
                     <div className="flex flex-wrap items-baseline gap-1 mt-1">
-                      <span className="text-2xl sm:text-3xl font-black text-blue-500 font-digital leading-none break-all">{profileStats.totalActivitiesYear}</span>
+                      <span className="text-2xl sm:text-3xl text-blue-500 font-digital leading-none break-all">{profileStats.totalActivitiesYear}</span>
                       <span className="text-[10px] sm:text-xs text-blue-500/70 font-bold uppercase tracking-wider ml-0.5">logs</span>
                     </div>
                   </div>
@@ -1152,7 +1465,7 @@ const QuickPopData: React.FC<QuickPopDataProps> = ({
                     </div>
                     <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Target Goals Met</p>
                     <div className="flex flex-wrap items-baseline gap-1 mt-1">
-                      <span className="text-2xl sm:text-3xl font-black text-pink-500 font-digital leading-none break-all">
+                      <span className="text-2xl sm:text-3xl text-pink-500 font-digital leading-none break-all">
                         {profileStats.completedGoalsYear.length}
                       </span>
                       <span className="text-[10px] sm:text-xs text-pink-500/80 font-bold uppercase tracking-wider ml-0.5">
@@ -1168,7 +1481,7 @@ const QuickPopData: React.FC<QuickPopDataProps> = ({
                     </div>
                     <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Daily Score Avg</p>
                     <div className="flex flex-wrap items-baseline gap-1 mt-1">
-                      <span className="text-2xl sm:text-3xl font-black text-emerald-500 font-digital leading-none break-all">{profileStats.avgPointsPerDayYear}</span>
+                      <span className="text-2xl sm:text-3xl text-emerald-500 font-digital leading-none break-all">{profileStats.avgPointsPerDayYear}</span>
                       <span className="text-[10px] sm:text-xs text-emerald-500/70 font-bold uppercase tracking-wider ml-0.5">pts/d</span>
                     </div>
                   </div>

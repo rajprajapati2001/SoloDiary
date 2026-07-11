@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { ActivityEntry, Goal } from '../types';
 import { getCurrencySymbol, getAggregateCurrencyDisplay } from '../constants';
-import { Printer, FileChartColumn, FileText, TrendingUp, Award, ImageDown,  Banknote,FileCode2, BadgeCheck , EyeOff, NotebookText, ChartLine, Landmark, ExternalLink, CheckCircle2, Zap, Target, ClipboardList, Star, Clock, DatabaseBackup, Download, Upload, X, Copy, Share2, Eye, Layout, Mail, Globe } from 'lucide-react';
+import { Printer, FileChartColumn, FileText, TrendingUp, Award, ImageDown,  Banknote,FileCode2, BadgeCheck , EyeOff, NotebookText, ChartLine, Landmark, ExternalLink, CheckCircle2, Zap, Target, ClipboardList, Star, Clock, DatabaseBackup, Download, Upload, X, Copy, Share2, Eye, Layout, Mail, Globe, Calendar, Grid3x3, Search, ChartNetwork } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import LineGraph from './LineGraph';
 import CalendarView from './CalendarView';
@@ -1830,13 +1830,13 @@ const [showLabels, setShowLabels] = useState(true);
               </div>
 
               <div className="flex gap-2">
-                 <div className="bg-slate-950 text-white px-5 py-3 rounded-xl flex flex-col items-center justify-center min-w-[100px] shadow-sm">
-                    <span className="text-2xl  font-semibold leading-none">{monthProgressPct.toFixed(1)}%</span>
-                    <span className="text-[7px] uppercase  font-semibold opacity-60 mt-1 tracking-widest">Efficiency</span>
+                 <div className="bg-slate-950 text-white px-6 py-4 rounded-xl flex flex-col items-center justify-center min-w-[100px] shadow-sm">
+                    <span className="text-3xl  font-semibold leading-none">{monthProgressPct.toFixed(1)}%</span>
+                    <span className="text-[8px] uppercase  font-semibold opacity-60 mt-1 tracking-widest">Efficiency</span>
                  </div>
-                 <div className="border-[2px] border-slate-950 text-slate-950 px-5 py-3 rounded-xl flex flex-col items-center justify-center min-w-[100px]">
-                    <span className="text-2xl  font-semibold leading-none">{userMonthPoints}</span>
-                    <span className="text-[7px] uppercase  font-semibold opacity-40 mt-1 tracking-widest">Points</span>
+                 <div className="border-[2px] border-slate-950 text-slate-950 px-6 py-4 rounded-xl flex flex-col items-center justify-center min-w-[100px]">
+                    <span className="text-3xl  font-semibold leading-none">{userMonthPoints}</span>
+                    <span className="text-[8px] uppercase  font-semibold opacity-40 mt-1 tracking-widest">Points</span>
                  </div>
               </div>
            </div>
@@ -1984,19 +1984,20 @@ const [showLabels, setShowLabels] = useState(true);
   <div className="mb-8 border border-slate-100 py-2 rounded-xl bg-slate-50/50 print-section relative">
     {/* Header Container */}
     <div className="flex items-center justify-between px-4 mb-4">
-      
+    <ChartNetwork size={16} className="text-purple-400" />
+
+      {/* 2. Centered Title */}
+      <span className="flex-1 text-[8px] pl-1 font-bold uppercase tracking-[0.3em] text-slate-400">
+        Yield Trajectory ({monthLabelText} {selectedYear})
+      </span>
       {/* 1. Left Spacer (Empty div to balance the button) */}
       <div className="w-8" /> 
 
-      {/* 2. Centered Title */}
-      <h4 className="flex-1 text-[8px]  font-semibold text-center uppercase tracking-[0.3em] text-slate-400">
-        Yield Trajectory ({monthLabelText} {selectedYear})
-      </h4>
 
       {/* 3. Right Button */}
             {/* Legend - Only visible if NOT in dashboard */}
   
-        <div className="absolute top-2 right-10 text-[8px] font-bold dark:text-slate-100 text-slate-600 uppercase tracking-widest bg-white/80 dark:bg-slate-800/60 px-2 py-0 rounded-md border border-slate-100 dark:border-slate-700">
+        <div className="absolute top-2 right-10 text-[7px] text-slate-100 uppercase tracking-widest bg-slate-600/60 px-2 py-0.5 rounded-full">
           1 Day = 100 Points
         </div>
 
@@ -2038,46 +2039,25 @@ const [showLabels, setShowLabels] = useState(true);
     Progression Frequency Index ({selectedYear})
   </h3>
   
-  <div className="border border-slate-100 p-4 rounded-xl bg-slate-50/50 w-full">
-    {/* Heatmap Grid Component */}
-    <HeatMap 
-      year={parseInt(selectedYear)}
-      entries={entries}
-      themeColor="indigo"
-      maxMonth={parseInt(selectedMonth) - 1}
-      onDayClick={(dateStr) => {
-        const target = document.getElementById(`ledger-date-${dateStr}`);
-        if (target) {
-          target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          target.style.backgroundColor = '#eff6ff';
-          setTimeout(() => { target.style.backgroundColor = ''; }, 2000);
-        }
-      }}
-    />
-
-    {/* Ultra-Stable CSS Grid Footer Layout */}
-    <div className="mt-1 pt-1 border-t border-slate-100 grid grid-cols-3 items-center w-full text-[9px] text-gray-500 font-medium select-none whitespace-nowrap">
+  <div className="border border-slate-100 p-2.5 rounded-xl bg-slate-50/50 w-full">
+      {/* Ultra-Stable CSS Grid Footer Layout */}
+    <div className="grid grid-cols-3 items-center w-full text-[9px] font-medium select-none whitespace-nowrap">
       
       {/* 1. LEFT SIDE: Legend (Aligned Left) */}
       <div className="flex items-center gap-1 justify-start">
-        <span className="text-gray-400">Less</span>
-        <div className="w-2.5 h-2.5 rounded-[2px] bg-gray-200/60 dark:bg-slate-800/80 border border-gray-300/10 shrink-0"></div>
-        <div className="w-2.5 h-2.5 rounded-[2px] bg-indigo-500/20 shrink-0"></div>
-        <div className="w-2.5 h-2.5 rounded-[2px] bg-indigo-500/45 shrink-0"></div>
-        <div className="w-2.5 h-2.5 rounded-[2px] bg-indigo-500/75 shrink-0"></div>
-        <div className="w-2.5 h-2.5 rounded-[2px] bg-indigo-600 shrink-0"></div>
-        <span className="text-gray-400">More</span>
+        <Grid3x3 size={16} className="text-indigo-400 font-bold" />
+        <span className="text-gray-500 font-bold">Annual Journey Heatmap</span>
       </div>
 
       {/* 2. CENTER: Year Display Function (Aligned Center) */}
-      <div className="text-center font-bold tracking-wider">
+      <div className="text-center font-bold text-indigo-500 tracking-wider">
         {(() => {
           return `${selectedYear}`;
         })()}
       </div>
 
       {/* 3. RIGHT SIDE: Dynamic Days Counter (Aligned Right) */}
-      <div className="text-right tabular-nums text-slate-600 dark:text-slate-400 font-bold">
+      <div className="text-right tabular-nums text-slate-600 dark:text-slate-400">
         {(() => {
           const yearNum = parseInt(selectedYear);
           const monthNum = parseInt(selectedMonth);
@@ -2096,11 +2076,122 @@ const [showLabels, setShowLabels] = useState(true);
 
           const daysLeft = totalYearDays - daysPassed;
 
-          return `${String(Math.max(0, daysLeft)).padStart(3, '0')} / ${totalYearDays} days left`;
+return (
+            <>
+              <span className="text-indigo-500 font-bold">{String(Math.max(0, daysLeft)).padStart(3, '0')}</span>
+              <span className="font-bold"> / {totalYearDays}</span> Days Left
+            </>
+          );
         })()}
       </div>
 
     </div>
+    {/* Heatmap Grid Component */}
+    <HeatMap 
+      year={parseInt(selectedYear)}
+      entries={entries}
+      themeColor="indigo"
+      maxMonth={parseInt(selectedMonth) - 1}
+      onDayClick={(dateStr) => {
+        const target = document.getElementById(`ledger-date-${dateStr}`);
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          target.style.backgroundColor = '#eff6ff';
+          setTimeout(() => { target.style.backgroundColor = ''; }, 2000);
+        }
+      }}
+    />
+
+{/* Ultra-Stable CSS Grid Footer Layout */}
+<div className="mt-1 pt-1 border-t border-slate-100 grid grid-cols-3 items-center w-full text-[9px] text-gray-500 font-medium select-none whitespace-nowrap">
+  
+  {/* 1. LEFT SIDE: Legend (Aligned Left) */}
+  <div className="flex items-center gap-1 justify-start font-bold">
+    <span className="text-gray-400">Less Active </span>
+    <div className="w-3 h-3 rounded-[2px] bg-gray-200/60 dark:bg-slate-800/80 border border-gray-300/10 shrink-0"></div>
+    <div className="w-3 h-3 rounded-[2px] bg-indigo-500/20 shrink-0"></div>
+    <div className="w-3 h-3 rounded-[2px] bg-indigo-500/45 shrink-0"></div>
+    <div className="w-3 h-3 rounded-[2px] bg-indigo-500/75 shrink-0"></div>
+    <div className="w-3 h-3 rounded-[2px] bg-indigo-600 shrink-0"></div>
+    <span className="text-gray-400"> More Active</span>
+  </div>
+
+  {/* 2. CENTER: Year Display Function (Aligned Center) */}
+  <div className="text-center tracking-wider">
+    <span>Classification: </span>
+    <span className="text-indigo-600 font-bold">
+      {(() => {
+        const totalYearPointsMax = 365 * 100; // 36,500 points
+        const pct = (yearPoints / totalYearPointsMax) * 100;
+
+        // Custom progressive index mapping for lower tiers
+        if (pct >= 0.0 && pct < 0.5) return "Zero-G Cadence";
+        if (pct >= 0.5 && pct < 1.0) return "Terrestrial Tether";
+        if (pct >= 1.0 && pct < 1.5) return "Grounded Observer";
+        if (pct >= 1.5 && pct < 2.0) return "Gravity Bound";
+        if (pct >= 2.0 && pct < 2.5) return "Atmos Apprentice";
+        if (pct >= 2.5 && pct < 3.0) return "Launchpad Larva";
+        if (pct >= 3.0 && pct < 3.5) return "Stratosphere Scanner";
+        if (pct >= 3.5 && pct < 4.0) return "Sub-Orbital Spotter";
+        if (pct >= 4.0 && pct < 4.5) return "Orbit Initiate";
+        if (pct >= 4.5 && pct < 5.0) return "Perigee Plebeian";
+        if (pct >= 5.0 && pct < 5.5) return "Horizon Chaser";
+        if (pct >= 5.5 && pct < 6.0) return "Velocity Vestige";
+
+        // SpaceRanks array fallback for index 6 to 100+
+        const spaceRanks = [
+          "Zero-G Cadence", "Terrestrial Tether", "Grounded Observer", "Gravity Bound", "Atmos Apprentice",
+          "Launchpad Larva", "Stratosphere Scanner", "Sub-Orbital Spotter", "Orbit Initiate", "Perigee Plebeian",
+          "Horizon Chaser", "Velocity Vestige", "Vacuum Venture", "Cosmic Cadet", "Nebula Neophyte",
+          "Apogee Aspirant", "Solar Scouter", "Flare Finder", "Zenith Zealot", "Eclipse Escort",
+          "Orbit Operator", "Interstellar Intern", "Meteor Midshipman", "Comet Courier", "Nova Novice",
+          "Pulsar Pacer", "Astral Apprentice", "Asteroid Auditor", "Rocket Rigging", "Void Venture",
+          "Cluster Clerk", "Elite Chronicler", "Cosmos Cataloger", "Nebula Notary", "Stellar Scribe",
+          "Orbit Overseer", "Galaxy Archivist", "System Surveyor", "Vector Validator", "Sector Supervisor",
+          "Eclipse Evaluator", "Celestial Curator", "Flare Forecaster", "Constellation Clerk", "Parallax Paladin",
+          "Zenith Warden", "Void Visualizer", "Cosmos Cartographer", "Nebula Navigator", "Quasar Quorum",
+          "Continuum Keeper", "Astral Analyst", "Gravity Governor", "Solar Sentinel", "Void Vignette",
+          "Star System Sentry", "Deep Space Dean", "Meridian Marshal", "Cluster Commander", "Orbit Officer",
+          "Horizon Herald", "Eclipse Enforcer", "Nova Superintendent", "Vector Vanguard", "Epoch Examiner",
+          "Zenith Zenithith", "Master Navigator", "Celestial Helmsman", "Starpath Skipper", "Cosmic Commodore",
+          "Void Voyager", "Nebula Skipper", "Solar Skipper", "Continuum Pilot", "Deep Space Director",
+          "Stellar Steersman", "Galaxy Guide", "Vector Voyager", "Orbit Orchestrator", "Meridian Master",
+          "Zenith Pathfinder", "Eclipse Explorer", "Cosmos Captain", "Sector Skipper", "Flare Fleetmaster",
+          "Cluster Captain", "Void Viceroy", "Starpath Sovereign", "Galaxy Governor", "Celestial Commander",
+          "Nebula Noble", "Continuum Commander", "Deep Space Dictator", "Solar Sovereign", "Cosmic Chancellor",
+          "Horizon High-Admiral", "Legendary Voyager", "Void Visionary", "Starpath Sage", "Celestial Paragon",
+          "Galaxy Guardian", "Cosmos Champion", "Nebula Nexus", "Continuum Catalyst", "Deep Space Deity", 
+          "Zenith Zeal"
+        ];
+
+        if (pct === 100.0) return "Astral Vanguard";
+        if (pct > 100.0) return "Sovereign of Space-Time";
+
+        // For integer ranges from 6.0% down to 99.x%
+        const index = Math.floor(pct);
+        return spaceRanks[index] || "Zero-G Cadence";
+      })()}
+    </span>
+  </div>
+
+  {/* 3. RIGHT SIDE: Dynamic Days Counter (Aligned Right) */}
+  <div className="text-right tabular-nums text-slate-500">
+    <div className="inline-block bg-indigo-100/60 rounded-full p-0.5 px-3">
+      <span className="text-indigo-600 font-bold">
+        {(() => {
+          const pct = (yearPoints / (365 * 100)) * 100;
+          if (pct >= 85) return "S";
+          if (pct >= 60) return "A";
+          if (pct >= 35) return "B";
+          if (pct >= 15) return "C";
+          return "D";
+        })()}
+      </span>
+      <span> : Grade</span>
+    </div>
+  </div>
+
+</div>
   </div>
 </div>
 
@@ -2249,25 +2340,40 @@ const [showLabels, setShowLabels] = useState(true);
       <NotebookText size={16} className="text-pink-600" />
       Chronological Log Diary
     </h3>
-    <input
-      id="search-description-input"
-      type="text"
-      placeholder="Search descriptions..."
-      value={searchQuery}
-      onChange={(e) => setSearchQuery(e.target.value)}
-      style={{
-        padding: '3px 12px',
-        backgroundColor: '#f8f9fa',
-        border: '1px solid #cbd5e1',
-        borderRadius: '4px',
-        fontSize: '10px',
-        fontWeight: 500,
-        width: '192px',
-        outline: 'none',
-      }}
-      onFocus={(e) => { e.target.style.boxShadow = '0 0 0 2px #60a5fa'; }}
-      onBlur={(e) => { e.target.style.boxShadow = ''; }}
-    />
+<div style={{ position: 'relative', display: 'inline-block' }}>
+  {/* The Icon: Positioned absolutely over the input */}
+  <Search 
+    size={14} 
+    className="text-pink-400" 
+    style={{
+      position: 'absolute',
+      left: '8px',
+      top: '50%',
+      transform: 'translateY(-40%)',
+      pointerEvents: 'none' // Ensures clicking the icon still focuses the input
+    }} 
+  />
+  <input
+    id="search-description-input"
+    type="text"
+    placeholder="Search Descriptions..."
+    value={searchQuery}
+    onChange={(e) => setSearchQuery(e.target.value)}
+    style={{
+      padding: '4px 12px 4px 28px', // Increased left padding (28px) to make room for the icon
+      backgroundColor: '#f8f9fa',
+      border: '1px solid #cbd5e1',
+      borderRadius: '12px',
+      fontSize: '10px',
+      fontWeight: 500,
+      width: '250px',
+      outline: 'none',
+      transition: 'box-shadow 0.2s ease', // Smooth focus ring
+    }}
+    onFocus={(e) => { e.target.style.boxShadow = '0 0 0 2px #ff6ad553'; }}
+    onBlur={(e) => { e.target.style.boxShadow = ''; }}
+  />
+</div>
   </div>
   <div className="border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm">
     <table className="w-full text-left border-collapse table-fixed">

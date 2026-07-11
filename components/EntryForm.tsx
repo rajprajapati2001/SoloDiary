@@ -408,7 +408,7 @@ const EntryForm: React.FC<EntryFormProps> = ({ isOpen, onClose, onSave, initialD
     <button
       disabled={isClosing || isSubmitting}
       onClick={handleCloseWithAnimation}
-      className="p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-full transition-all text-slate-400 hover:text-slate-600 dark:hover:text-white disabled:opacity-60 disabled:cursor-not-allowed"
+      className="p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-full transition-all text-slate-400 hover:text-slate-600 dark:hover:text-white disabled:opacity-70 disabled:cursor-not-allowed"
     >
       <X size={24} />
     </button>
@@ -467,7 +467,7 @@ const EntryForm: React.FC<EntryFormProps> = ({ isOpen, onClose, onSave, initialD
         {/* FROM DATE */}
         {!disableDates && (
           <div className="space-y-1">
-            <label className="text-[10px] font-black uppercase opacity-60 flex items-center gap-1 text-black dark:text-white">
+            <label className="text-[10px] font-black uppercase opacity-70 flex items-center gap-1 text-black dark:text-white">
               <CalendarIcon size={12} className="text-blue-500" /> {isLongEvent ? "From Date" : "Date"}
             </label>
             <div className="relative flex items-center">
@@ -493,7 +493,7 @@ const EntryForm: React.FC<EntryFormProps> = ({ isOpen, onClose, onSave, initialD
 
         {/* FROM TIME */}
         <div className={`space-y-1 relative ${disableDates ? 'col-span-2' : ''}`}>
-          <label className="text-[10px] font-black uppercase opacity-60 flex items-center gap-1 text-black dark:text-white">
+          <label className="text-[10px] font-black uppercase opacity-70 flex items-center gap-1 text-black dark:text-white">
             <Clock size={12} className="text-emerald-500" /> {isLongEvent ? "From Time" : "Time"}
           </label>
           <div className="relative">
@@ -515,7 +515,7 @@ const EntryForm: React.FC<EntryFormProps> = ({ isOpen, onClose, onSave, initialD
           {/* TO DATE */}
           {!disableDates && (
             <div className="space-y-1">
-              <label className="text-[10px] font-black uppercase opacity-60 flex items-center gap-1 text-black dark:text-white">
+              <label className="text-[10px] font-black uppercase opacity-70 flex items-center gap-1 text-black dark:text-white">
                 <CalendarIcon size={12} className="text-blue-500" /> To Date
               </label>
               <div className="relative flex items-center">
@@ -541,7 +541,7 @@ const EntryForm: React.FC<EntryFormProps> = ({ isOpen, onClose, onSave, initialD
 
           {/* TO TIME */}
           <div className={`space-y-1 ${disableDates ? 'col-span-2' : ''}`}>
-            <label className="text-[10px] font-black uppercase opacity-60 flex items-center gap-1 text-black dark:text-white">
+            <label className="text-[10px] font-black uppercase opacity-70 flex items-center gap-1 text-black dark:text-white">
               <Clock size={12} className="text-emerald-500" /> To Time
             </label>
             <div className="relative">
@@ -629,7 +629,7 @@ const EntryForm: React.FC<EntryFormProps> = ({ isOpen, onClose, onSave, initialD
 
       {/* Row 5: Activity Name */}
       <div className="space-y-1 relative" ref={nameSuggestionRef}>
-        <label className="text-[10px] inline-flex gap-1 font-black uppercase opacity-60 text-black dark:text-white"> <Zap size={12} className="text-amber-500" /> Activity Name </label>
+        <label className="text-[10px] inline-flex gap-1 font-black uppercase opacity-70 text-black dark:text-white"> <Zap size={12} className="text-amber-500" /> Activity Name </label>
         <input
           type="text"
           value={name}
@@ -647,7 +647,7 @@ const EntryForm: React.FC<EntryFormProps> = ({ isOpen, onClose, onSave, initialD
       {/* Row 6: Code | Points */}
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1 relative" ref={codeSuggestionRef}>
-          <label className="inline-flex gap-1 text-[10px] font-black uppercase opacity-60 text-black dark:text-white"> <Code size={12} className="text-slate-400" />Code</label>
+          <label className="inline-flex gap-1 text-[10px] font-black uppercase opacity-70 text-black dark:text-white"> <Code size={12} className="text-slate-400" />Code</label>
           <input
             type="text"
             value={code}
@@ -662,7 +662,7 @@ const EntryForm: React.FC<EntryFormProps> = ({ isOpen, onClose, onSave, initialD
           )}
         </div>
         <div className="space-y-1">
-          <label className="text-[10px] inline-flex gap-1 font-black uppercase opacity-60 text-black dark:text-white"><Star size={12} className="text-amber-500" />Points</label>
+          <label className="text-[10px] inline-flex gap-1 font-black uppercase opacity-70 text-black dark:text-white"><Star size={12} className="text-amber-500" />Points</label>
           <input
             type="number"
             value={points || ""}
@@ -703,7 +703,7 @@ const EntryForm: React.FC<EntryFormProps> = ({ isOpen, onClose, onSave, initialD
           </div>
 
           <div className="space-y-1">
-            <label className="text-[10px] inline-flex gap-1 font-black uppercase opacity-60 text-black dark:text-white">
+            <label className="text-[10px] inline-flex gap-1 font-black uppercase opacity-70 text-black dark:text-white">
               <Banknote size={12} className="text-emerald-500" /> Currency DEFAULT SELECTOR
             </label>
             <select
@@ -735,7 +735,7 @@ const EntryForm: React.FC<EntryFormProps> = ({ isOpen, onClose, onSave, initialD
       {isDescriptionOpen && (
         <div className="space-y-4 overflow-hidden">
           <div className="space-y-1">
-            <label className="inline-flex gap-1 text-[10px] font-black uppercase opacity-60 text-black dark:text-white"><NotebookPen size={12} className="text-pink-500"/>Activity Notes...</label>
+            <label className="inline-flex gap-1 text-[10px] font-black uppercase opacity-70 text-black dark:text-white"><NotebookPen size={12} className="text-pink-500"/>Activity Notes...</label>
             <textarea
               ref={descriptionRef}
               value={description}
@@ -747,7 +747,7 @@ const EntryForm: React.FC<EntryFormProps> = ({ isOpen, onClose, onSave, initialD
           </div>
 
           <div className="space-y-1">
-            <label className="text-[10px] font-black uppercase opacity-60 flex items-center gap-1 text-black dark:text-white">
+            <label className="text-[10px] font-black uppercase opacity-70 flex items-center gap-1 text-black dark:text-white">
               <LinkIcon size={12} className="text-blue-500" /> Attachment
             </label>
             <input
@@ -767,14 +767,14 @@ const EntryForm: React.FC<EntryFormProps> = ({ isOpen, onClose, onSave, initialD
     type="button"
     disabled={isClosing || isSubmitting}
     onClick={handleCloseWithAnimation}
-    className="flex-1 py-4 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 dark:from-red-700 dark:to-rose-700 dark:hover:from-red-600 dark:hover:to-rose-600 text-white font-black rounded-2xl shadow-md active:scale-95 transition-all uppercase tracking-widest text-sm disabled:opacity-60 disabled:cursor-not-allowed"
+    className="flex-1 py-4 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 dark:from-red-700 dark:to-rose-700 dark:hover:from-red-600 dark:hover:to-rose-600 text-white font-black rounded-2xl shadow-md active:scale-95 transition-all uppercase tracking-widest text-sm disabled:opacity-70 disabled:cursor-not-allowed"
   >
     Cancel
   </button>
   <button
     type="submit"
     disabled={isClosing || isSubmitting}
-    className="flex-[2] py-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 dark:from-emerald-700 dark:to-teal-700 dark:hover:from-emerald-600 dark:hover:to-teal-600 text-white font-black rounded-2xl shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 uppercase tracking-widest text-sm disabled:opacity-60 disabled:cursor-not-allowed"
+    className="flex-[2] py-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 dark:from-emerald-700 dark:to-teal-700 dark:hover:from-emerald-600 dark:hover:to-teal-600 text-white font-black rounded-2xl shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 uppercase tracking-widest text-sm disabled:opacity-70 disabled:cursor-not-allowed"
   >
     <Save size={20} /> Save Record
   </button>

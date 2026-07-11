@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Goal } from '../types';
-import { X, Plus, Trash2, Target, CheckCircle, Edit2, Flag, Search } from 'lucide-react'; // Added Search icon
+import { X, Plus, Trash2, Target, CheckCircle, Edit2, Flag, Search, ChevronsLeft, ChevronsRight } from 'lucide-react';
 
 interface GoalsViewProps {
   userName: string;
@@ -25,14 +25,13 @@ const GoalsView: React.FC<GoalsViewProps> = ({ userName, goals, onAddGoal, onDel
   const [deadlineYear, setDeadlineYear] = useState(currentYear);
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
-  const [points, setPoints] = useState(0);
-  const [searchTerm, setSearchTerm] = useState(''); // Added search state
+  const [points, setPoints] = useState<number | ''>(0);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const formRef = useRef<HTMLDivElement>(null);
-
   const years = Array.from({ length: 6 }, (_, i) => currentYear + i);
 
-  // Logic: Filter by search term, then sort by achievement status and date
+  // Filter & sort goals. Sorted by year descending so dividers flow chronologically.
   const filteredGoals = goals.filter(goal => 
     goal.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     goal.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -40,6 +39,9 @@ const GoalsView: React.FC<GoalsViewProps> = ({ userName, goals, onAddGoal, onDel
   );
 
   const sortedGoals = [...filteredGoals].sort((a, b) => {
+    const yearA = a.deadlineYear || currentYear;
+    const yearB = b.deadlineYear || currentYear;
+    if (yearA !== yearB) return yearB - yearA; // Sort by year descending
     if (a.achievedAt && !b.achievedAt) return 1;
     if (!a.achievedAt && b.achievedAt) return -1;
     return (b.createdAt || 0) - (a.createdAt || 0);
@@ -53,7 +55,7 @@ const GoalsView: React.FC<GoalsViewProps> = ({ userName, goals, onAddGoal, onDel
       deadlineYear,
       code,
       name,
-      points,
+      points: Number(points) || 0,
     };
 
     if (editingId) {
@@ -114,51 +116,50 @@ const GoalsView: React.FC<GoalsViewProps> = ({ userName, goals, onAddGoal, onDel
     return `${day} ${month} ${year}`;
   };
 
+  // Keep track of years rendered during mapping loops
+  let lastMobileYear: number | null = null;
+  let lastDesktopYear: number | null = null;
+
   return (
     <div className="space-y-6 dark:text-white text-black">
       
-<div className="relative flex justify-between items-center md:gap-4 md:p-4 p-1 overflow-visible">
-  {/* Large Decorative Background Icon */}
-  <div className="absolute top-1 -translate-y-10 -right-10 text-emerald-500/20 dark:text-emerald-400/15 pointer-events-none select-none z-0 transform rotate-12">
-    <Target size={180} strokeWidth={1.2} />
-  </div>
+      <div className="relative flex justify-between items-center md:gap-4 md:p-4 p-1 overflow-visible">
+        <div className="absolute top-1 -translate-y-10 -right-10 text-emerald-500/20 dark:text-emerald-400/15 pointer-events-none select-none z-0 transform rotate-12">
+          <Target size={180} strokeWidth={1.2} />
+        </div>
 
-  {/* Left Section: Icon + Headings */}
-  <div className="flex items-center gap-4 relative z-10">
-    {/* Upgraded Target Icon Badge */}
-    <div className="relative flex items-center justify-center p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/50 shadow-sm shadow-emerald-100/50 dark:shadow-none shrink-0 transition-transform hover:scale-105">
-      <Target size={24} strokeWidth={2.2} />
-      {/* Subtle glow effect breaking outside the badge */}
-      <span className="absolute inset-0 rounded-xl bg-emerald-400/20 blur-xl -z-10 animate-pulse" />
-    </div>
+        <div className="flex items-center gap-4 relative z-10">
+          <div className="relative flex items-center justify-center p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/50 shadow-sm shadow-emerald-100/50 dark:shadow-none shrink-0 transition-transform hover:scale-105">
+            <Target size={24} strokeWidth={2.2} />
+            <span className="absolute inset-0 rounded-xl bg-emerald-400/20 blur-xl -z-10 animate-pulse" />
+          </div>
 
-    <div>
-      <h2 ref={formRef} className="text-xl md:text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">
-        Manage Goals
-      </h2>
-      <p className="text-[10px] md:text-xs font-bold opacity-60 dark:opacity-50 text-gray-500 dark:text-slate-400 uppercase tracking-widest mt-0.5">
-        Dream big, stay consistent
-      </p>
-    </div>
-  </div>
+          <div>
+            <h2 ref={formRef} className="text-xl md:text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">
+              Manage Goals
+            </h2>
+            <p className="text-[10px] md:text-xs font-bold opacity-60 dark:opacity-50 text-gray-500 dark:text-slate-400 uppercase tracking-widest mt-0.5">
+              Dream big, stay consistent
+            </p>
+          </div>
+        </div>
 
-  {/* Right Section: Premium Action Button */}
-  <button
-    onClick={toggleForm}
-    className={`flex items-center gap-2 text-white px-4 py-3 rounded-xl font-semibold text-sm tracking-wide shadow-md transition-all duration-300 transform active:scale-95 shrink-0 select-none ${
-      showForm 
-        ? 'bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 shadow-red-500/20 hover:shadow-lg hover:shadow-red-500/30' 
-        : 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 shadow-emerald-500/20 hover:shadow-lg hover:shadow-emerald-500/30'
-    }`}
-  >
-    <span className={`transform transition-transform duration-300 ${showForm ? 'rotate-90' : 'rotate-0'}`}>
-      {!showForm ? <Plus size={18} strokeWidth={2.5} /> : <X size={18} strokeWidth={2.5} />}
-    </span>
-    <span className="hidden sm:inline-block font-bold">
-      {showForm ? 'Cancel' : 'New Goal'}
-    </span>
-  </button>
-</div>
+        <button
+          onClick={toggleForm}
+          className={`flex items-center gap-2 text-white px-4 py-3 rounded-xl font-semibold text-sm tracking-wide shadow-md transition-all duration-300 transform active:scale-95 shrink-0 select-none ${
+            showForm 
+              ? 'bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 shadow-red-500/20 hover:shadow-lg hover:shadow-red-500/30' 
+              : 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 shadow-emerald-500/20 hover:shadow-lg hover:shadow-emerald-500/30'
+          }`}
+        >
+          <span className={`transform transition-transform duration-300 ${showForm ? 'rotate-90' : 'rotate-0'}`}>
+            {!showForm ? <Plus size={18} strokeWidth={2.5} /> : <X size={18} strokeWidth={2.5} />}
+          </span>
+          <span className="hidden sm:inline-block font-bold">
+            {showForm ? 'Cancel' : 'New Goal'}
+          </span>
+        </button>
+      </div>
 
       {/* --- SEARCH BAR --- */}
       <div className="relative group">
@@ -177,7 +178,6 @@ const GoalsView: React.FC<GoalsViewProps> = ({ userName, goals, onAddGoal, onDel
       {showForm && (
         <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-white/20 backdrop-blur-md shadow-xl animate-in slide-in-from-top-4 duration-300">
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {/* Month and Year - Side by side on mobile, separate on desktop */}
             <div className="grid grid-cols-2 gap-4 md:grid-cols-1 md:col-span-2 lg:col-span-2">
               <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase opacity-60 px-1">Month</label>
@@ -205,7 +205,6 @@ const GoalsView: React.FC<GoalsViewProps> = ({ userName, goals, onAddGoal, onDel
               </div>
             </div>
 
-            {/* Goal Title - Full width on mobile, spans 2 columns on desktop */}
             <div className="space-y-1 lg:col-span-2 md:col-span-3">
               <label className="text-[10px] font-black uppercase opacity-60 px-1">Goal Title</label>
               <input
@@ -218,7 +217,6 @@ const GoalsView: React.FC<GoalsViewProps> = ({ userName, goals, onAddGoal, onDel
               />
             </div>
 
-            {/* Code and Points - Side by side on mobile, separate on desktop */}
             <div className="grid grid-cols-2 gap-4 md:grid-cols-1 md:col-span-2 lg:col-span-2">
               <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase opacity-60 px-1">Code</label>
@@ -235,7 +233,7 @@ const GoalsView: React.FC<GoalsViewProps> = ({ userName, goals, onAddGoal, onDel
                 <label className="text-[10px] font-black uppercase opacity-60 px-1">Points</label>
                 <input
                   type="number"
-                  value={points || ""}
+                  value={points}
                   onChange={e => setPoints(e.target.value === "" ? "" : Number(e.target.value))}
                   placeholder="Pts"
                   className="w-full px-4 py-2.5 rounded-xl border dark:bg-black/20 dark:border-white/10 outline-none text-sm font-bold dark:text-white"
@@ -251,49 +249,63 @@ const GoalsView: React.FC<GoalsViewProps> = ({ userName, goals, onAddGoal, onDel
         </form>
       )}
 
-      {/* Rest of your JSX code remains the same */}
       <div className="bg-white/10 dark:bg-slate-800/50 rounded-3xl shadow-2xl border border-white/20 overflow-hidden backdrop-blur-md">
         {/* Mobile View */}
         <div className="block md:hidden divide-y divide-white/10">
-          {sortedGoals.map(goal => (
-            <div key={goal.id} className={`px-4 py-3.5 flex items-start gap-3 ${goal.achievedAt ? 'opacity-60 bg-emerald-500/5' : ''}`}>
-              <div className="pt-0.5 shrink-0">
-                {goal.achievedAt ? <CheckCircle className="text-emerald-500" size={22} /> : <div className="w-[22px] h-[22px] rounded-full border-2 border-white/20" />}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Flag size={13} className={`shrink-0 ${goal.achievedAt ? 'text-emerald-500' : 'text-blue-500'}`} />
-                    <span className={`font-bold text-[15px] truncate ${goal.achievedAt ? 'line-through text-gray-400' : 'text-gray-900 dark:text-white'}`}>
-                      {goal.name}
-                    </span>
-                  </div>
-                  <span className="font-black text-blue-500 text-sm shrink-0">{goal.points >= 0 ? `+${goal.points}` : goal.points} </span>
+          {sortedGoals.map(goal => {
+            const goalYear = goal.deadlineYear || currentYear;
+            const showYearDivider = goalYear !== lastMobileYear;
+            lastMobileYear = goalYear;
+
+            return (
+              <React.Fragment key={goal.id}>
+                {showYearDivider && (
+                <div className="grid grid-cols-3 items-center bg-gray-100 dark:bg-slate-900/60 px-4 py-2 text-2xl font-digital uppercase tracking-wider text-emerald-500 dark:text-emerald-400">
+                  <div className="flex justify-start">── ⋆⋅</div>
+                  <div className="text-center">{goalYear}</div>
+                  <div className="flex justify-end">⋅⋆ ──</div>
                 </div>
-                <div className="flex items-center gap-2 mt-1.5">
-                  <span className="font-black text-blue-500 bg-blue-500/10 px-2 py-0.5 rounded-md uppercase tracking-wider text-[10px] border border-blue-500/20">{goal.code}</span>
-                  <span className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wide">
-                    {goal.deadlineMonth} {goal.deadlineYear || currentYear}
-                  </span>
-                </div>
-                {goal.achievedAt && (
-                  <div className="text-[10px] font-black text-emerald-500 uppercase bg-emerald-500/10 px-2 py-0.5 rounded mt-1.5 inline-block">
-                    Completed: {formatAchievedDate(goal.achievedAt)}
+                )}
+                <div className={`px-4 py-3.5 flex items-start gap-3 ${goal.achievedAt ? 'opacity-60 bg-emerald-500/5' : ''}`}>
+                  <div className="pt-0.5 shrink-0">
+                    {goal.achievedAt ? <CheckCircle className="text-emerald-500" size={22} /> : <div className="w-[22px] h-[22px] rounded-full border-2 border-white/20" />}
                   </div>
-                )}
-              </div>
-              <div className="shrink-0 flex items-center gap-0.5 pt-0.5">
-                {!goal.achievedAt ? (
-                  <>
-                    <button onClick={() => startEdit(goal)} className="p-1.5 text-gray-400 hover:text-blue-500 rounded-lg hover:bg-blue-500/10 transition-colors"><Edit2 size={16} /></button>
-                    <button onClick={() => onDeleteGoal(goal.id)} className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-500/10 transition-colors"><Trash2 size={16} /></button>
-                  </>
-                ) : (
-                  <span className="text-[9px] font-bold opacity-40 uppercase tracking-widest">Archived</span>
-                )}
-              </div>
-            </div>
-          ))}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Flag size={13} className={`shrink-0 ${goal.achievedAt ? 'text-emerald-500' : 'text-blue-500'}`} />
+                        <span className={`font-bold text-[15px] truncate ${goal.achievedAt ? 'line-through text-gray-400' : 'text-gray-900 dark:text-white'}`}>
+                          {goal.name}
+                        </span>
+                      </div>
+                      <span className="font-black text-blue-500 text-sm shrink-0">{goal.points >= 0 ? `+${goal.points}` : goal.points} </span>
+                    </div>
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <span className="font-black text-blue-500 bg-blue-500/10 px-2 py-0.5 rounded-md uppercase tracking-wider text-[10px] border border-blue-500/20">{goal.code}</span>
+                      <span className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wide">
+                        {goal.deadlineMonth} {goalYear}
+                      </span>
+                    </div>
+                    {goal.achievedAt && (
+                      <div className="text-[10px] font-black text-emerald-500 uppercase bg-emerald-500/10 px-2 py-0.5 rounded mt-1.5 inline-block">
+                        Completed: {formatAchievedDate(goal.achievedAt)}
+                      </div>
+                    )}
+                  </div>
+                  <div className="shrink-0 flex items-center gap-0.5 pt-0.5">
+                    {!goal.achievedAt ? (
+                      <>
+                        <button onClick={() => startEdit(goal)} className="p-1.5 text-gray-400 hover:text-blue-500 rounded-lg hover:bg-blue-500/10 transition-colors"><Edit2 size={16} /></button>
+                        <button onClick={() => onDeleteGoal(goal.id)} className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-500/10 transition-colors"><Trash2 size={16} /></button>
+                      </>
+                    ) : (
+                      <span className="text-[9px] font-bold opacity-40 uppercase tracking-widest">Archived</span>
+                    )}
+                  </div>
+                </div>
+              </React.Fragment>
+            );
+          })}
           {sortedGoals.length === 0 && (
             <div className="p-12 text-center text-gray-400 dark:text-slate-500 italic">
               {searchTerm ? "No goals match your search." : "No objectives recorded."}
@@ -314,43 +326,62 @@ const GoalsView: React.FC<GoalsViewProps> = ({ userName, goals, onAddGoal, onDel
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {sortedGoals.map(goal => (
-                <tr key={goal.id} className={`${goal.achievedAt ? 'opacity-60 bg-emerald-500/5' : ''} hover:bg-white/5 transition-colors group`}>
-                  <td className="pl-5 pr-2 py-3.5 text-center align-top pt-4">
-                    {goal.achievedAt ? <CheckCircle className="text-emerald-500 mx-auto" size={20} /> : <div className="w-5 h-5 rounded-full border-2 border-white/20 mx-auto" />}
-                  </td>
-                  <td className="px-3 whitespace-nowrap py-3.5 align-top pt-4">
-                    <span className="font-black text-blue-500 bg-blue-500/10 px-2.5 py-1 rounded-md uppercase tracking-wider text-xs border border-blue-500/20">{goal.code}</span>
-                  </td>
-                  <td className="px-3 py-3.5">
-                    <div className="flex items-center gap-1.5">
-                      <Flag size={13} className={`shrink-0 ${goal.achievedAt ? 'text-emerald-500' : 'text-blue-500'}`} />
-                      <span className={`font-bold text-base ${goal.achievedAt ? 'line-through text-gray-400' : 'text-gray-900 dark:text-white'}`}>
-                        {goal.name}
-                      </span>
-                    </div>
-                    <div className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase mt-0.5 tracking-wide ml-[21px]">
-                      Expires: {goal.deadlineMonth} {goal.deadlineYear || currentYear}
-                    </div>
-                    {goal.achievedAt && (
-                      <div className="text-[10px] font-black text-emerald-500 uppercase mt-1 bg-emerald-500/10 px-2 py-0.5 rounded inline-block ml-[21px]">
-                        Completed: {formatAchievedDate(goal.achievedAt)}
-                      </div>
+              {sortedGoals.map(goal => {
+                const goalYear = goal.deadlineYear || currentYear;
+                const showYearDivider = goalYear !== lastDesktopYear;
+                lastDesktopYear = goalYear;
+
+                return (
+                  <React.Fragment key={goal.id}>
+                    {showYearDivider && (
+                      <tr className="item-center bg-gray-100 dark:bg-slate-900/60 select-none">
+                        <td colSpan={5} style={{ textAlign: 'center' }} className="items-center bg-gray-100 dark:bg-slate-900/60 px-4 py-2 text-2xl font-digital uppercase tracking-wider text-emerald-500 dark:text-emerald-400">
+                          <div className="grid grid-cols-3 items-center bg-gray-100 dark:bg-slate-900/60 px-4 py-2 text-2xl font-digital uppercase tracking-wider text-emerald-500 dark:text-emerald-400">
+                            <div className="flex justify-start">────────── ⋆⋅</div>
+                            <div className="text-center">{goalYear}</div>
+                            <div className="flex justify-end">⋅⋆ ──────────</div>
+                          </div>
+                        </td>
+                      </tr>
                     )}
-                  </td>
-                  <td className="px-3 py-3.5 font-black text-blue-500 text-base text-center align-top pt-4">{goal.points >= 0 ? `+${goal.points}` : goal.points} </td>
-                  <td className="pl-3 pr-5 py-3.5 text-right align-top pt-3">
-                    {!goal.achievedAt ? (
-                      <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => startEdit(goal)} className="p-1.5 text-gray-400 hover:text-blue-500 rounded-lg hover:bg-blue-500/10 transition-colors"><Edit2 size={16} /></button>
-                        <button onClick={() => onDeleteGoal(goal.id)} className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-500/10 transition-colors"><Trash2 size={16} /></button>
-                      </div>
-                    ) : (
-                      <span className="text-[9px] font-bold opacity-40 uppercase tracking-widest">Archived</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
+                    <tr className={`${goal.achievedAt ? 'opacity-60 bg-emerald-500/5' : ''} hover:bg-white/5 transition-colors group`}>
+                      <td className="pl-5 pr-2 py-3.5 text-center align-top pt-4">
+                        {goal.achievedAt ? <CheckCircle className="text-emerald-500 mx-auto" size={20} /> : <div className="w-5 h-5 rounded-full border-2 border-white/20 mx-auto" />}
+                      </td>
+                      <td className="px-3 whitespace-nowrap py-3.5 align-top pt-4">
+                        <span className="font-black text-blue-500 bg-blue-500/10 px-2.5 py-1 rounded-md uppercase tracking-wider text-xs border border-blue-500/20">{goal.code}</span>
+                      </td>
+                      <td className="px-3 py-3.5">
+                        <div className="flex items-center gap-1.5">
+                          <Flag size={13} className={`shrink-0 ${goal.achievedAt ? 'text-emerald-500' : 'text-blue-500'}`} />
+                          <span className={`font-bold text-base ${goal.achievedAt ? 'line-through text-gray-400' : 'text-gray-900 dark:text-white'}`}>
+                            {goal.name}
+                          </span>
+                        </div>
+                        <div className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase mt-0.5 tracking-wide ml-[21px]">
+                          Expires: {goal.deadlineMonth} {goalYear}
+                        </div>
+                        {goal.achievedAt && (
+                          <div className="text-[10px] font-black text-emerald-500 uppercase mt-1 bg-emerald-500/10 px-2 py-0.5 rounded inline-block ml-[21px]">
+                            Completed: {formatAchievedDate(goal.achievedAt)}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-3 py-3.5 font-black text-blue-500 text-base text-center align-top pt-4">{goal.points >= 0 ? `+${goal.points}` : goal.points} </td>
+                      <td className="pl-3 pr-5 py-3.5 text-right align-top pt-3">
+                        {!goal.achievedAt ? (
+                          <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onClick={() => startEdit(goal)} className="p-1.5 text-gray-400 hover:text-blue-500 rounded-lg hover:bg-blue-500/10 transition-colors"><Edit2 size={16} /></button>
+                            <button onClick={() => onDeleteGoal(goal.id)} className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-500/10 transition-colors"><Trash2 size={16} /></button>
+                          </div>
+                        ) : (
+                          <span className="text-[9px] font-bold opacity-40 uppercase tracking-widest">Archived</span>
+                        )}
+                      </td>
+                    </tr>
+                  </React.Fragment>
+                );
+              })}
               {sortedGoals.length === 0 && (
                 <tr>
                   <td colSpan={5} className="px-6 py-12 text-center text-gray-400 dark:text-slate-500 italic">

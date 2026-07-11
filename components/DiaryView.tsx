@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { ActivityEntry, Goal } from '../types';
 import { getCurrencySymbol, getAggregateCurrencyDisplay } from '../constants';
 import { Trash2, Edit2, BookText, CalendarRange, Clock, Paperclip, Calendar, Star, Banknote, NotebookPen, Search, ArrowUpDown, FileText, FileX, ArrowDownRight, ArrowUpRight, Zap, Trophy, Layers, TrendingUp, Coins } from 'lucide-react';
+import TimeProgressBar from './TimeProgressBar'; // <-- IMPORTED HERE
 
 interface DiaryViewProps {
   entries: ActivityEntry[];
@@ -13,8 +14,11 @@ interface DiaryViewProps {
 type ViewType = 'all' | 'transactions' | 'debit' | 'credit';
 
 const DiaryView: React.FC<DiaryViewProps> = ({ entries, goals, onEdit, onDelete }) => {
-  // Search state
+  // Fast input state (Eliminates typing lag)
   const [searchTerm, setSearchTerm] = useState('');
+  // Deferred filter state
+  const [deferredSearch, setDeferredSearch] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
   
   // Default to current month and year
   const [selectedMonth, setSelectedMonth] = useState(() => {
@@ -22,100 +26,121 @@ const DiaryView: React.FC<DiaryViewProps> = ({ entries, goals, onEdit, onDelete 
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   });
 
-  const [sortAsc, setSortAsc] = useState(false); // Default: Descending (latest first)
-  const [seeAllMonths, setSeeAllMonths] = useState(false); // Default: false
+  const [sortAsc, setSortAsc] = useState(false);
+  const [seeAllMonths, setSeeAllMonths] = useState(false);
   const [viewType, setViewType] = useState<ViewType>('all'); 
-  
-  // Description sorting filter: 'all' | 'with-desc' | 'no-desc'
   const [descFilter, setDescFilter] = useState<'all' | 'with-desc' | 'no-desc'>('all');
 
   const isGoalEntry = (entry: ActivityEntry) => goals.some(g => g.code === entry.code && g.achievedAt === (entry.fromDate || entry.toDate));
   const isCashEntry = (entry: ActivityEntry) => !!(entry.debit || entry.credit);
 
-  // Helper to switch target month from quick selection clicks
   const selectQuickMonth = (monthKey: string) => {
     setSelectedMonth(monthKey);
   };
 
-  // Filter logic: Matches Month + Search Term + View Type + Description Presence
-  const diaryEntries = entries
-    .filter(e => {
-      // 1. Month validation
-      const eDate = e.fromDate || e.toDate;
-      const matchesMonth = seeAllMonths ? true : (eDate && eDate.startsWith(selectedMonth));
-      
-      // 2. Search term validation
-      const searchLower = searchTerm.toLowerCase();
-      const matchesSearch = 
-        e.name.toLowerCase().includes(searchLower) ||
-        e.code.toLowerCase().includes(searchLower) ||
-        (e.description && e.description.toLowerCase().includes(searchLower));
-      
-      // 3. View type validation
-      let matchesViewType = true;
-      if (viewType === 'transactions') matchesViewType = isCashEntry(e);
-      if (viewType === 'debit') matchesViewType = !!(e.debit && e.debit > 0);
-      if (viewType === 'credit') matchesViewType = !!(e.credit && e.credit > 0);
-      
-      // 4. Description filter validation
-      const hasDesc = e.description && e.description.trim() !== "";
-      let matchesDesc = true;
-      if (descFilter === 'with-desc') matchesDesc = !!hasDesc;
-      if (descFilter === 'no-desc') matchesDesc = !hasDesc;
-      
-      return matchesMonth && matchesSearch && matchesViewType && matchesDesc;
-    })
-    .sort((a, b) => {
-      const dateCompare = sortAsc 
-        ? (a.fromDate || a.toDate || '').localeCompare(b.fromDate || b.toDate || '') 
-        : (b.fromDate || b.toDate || '').localeCompare(a.fromDate || a.toDate || '');
-      return dateCompare || (a.fromTime || a.toTime || '').localeCompare(b.fromTime || b.toTime || '');
-    });
+  // Debounce effect to isolate heavy dataset computing from keystrokes
+  useEffect(() => {
+    if (searchTerm !== deferredSearch) {
+      setIsSearching(true);
+    }
+    const handler = setTimeout(() => {
+      setDeferredSearch(searchTerm);
+      setIsSearching(false);
+    }, 250);
 
-  // Dynamic grouping logic to construct the structured chronological timeline database
-  const chronologicalTimeline = Object.entries(
-    diaryEntries.reduce((acc, entry) => {
-      const entryDate = entry.fromDate || entry.toDate || '';
-      const monthKey = entryDate.substring(0, 7); // Extract YYYY-MM
-      if (!acc[monthKey]) {
-        acc[monthKey] = {
-          monthKey,
-          monthName: new Date(monthKey + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
-          monthPoints: 0,
-          monthLogsCount: 0,
-          monthCredit: 0,
-          monthDebit: 0,
-          currencies: [],
-          days: {}
-        };
-      }
-      
-      const mGroup = acc[monthKey];
-      mGroup.monthPoints += entry.points;
-      mGroup.monthLogsCount += 1;
-      mGroup.monthCredit += entry.credit || 0;
-      mGroup.monthDebit += entry.debit || 0;
-      mGroup.currencies.push(entry);
-      
-      if (!mGroup.days[entryDate]) mGroup.days[entryDate] = [];
-      mGroup.days[entryDate].push(entry);
-      
-      return acc;
-    }, {} as Record<string, any>)
-  ).map(([_, value]) => value);
+    return () => clearTimeout(handler);
+  }, [searchTerm, deferredSearch]);
+
+  // Combined optimized filter, sort, and chronological database compilation
+  const { chronologicalTimeline } = useMemo(() => {
+    const cleanSearch = deferredSearch.toLowerCase().trim();
+
+    // 1. Run Filters & Sorting
+    const diaryEntries = entries
+      .filter(e => {
+        const eDate = e.fromDate || e.toDate || '';
+        const matchesMonth = seeAllMonths ? true : eDate.startsWith(selectedMonth);
+        
+        let matchesViewType = true;
+        if (viewType === 'transactions') matchesViewType = isCashEntry(e);
+        if (viewType === 'debit') matchesViewType = !!(e.debit && e.debit > 0);
+        if (viewType === 'credit') matchesViewType = !!(e.credit && e.credit > 0);
+        
+        const hasDesc = e.description && e.description.trim() !== "";
+        let matchesDesc = true;
+        if (descFilter === 'with-desc') matchesDesc = !!hasDesc;
+        if (descFilter === 'no-desc') matchesDesc = !hasDesc;
+
+        if (!matchesMonth || !matchesViewType || !matchesDesc) return false;
+
+        // Run absolute pool text query checking
+        if (cleanSearch !== '') {
+          const isGoal = isGoalEntry(e) ? 'goal achieved' : '';
+          const formattedDate = eDate ? new Date(eDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }) : '';
+          
+          const searchPool = [
+            e.name, e.code, e.description || '', e.attachment || '', `${e.points} pts`,
+            e.debit ? `-${e.debit} debit expense` : '', e.credit ? `+${e.credit} credit income` : '',
+            e.moneyCode || '', formattedDate, isGoal
+          ].join(' ').toLowerCase();
+
+          if (!searchPool.includes(cleanSearch)) return false;
+        }
+        
+        return true;
+      })
+      .sort((a, b) => {
+        const dateCompare = sortAsc 
+          ? (a.fromDate || a.toDate || '').localeCompare(b.fromDate || b.toDate || '') 
+          : (b.fromDate || b.toDate || '').localeCompare(a.fromDate || a.toDate || '');
+        return dateCompare || (a.fromTime || a.toTime || '').localeCompare(b.fromTime || b.toTime || '');
+      });
+
+    // 2. Perform Dynamic Chronological Reduction Map
+    const timeline = Object.entries(
+      diaryEntries.reduce((acc, entry) => {
+        const entryDate = entry.fromDate || entry.toDate || '';
+        const monthKey = entryDate.substring(0, 7);
+        if (!acc[monthKey]) {
+          acc[monthKey] = {
+            monthKey,
+            monthName: monthKey ? new Date(monthKey + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : 'Unknown Month',
+            monthPoints: 0,
+            monthLogsCount: 0,
+            monthCredit: 0,
+            monthDebit: 0,
+            currencies: [],
+            days: {}
+          };
+        }
+        
+        const mGroup = acc[monthKey];
+        mGroup.monthPoints += entry.points;
+        mGroup.monthLogsCount += 1;
+        mGroup.monthCredit += entry.credit || 0;
+        mGroup.monthDebit += entry.debit || 0;
+        mGroup.currencies.push(entry);
+        
+        if (!mGroup.days[entryDate]) mGroup.days[entryDate] = [];
+        mGroup.days[entryDate].push(entry);
+        
+        return acc;
+      }, {} as Record<string, any>)
+    ).map(([_, value]) => value);
+
+    return { chronologicalTimeline: timeline };
+  }, [entries, goals, deferredSearch, selectedMonth, sortAsc, seeAllMonths, viewType, descFilter]);
 
   const monthDisplay = seeAllMonths 
     ? "All Time" 
     : new Date(selectedMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
-  // Cycle description filter through states: all -> with-desc -> no-desc -> all
   const handleDescFilterCycle = () => {
     if (descFilter === 'all') setDescFilter('with-desc');
     else if (descFilter === 'with-desc') setDescFilter('no-desc');
     else setDescFilter('all');
   };
 
-  // Cycle cash view states: all -> transactions -> debit -> credit -> all
   const handleCashFilterCycle = () => {
     if (viewType === 'all') setViewType('transactions');
     else if (viewType === 'transactions') setViewType('debit');
@@ -126,7 +151,7 @@ const DiaryView: React.FC<DiaryViewProps> = ({ entries, goals, onEdit, onDelete 
   return (
     <div className="space-y-6">
 
-      {/* --- COMPACT CONSOLIDATED ROW: TITLE, SEARCH, AND BUTTONS IN ONE LINE ON DESKTOP --- */}
+      {/* --- COMPACT CONSOLIDATED ROW: TITLE, SEARCH, AND BUTTONS --- */}
       <div className="relative grid grid-cols-1 lg:grid-cols-[auto_1fr_auto] gap-4 items-center w-full overflow-visible md:p-4 p-1">
         
         {/* Large Decorative Background Icon */}
@@ -136,7 +161,6 @@ const DiaryView: React.FC<DiaryViewProps> = ({ entries, goals, onEdit, onDelete 
 
         {/* Left Section: Icon + Headings */}
         <div className="flex items-center gap-4 relative z-10 shrink-0 whitespace-nowrap">
-          {/* Upgraded BookText Icon Badge */}
           <div className="relative flex items-center justify-center p-2.5 rounded-xl bg-pink-50 dark:bg-pink-950/40 text-pink-600 dark:text-pink-400 border border-pink-100 dark:border-pink-900/50 shadow-sm shadow-pink-100/50 dark:shadow-none shrink-0 transition-transform hover:scale-105">
             <BookText size={24} strokeWidth={2.2} />
             <span className="absolute inset-0 rounded-xl bg-pink-400/20 blur-xl -z-10 animate-pulse" />
@@ -255,16 +279,20 @@ const DiaryView: React.FC<DiaryViewProps> = ({ entries, goals, onEdit, onDelete 
       </div>
 
       {/* --- RENDER CHRONOLOGICAL TIMELINE --- */}
-      {chronologicalTimeline.length === 0 ? (
+      {isSearching ? (
+        <div className="p-12 flex flex-col items-center justify-center gap-4">
+          <div className="w-8 h-8 border-4 border-pink-500 border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+            Searching logs...
+          </p>
+        </div>
+      ) : chronologicalTimeline.length === 0 ? (
         <div className="p-12 text-center text-gray-400 dark:text-slate-500 italic bg-white/10 dark:bg-slate-800/50 rounded-3xl border border-gray-100 dark:border-slate-800">
           No logs match your filters or criteria.
         </div>
       ) : (
         <div className="space-y-12">
           {chronologicalTimeline.map((monthGroup) => {
-            const isTargetMonth = monthGroup.monthKey === selectedMonth;
-            if (!seeAllMonths && !isTargetMonth) return null;
-
             const currencySymbol = getCurrencySymbol(getAggregateCurrencyDisplay(monthGroup.currencies));
 
             const sortedDayKeys = Object.keys(monthGroup.days).sort((a, b) => 
@@ -272,22 +300,23 @@ const DiaryView: React.FC<DiaryViewProps> = ({ entries, goals, onEdit, onDelete 
             );
 
             return (
-              <div key={monthGroup.monthKey} className="space-y-6 border-l-0 md:border-l-2 border-dashed border-gray-200/50 dark:border-slate-800/80 pl-0 md:pl-6 ml-0 md:ml-4">
+              <div 
+                key={monthGroup.monthKey} 
+                className={`space-y-6 border-l-0 md:border-l-2 border-dashed border-gray-200/50 dark:border-slate-800/80 pl-0 md:pl-6 ml-0 md:ml-4 ${
+                  !isSearching ? 'animate-in fade-in slide-in-from-bottom-6 duration-500 ease-out fill-mode-both' : 'opacity-0'
+                }`}
+              >
                 
-                {/* --- REDESIGNED UNIFORM MONTHLY BANNER CARD --- */}
+                {/* --- MONTHLY BANNER CARD --- */}
                 <div 
                   onClick={() => selectQuickMonth(monthGroup.monthKey)}
-                  className={`bg-gradient-to-br from-violet-500/10 via-purple-500/5 to-transparent border-violet-500/80 dark:border-violet-500 shadow-violet-500/5 no-print cursor-pointer p-4 rounded-3xl border transition-all relative overflow-hidden shadow-lg hover:shadow-2xl group `}
+                  className="bg-gradient-to-br from-violet-500/10 via-purple-500/5 to-transparent border-violet-500/80 dark:border-violet-500 shadow-violet-500/5 no-print cursor-pointer p-4 rounded-3xl border transition-all relative overflow-hidden shadow-lg hover:shadow-2xl group"
                 >
-                  {/* Ambient Background Flare */}
                   <div className="absolute right-0 top-0 w-32 h-32 bg-violet-400/10 dark:bg-violet-500/5 blur-3xl rounded-full pointer-events-none group-hover:scale-150 transition-transform duration-500" />
 
                   <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 relative z-10">
-                    
-                    {/* Month Identity Section */}
                     <div className="flex items-center gap-4">
-                      {/* Violet Zap Action Icon */}
-                      <div className="flex items-center justify-center p-2 rounded-lg bg-pink-500 text-white shadow-xl shadow-violet-500/30 dark:shadow-none shrink-0 transform">
+                      <div className="flex items-center justify-center p-2 rounded-lg bg-pink-500 text-white shadow-xl shadow-violet-500/30 dark:shadow-none shrink-0">
                         <CalendarRange size={22} className="text-white" />
                       </div>
                       <div>
@@ -297,10 +326,7 @@ const DiaryView: React.FC<DiaryViewProps> = ({ entries, goals, onEdit, onDelete 
                       </div>
                     </div>
 
-                    {/* Uniform 4-Box Balanced Metrics Layout (2 Rows x 2 Columns) */}
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 min-w-full sm:min-w-[450px]">
-                      
-                      {/* 1. Score Box */}
                       <div className="bg-gray-50 dark:bg-slate-800/50 border border-gray-100 dark:border-slate-700/50 p-3 rounded-xl flex items-center gap-2.5">
                         <Trophy size={20} className="text-blue-500 shrink-0" />
                         <div>
@@ -309,7 +335,6 @@ const DiaryView: React.FC<DiaryViewProps> = ({ entries, goals, onEdit, onDelete 
                         </div>
                       </div>
 
-                      {/* 2. Activity Box */}
                       <div className="bg-gray-50 dark:bg-slate-800/50 border border-gray-100 dark:border-slate-700/50 p-3 rounded-xl flex items-center gap-2.5">
                         <Zap size={20} className="text-violet-500 shrink-0" />
                         <div>
@@ -318,7 +343,6 @@ const DiaryView: React.FC<DiaryViewProps> = ({ entries, goals, onEdit, onDelete 
                         </div>
                       </div>
 
-                      {/* 3. Income Box */}
                       <div className="bg-gray-50 dark:bg-slate-800/50 border border-gray-100 dark:border-slate-700/50 p-3 rounded-xl flex items-center gap-2.5">
                         <TrendingUp size={20} className="text-emerald-500 shrink-0" />
                         <div>
@@ -329,7 +353,6 @@ const DiaryView: React.FC<DiaryViewProps> = ({ entries, goals, onEdit, onDelete 
                         </div>
                       </div>
 
-                      {/* 4. Expenses Box */}
                       <div className="bg-gray-50 dark:bg-slate-800/50 border border-gray-100 dark:border-slate-700/50 p-3 rounded-xl flex items-center gap-2.5">
                         <Coins size={20} className="text-red-500 shrink-0" />
                         <div>
@@ -339,7 +362,6 @@ const DiaryView: React.FC<DiaryViewProps> = ({ entries, goals, onEdit, onDelete 
                           </p>
                         </div>
                       </div>
-
                     </div>
                   </div>
                 </div>
@@ -356,7 +378,6 @@ const DiaryView: React.FC<DiaryViewProps> = ({ entries, goals, onEdit, onDelete 
                     return (
                       <div key={dateKey} className="md:space-y-4 space-y-2">
                         <div className="flex items-center justify-between w-full md:gap-3 gap-1">
-                          
                           <h4 className="text-base font-black text-blue-500 flex items-center gap-2 drop-shadow-sm">
                             {hasGoalInDay ? (
                               <div className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center text-white shadow-lg shadow-emerald-500/50">
@@ -394,8 +415,8 @@ const DiaryView: React.FC<DiaryViewProps> = ({ entries, goals, onEdit, onDelete 
                                 key={item.id} 
                                 className={`bg-white dark:bg-slate-800/80 md:p-6 p-3 md:rounded-3xl rounded-2xl border transition-all shadow-xl backdrop-blur-sm relative group ${
                                   goalAchieved 
-                                  ? 'border-emerald-500/30 bg-emerald-500/5' 
-                                  : 'border-gray-100 dark:border-slate-700'
+                                    ? 'border-emerald-500/30 bg-emerald-500/5' 
+                                    : 'border-gray-100 dark:border-slate-700'
                                 }`}
                               >
                                 <div className="flex justify-between items-start">
@@ -420,11 +441,7 @@ const DiaryView: React.FC<DiaryViewProps> = ({ entries, goals, onEdit, onDelete 
                                       <span className="flex items-center gap-1.5">
                                         <Clock size={14} /> {item.isLongEvent ? `${item.fromTime || item.toTime} - ${item.toTime || item.fromTime}` : item.fromTime || item.toTime}
                                       </span>
-                                      <span className={` ${
-                                        item.points >= 0 
-                                          ? 'text-blue-500 dark:text-blue-400' 
-                                          : 'text-red-500 dark:text-red-400'
-                                      }`}>
+                                      <span className={`${item.points >= 0 ? 'text-blue-500 dark:text-blue-400' : 'text-red-500 dark:text-red-400'}`}>
                                         {item.points >= 0 ? `+${item.points}` : item.points} PTS
                                       </span>
                                       {hasCash && (
@@ -442,21 +459,39 @@ const DiaryView: React.FC<DiaryViewProps> = ({ entries, goals, onEdit, onDelete 
                                 </div>
                                 
                                 {item.description && item.description.trim() !== "" && (
-                                  <p className="md:text-sm text-xs whitespace-pre-wrap mt-3 leading-relaxed border-l-4 border-blue-500/30 dark:border-blue-400/20 pl-3 md:py-3 py-1 bg-gray-50 dark:bg-slate-900 rounded-r-xl dark:text-slate-300">
+                                  <p className="md:text-sm text-xs whitespace-pre-wrap break-all w-full mt-3 leading-relaxed border-l-4 border-blue-500/30 dark:border-blue-400/20 pl-3 md:py-3 py-1 bg-gray-50 dark:bg-slate-900 rounded-r-xl dark:text-slate-300">
                                     {item.description}
                                   </p>
                                 )}
 
                                 {item.attachment && (
-                                  <a 
-                                    href={item.attachment} 
-                                    target="_blank" 
-                                    rel="noreferrer"
-                                    className="md:mt-6 mt-2 inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-blue-500 dark:text-blue-400 bg-blue-500/5 px-4 py-2 rounded-xl hover:bg-blue-500/10 transition-all border border-blue-500/20 shadow-sm no-print"
-                                  >
-                                    <Paperclip size={14} /> View Attachment
-                                  </a>
+                                  <div className="mt-2 no-print max-w-full overflow-hidden">
+                                    <a 
+                                      href={item.attachment} 
+                                      target="_blank" 
+                                      rel="noreferrer" 
+                                      className="flex items-center gap-2.5 w-full max-w-[280px] sm:max-w-md text-xs text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-800/80 px-1.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800/60 shadow-sm transition-all duration-200 group active:scale-[0.99]"
+                                      title={item.attachment}
+                                    >
+                                      <div className="flex items-center justify-center shrink-0 w-6 h-6 rounded-md bg-blue-500/20 text-blue-600 dark:text-blue-400 group-hover:bg-blue-500/50 group-hover:text-white transition-colors duration-200">
+                                        <Paperclip size={13} className="transition-transform group-hover:-rotate-12 shrink-0" />
+                                      </div>
+                                      <span className="truncate font-medium tracking-wide text-[11px] font-mono text-left select-all flex-1 min-w-0 block">
+                                        {item.attachment}
+                                      </span>
+                                    </a>
+                                  </div>
                                 )}
+
+                                {/* --- TIME PROGRESS BAR INTEGRATION --- */}
+                                {(item.fromTime || item.toTime) && (
+                                  <TimeProgressBar
+                                    startTime={item.fromTime || item.toTime || ""}
+                                    endTime={item.isLongEvent ? (item.toTime || item.fromTime) : undefined}
+                                    isGoal={goalAchieved}
+                                  />
+                                )}
+
                               </div>
                             );
                           })}
