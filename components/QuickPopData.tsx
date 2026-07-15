@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { ActivityEntry, Goal } from '../types';
 import { getCurrencySymbol, getAggregateCurrencyDisplay } from '../constants';
 import TimeProgressBar from './TimeProgressBar';
+import { TodayProgressBar } from './TodayProgressBar';
 
 import {
   X,
@@ -357,7 +358,7 @@ if (completionPercentage >= 0.0 && completionPercentage < 0.5) {
 } else if (completionPercentage >= 23.0 && completionPercentage < 24.0) {
     rank = "Void Venture";
 } else if (completionPercentage >= 24.0 && completionPercentage < 25.0) {
-    rank = "Cluster Clerk";
+    rank = "Cluster Custodian";
 } else if (completionPercentage >= 25.0 && completionPercentage < 26.0) {
     rank = "Elite Chronicler";
 } else if (completionPercentage >= 26.0 && completionPercentage < 27.0) {
@@ -383,7 +384,7 @@ if (completionPercentage >= 0.0 && completionPercentage < 0.5) {
 } else if (completionPercentage >= 36.0 && completionPercentage < 37.0) {
     rank = "Flare Forecaster";
 } else if (completionPercentage >= 37.0 && completionPercentage < 38.0) {
-    rank = "Constellation Clerk";
+    rank = "Constellation Registrar";
 } else if (completionPercentage >= 38.0 && completionPercentage < 39.0) {
     rank = "Parallax Paladin";
 } else if (completionPercentage >= 39.0 && completionPercentage < 40.0) {
@@ -528,9 +529,9 @@ const spaceRanks = [
   "Apogee Aspirant", "Solar Scouter", "Flare Finder", "Zenith Zealot", "Eclipse Escort",
   "Orbit Operator", "Interstellar Intern", "Meteor Midshipman", "Comet Courier", "Nova Novice",
   "Pulsar Pacer", "Astral Apprentice", "Asteroid Auditor", "Rocket Rigging", "Void Venture",
-  "Cluster Clerk", "Elite Chronicler", "Cosmos Cataloger", "Nebula Notary", "Stellar Scribe",
+  "Cluster Curator", "Elite Chronicler", "Cosmos Cataloger", "Nebula Notary", "Stellar Scribe",
   "Orbit Overseer", "Galaxy Archivist", "System Surveyor", "Vector Validator", "Sector Supervisor",
-  "Eclipse Evaluator", "Celestial Curator", "Flare Forecaster", "Constellation Clerk", "Parallax Paladin",
+  "Eclipse Evaluator", "Celestial Curator", "Flare Forecaster", "Constellation Registrar", "Parallax Paladin",
   "Zenith Warden", "Void Visualizer", "Cosmos Cartographer", "Nebula Navigator", "Quasar Quorum",
   "Continuum Keeper", "Astral Analyst", "Gravity Governor", "Solar Sentinel", "Void Vignette",
   "Star System Sentry", "Deep Space Dean", "Meridian Marshal", "Cluster Commander", "Orbit Officer",
@@ -765,6 +766,14 @@ if (completionPercentage >= 85) {
                     {activeDayEntries.reduce((s, e) => s + e.points, 0)}
                   </p>
                 </div>
+
+                <div>
+<TodayProgressBar
+  entries={entries}
+  selectedDate={activeDate}
+  onActivityClick={scrollToActivity}
+/>
+                </div> 
 
                 <div className="md:space-y-2 space-y-1">
                   {activeDayEntries
@@ -1402,6 +1411,7 @@ if (completionPercentage >= 85) {
     <HeatMap
       year={profileStats.trackingYear}
       entries={entries}
+      goals={goals}
       themeColor="indigo"
       isScrollable={true}
       onDayClick={(dateStr) => {

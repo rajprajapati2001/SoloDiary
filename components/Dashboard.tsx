@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import CalendarView from './CalendarView';
 import LineGraph from './LineGraph';
+import { TodayProgressBar } from './TodayProgressBar';
 import QuickPopData from './QuickPopData';
 import TimeProgressBar from './TimeProgressBar';
 import { ActivityEntry, Goal } from '../types';
@@ -608,6 +609,22 @@ const totalYearlyPoints = useMemo(
               <LineGraph data={graphData} monthName={monthName} showGoalNames={showLabels} variant="dashboard" />
             </div>
           </div>
+
+      {/* Todays Progress Bar */}
+      <div className="bg-white dark:bg-slate-800 md:p-6 p-1 pt-3 pb-3 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 relative overflow-visible">
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="inline-flex items-center pl-2 gap-3 text-lg font-bold uppercase tracking-tighter text-gray-800 dark:text-white">
+          <Clock className="text-blue-500 shrink-0" size={24} />
+          <span>Activity Architecture</span>
+        </h3>
+        
+      </div>
+          <TodayProgressBar
+            entries={entries} 
+            selectedDate={selectedDate} 
+            onActivityClick={scrollToActivity} 
+          />
+      </div>    
 
           <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 md:p-6 p-0">
             <div className="flex items-center justify-between md:p-0 p-3 pb-0 mb-1">

@@ -16,6 +16,7 @@ import { Share } from '@capacitor/share';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { FileOpener } from '@capawesome-team/capacitor-file-opener';
+import { TodayProgressBar } from './TodayProgressBar';
 
 interface StatsViewProps {
   userName: string;
@@ -26,6 +27,7 @@ interface StatsViewProps {
 }
 
 const StatsView: React.FC<StatsViewProps> = ({ userName, entries, goals, onRefresh, onFullscreenChange }) => {
+  const [rankSpaceName, setRankSpaceName] = React.useState<string>("Zero-G Cadence");
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const d = new Date();
     return String(d.getMonth() + 1).padStart(2, '0');
@@ -1172,6 +1174,22 @@ const handleWebReport = async () => {
           }
         });
 
+        // TodayProgressBar click delegation in exported HTML
+        document.addEventListener('click', function(e) {
+          var block = e.target.closest('[data-activity-id]');
+          if (block) {
+            var entryId = block.getAttribute('data-activity-id');
+            var target = document.getElementById('activity-' + entryId);
+            if (target) {
+              target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              target.style.backgroundColor = '#eff6ff';
+              setTimeout(function() {
+                target.style.backgroundColor = '';
+              }, 2000);
+            }
+          }
+        });
+
         // Code Highlighter (like in handleWebView)
         window.toggleHighlight = function(code) {
           const cards = document.querySelectorAll('.matrix-card');
@@ -1223,13 +1241,20 @@ const handleWebReport = async () => {
                 var text = row.textContent.toLowerCase();
                 row.style.display = (query === '' || text.indexOf(query) !== -1) ? '' : 'none';
               });
+
+              // Hide/show today progress bars
+              var progressRows = document.querySelectorAll('tr.today-progress-row');
+              progressRows.forEach(function(row) {
+                row.style.display = (query === '') ? '' : 'none';
+              });
+
               // Show/hide date headers
               var headers = document.querySelectorAll('tr[id^="ledger-date-"]');
               headers.forEach(function(header) {
                 var next = header.nextElementSibling;
                 var visible = false;
-                while (next && next.classList.contains('log-row')) {
-                  if (next.style.display !== 'none') { visible = true; break; }
+                while (next && (next.classList.contains('log-row') || next.classList.contains('today-progress-row'))) {
+                  if (next.classList.contains('log-row') && next.style.display !== 'none') { visible = true; break; }
                   next = next.nextElementSibling;
                 }
                 header.style.display = visible ? '' : 'none';
@@ -1777,18 +1802,11 @@ const [showLabels, setShowLabels] = useState(true);
               <p className="text-[8px]  font-semibold uppercase tracking-[0.1em] text-slate-900">
                 PRINCIPAL: {userName.toUpperCase()}
               </p>
-              <p className="text-[8px]  font-semibold uppercase tracking-[0.1em] text-blue-600">
+              <p className="text-[8px]  font-semibold uppercase tracking-[0.1em] text-emerald-600">
                 PERIOD: {monthLabelText} {selectedYear}
               </p>
-              <p className="text-[8px]  font-semibold uppercase tracking-[0.1em] text-slate-400">
-                ISSUED: {new Date().toLocaleString('en-GB', {
-                  day: '2-digit',
-                  month: 'short',
-                  year: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  hour12: true
-                }).replace(',', '').toUpperCase()}
+              <p className="text-[8px]  font-semibold uppercase tracking-[0.1em] text-blue-600">
+                STATUS: {rankSpaceName}
               </p>
             </div>
           </div>
@@ -2052,7 +2070,7 @@ const [showLabels, setShowLabels] = useState(true);
       {/* 2. CENTER: Year Display Function (Aligned Center) */}
       <div className="text-center font-bold text-indigo-500 tracking-wider">
         {(() => {
-          return `${selectedYear}`;
+          return `( ${selectedYear} )`;
         })()}
       </div>
 
@@ -2090,6 +2108,7 @@ return (
     <HeatMap 
       year={parseInt(selectedYear)}
       entries={entries}
+      goals={goals}
       themeColor="indigo"
       maxMonth={parseInt(selectedMonth) - 1}
       onDayClick={(dateStr) => {
@@ -2120,57 +2139,68 @@ return (
   <div className="text-center tracking-wider">
     <span>Classification: </span>
     <span className="text-indigo-600 font-bold">
-      {(() => {
-        const totalYearPointsMax = 365 * 100; // 36,500 points
-        const pct = (yearPoints / totalYearPointsMax) * 100;
+{(() => {
+  // We execute your untouched code block exactly as it is, and store the result
+  const currentRank = (() => {
+    const totalYearPointsMax = 365 * 100; // 36,500 points
+    const pct = (yearPoints / totalYearPointsMax) * 100;
 
-        // Custom progressive index mapping for lower tiers
-        if (pct >= 0.0 && pct < 0.5) return "Zero-G Cadence";
-        if (pct >= 0.5 && pct < 1.0) return "Terrestrial Tether";
-        if (pct >= 1.0 && pct < 1.5) return "Grounded Observer";
-        if (pct >= 1.5 && pct < 2.0) return "Gravity Bound";
-        if (pct >= 2.0 && pct < 2.5) return "Atmos Apprentice";
-        if (pct >= 2.5 && pct < 3.0) return "Launchpad Larva";
-        if (pct >= 3.0 && pct < 3.5) return "Stratosphere Scanner";
-        if (pct >= 3.5 && pct < 4.0) return "Sub-Orbital Spotter";
-        if (pct >= 4.0 && pct < 4.5) return "Orbit Initiate";
-        if (pct >= 4.5 && pct < 5.0) return "Perigee Plebeian";
-        if (pct >= 5.0 && pct < 5.5) return "Horizon Chaser";
-        if (pct >= 5.5 && pct < 6.0) return "Velocity Vestige";
+    // Custom progressive index mapping for lower tiers
+    if (pct >= 0.0 && pct < 0.5) return "Zero-G Cadence";
+    if (pct >= 0.5 && pct < 1.0) return "Terrestrial Tether";
+    if (pct >= 1.0 && pct < 1.5) return "Grounded Observer";
+    if (pct >= 1.5 && pct < 2.0) return "Gravity Bound";
+    if (pct >= 2.0 && pct < 2.5) return "Atmos Apprentice";
+    if (pct >= 2.5 && pct < 3.0) return "Launchpad Larva";
+    if (pct >= 3.0 && pct < 3.5) return "Stratosphere Scanner";
+    if (pct >= 3.5 && pct < 4.0) return "Sub-Orbital Spotter";
+    if (pct >= 4.0 && pct < 4.5) return "Orbit Initiate";
+    if (pct >= 4.5 && pct < 5.0) return "Perigee Plebeian";
+    if (pct >= 5.0 && pct < 5.5) return "Horizon Chaser";
+    if (pct >= 5.5 && pct < 6.0) return "Velocity Vestige";
 
-        // SpaceRanks array fallback for index 6 to 100+
-        const spaceRanks = [
-          "Zero-G Cadence", "Terrestrial Tether", "Grounded Observer", "Gravity Bound", "Atmos Apprentice",
-          "Launchpad Larva", "Stratosphere Scanner", "Sub-Orbital Spotter", "Orbit Initiate", "Perigee Plebeian",
-          "Horizon Chaser", "Velocity Vestige", "Vacuum Venture", "Cosmic Cadet", "Nebula Neophyte",
-          "Apogee Aspirant", "Solar Scouter", "Flare Finder", "Zenith Zealot", "Eclipse Escort",
-          "Orbit Operator", "Interstellar Intern", "Meteor Midshipman", "Comet Courier", "Nova Novice",
-          "Pulsar Pacer", "Astral Apprentice", "Asteroid Auditor", "Rocket Rigging", "Void Venture",
-          "Cluster Clerk", "Elite Chronicler", "Cosmos Cataloger", "Nebula Notary", "Stellar Scribe",
-          "Orbit Overseer", "Galaxy Archivist", "System Surveyor", "Vector Validator", "Sector Supervisor",
-          "Eclipse Evaluator", "Celestial Curator", "Flare Forecaster", "Constellation Clerk", "Parallax Paladin",
-          "Zenith Warden", "Void Visualizer", "Cosmos Cartographer", "Nebula Navigator", "Quasar Quorum",
-          "Continuum Keeper", "Astral Analyst", "Gravity Governor", "Solar Sentinel", "Void Vignette",
-          "Star System Sentry", "Deep Space Dean", "Meridian Marshal", "Cluster Commander", "Orbit Officer",
-          "Horizon Herald", "Eclipse Enforcer", "Nova Superintendent", "Vector Vanguard", "Epoch Examiner",
-          "Zenith Zenithith", "Master Navigator", "Celestial Helmsman", "Starpath Skipper", "Cosmic Commodore",
-          "Void Voyager", "Nebula Skipper", "Solar Skipper", "Continuum Pilot", "Deep Space Director",
-          "Stellar Steersman", "Galaxy Guide", "Vector Voyager", "Orbit Orchestrator", "Meridian Master",
-          "Zenith Pathfinder", "Eclipse Explorer", "Cosmos Captain", "Sector Skipper", "Flare Fleetmaster",
-          "Cluster Captain", "Void Viceroy", "Starpath Sovereign", "Galaxy Governor", "Celestial Commander",
-          "Nebula Noble", "Continuum Commander", "Deep Space Dictator", "Solar Sovereign", "Cosmic Chancellor",
-          "Horizon High-Admiral", "Legendary Voyager", "Void Visionary", "Starpath Sage", "Celestial Paragon",
-          "Galaxy Guardian", "Cosmos Champion", "Nebula Nexus", "Continuum Catalyst", "Deep Space Deity", 
-          "Zenith Zeal"
-        ];
+    // SpaceRanks array fallback for index 6 to 100+
+    const spaceRanks = [
+      "Zero-G Cadence", "Terrestrial Tether", "Grounded Observer", "Gravity Bound", "Atmos Apprentice",
+      "Launchpad Larva", "Stratosphere Scanner", "Sub-Orbital Spotter", "Orbit Initiate", "Perigee Plebeian",
+      "Horizon Chaser", "Velocity Vestige", "Vacuum Venture", "Cosmic Cadet", "Nebula Neophyte",
+      "Apogee Aspirant", "Solar Scouter", "Flare Finder", "Zenith Zealot", "Eclipse Escort",
+      "Orbit Operator", "Interstellar Intern", "Meteor Midshipman", "Comet Courier", "Nova Novice",
+      "Pulsar Pacer", "Astral Apprentice", "Asteroid Auditor", "Rocket Rigging", "Void Venture",
+      "Cluster Curator", "Elite Chronicler", "Cosmos Cataloger", "Nebula Notary", "Stellar Scribe",
+      "Orbit Overseer", "Galaxy Archivist", "System Surveyor", "Vector Validator", "Sector Supervisor",
+      "Eclipse Evaluator", "Celestial Curator", "Flare Forecaster", "Constellation Registrar", "Parallax Paladin",
+      "Zenith Warden", "Void Visualizer", "Cosmos Cartographer", "Nebula Navigator", "Quasar Quorum",
+      "Continuum Keeper", "Astral Analyst", "Gravity Governor", "Solar Sentinel", "Void Vignette",
+      "Star System Sentry", "Deep Space Dean", "Meridian Marshal", "Cluster Commander", "Orbit Officer",
+      "Horizon Herald", "Eclipse Enforcer", "Nova Superintendent", "Vector Vanguard", "Epoch Examiner",
+      "Zenith Zenithith", "Master Navigator", "Celestial Helmsman", "Starpath Skipper", "Cosmic Commodore",
+      "Void Voyager", "Nebula Skipper", "Solar Skipper", "Continuum Pilot", "Deep Space Director",
+      "Stellar Steersman", "Galaxy Guide", "Vector Voyager", "Orbit Orchestrator", "Meridian Master",
+      "Zenith Pathfinder", "Eclipse Explorer", "Cosmos Captain", "Sector Skipper", "Flare Fleetmaster",
+      "Cluster Captain", "Void Viceroy", "Starpath Sovereign", "Galaxy Governor", "Celestial Commander",
+      "Nebula Noble", "Continuum Commander", "Deep Space Dictator", "Solar Sovereign", "Cosmic Chancellor",
+      "Horizon High-Admiral", "Legendary Voyager", "Void Visionary", "Starpath Sage", "Celestial Paragon",
+      "Galaxy Guardian", "Cosmos Champion", "Nebula Nexus", "Continuum Catalyst", "Deep Space Deity", 
+      "Zenith Zeal"
+    ];
 
-        if (pct === 100.0) return "Astral Vanguard";
-        if (pct > 100.0) return "Sovereign of Space-Time";
+    if (pct === 100.0) return "Astral Vanguard";
+    if (pct > 100.0) return "Sovereign of Space-Time";
 
-        // For integer ranges from 6.0% down to 99.x%
-        const index = Math.floor(pct);
-        return spaceRanks[index] || "Zero-G Cadence";
-      })()}
+    // For integer ranges from 6.0% down to 99.x%
+    const index = Math.floor(pct);
+    return spaceRanks[index] || "Zero-G Cadence";
+  })();
+
+  // Safely update the state outside the immediate render loop thread to avoid React batch errors
+  if (rankSpaceName !== currentRank) {
+    setTimeout(() => setRankSpaceName(currentRank), 0);
+  }
+
+  // Still returns the value right here so the original location doesn't break
+  return currentRank;
+})()}
     </span>
   </div>
 
@@ -2227,7 +2257,7 @@ return (
                       }}
                       className={`goal-row cursor-pointer transition-all duration-200 ${highlightedCode === g.code || isGoalFinanceHighlighted(g) ? 'ring-1 ring-inset ring-amber-200 bg-amber-50' : (g.achievedAt ? 'bg-emerald-50/20' : 'bg-white hover:bg-slate-50')}`}
                     >
-                      <td className={`px-4 py-2  font-semibold text-[9px] text-blue-600 ${g.achievedAt ? 'line-through opacity-60' : ''}`}>{g.code}</td>
+                      <td className={`px-4 py-2  font-semibold text-[9px] text-emerald-600 ${g.achievedAt ? 'line-through opacity-60' : ''}`}>{g.code}</td>
                       <td className={`px-4 py-2 font-medium text-[9px] text-slate-950 ${g.achievedAt ? 'line-through opacity-30' : ''}`}>{g.name}</td>
                       <td className={`px-4 py-2  font-semibold text-[9px] text-slate-950 text-center ${g.achievedAt ? 'line-through opacity-30' : ''}`}>+{g.points}</td>
                       <td className="px-4 py-2 text-right">
@@ -2437,6 +2467,29 @@ return (
                     </div>
                   </td>
                 </tr>
+{/* TodayProgressBar - Only for the selected date */}
+
+  <tr className={`today-progress-row ${searchQuery.trim() ? 'hidden' : ''}`}>
+    <td colSpan={hasAttachmentsInReport && hasTransactionsInReport ? 6 : hasAttachmentsInReport || hasTransactionsInReport ? 5 : 4} className="px-4 py-2">
+      <TodayProgressBar
+        entries={entries}
+        selectedDate={dateStr}
+        variant="stats"
+        onActivityClick={(entryId) => {
+          const target = document.getElementById(`activity-${entryId}`);
+          if (target) {
+            target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            target.classList.add('bg-blue-50', 'dark:bg-blue-900/20');
+            setTimeout(() => {
+              target.classList.remove('bg-blue-50', 'dark:bg-blue-900/20');
+            }, 2000);
+          }
+        }}
+      />
+    </td>
+  </tr>
+
+
                 {groupedLogsByDate[dateStr].map(e => {
                   const isHighlighted = highlightedCode === e.code || isEntryFinanceHighlighted(e);
                   const hasDescription = e.description && e.description.length > 0;
@@ -2453,6 +2506,7 @@ return (
                   return (
                     <tr
                       key={e.id}
+                      id={`activity-${e.id}`}
                       data-code={e.code}
                       data-debit={e.debit || 0}
                       data-credit={e.credit || 0}
@@ -2476,7 +2530,9 @@ return (
                         <span className={`text-[7px] font-semibold uppercase px-1.5 py-0.5 rounded border transition-colors ${
                           isHighlighted
                             ? 'bg-amber-500 text-white border-amber-600 shadow-sm'
-                            : 'text-blue-600 bg-blue-50 border-blue-100'
+                            : e.code === 'goal'
+                              ? 'text-emerald-600 bg-emerald-50 border-emerald-100'
+                              : 'text-blue-600 bg-blue-50 border-blue-100'
                         }`}>
                           {e.code}
                         </span>

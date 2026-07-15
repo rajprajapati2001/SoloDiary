@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { ActivityEntry } from '../types';
+import { ActivityEntry, Goal } from '../types';
 
 export interface HeatMapDay {
   dateStr: string;
@@ -9,11 +9,15 @@ export interface HeatMapDay {
   dayOfWeek: number;
   dayOfMonth: number;
   month: number;
+  hasGoal?: boolean;
+  goalCount?: number;
+  goalNames?: string[];
 }
 
 interface HeatMapProps {
   year?: number;
   entries?: ActivityEntry[];
+  goals?: Goal[];
   customData?: { date: string; count?: number; points: number }[];
   onDayClick?: (dateStr: string, points: number, count: number) => void;
   themeColor?: 'indigo' | 'emerald' | 'amber' | 'rose' | 'purple' | 'blue';
@@ -75,6 +79,7 @@ const themeColors = {
 const HeatMap: React.FC<HeatMapProps> = ({
   year,
   entries = [],
+  goals = [],
   customData,
   onDayClick,
   themeColor = 'indigo',
@@ -86,14 +91,17 @@ const HeatMap: React.FC<HeatMapProps> = ({
 
   // Compile yearGrid dynamically (always returns full 53 weeks)
   const yearGrid = useMemo(() => {
-    const contributionsMap: Record<string, { count: number; points: number }> = {};
+    const contributionsMap: Record<string, { count: number; points: number; hasGoal: boolean; goalCount: number; goalNames: string[] }> = {};
 
     if (customData) {
       customData.forEach(item => {
         if (item && item.date) {
           contributionsMap[item.date] = {
             count: item.count !== undefined ? item.count : 1,
-            points: item.points || 0
+            points: item.points || 0,
+            hasGoal: false,
+            goalCount: 0,
+            goalNames: []
           };
         }
       });
@@ -107,10 +115,34 @@ const HeatMap: React.FC<HeatMapProps> = ({
             const yy = Number(parts[0]);
             if (yy === selectedYear) {
               if (!contributionsMap[eDate]) {
-                contributionsMap[eDate] = { count: 0, points: 0 };
+                contributionsMap[eDate] = { count: 0, points: 0, hasGoal: false, goalCount: 0, goalNames: [] };
               }
               contributionsMap[eDate].count += 1;
               contributionsMap[eDate].points += e.points || 0;
+            }
+          }
+        }
+      });
+    }
+
+    if (goals) {
+      goals.forEach(g => {
+        if (g && g.achievedAt && typeof g.achievedAt === 'string') {
+          const parts = g.achievedAt.split('-');
+          if (parts.length === 3) {
+            const yy = Number(parts[0]);
+            if (yy === selectedYear) {
+              const gDate = g.achievedAt;
+              if (!contributionsMap[gDate]) {
+                contributionsMap[gDate] = { count: 0, points: 0, hasGoal: true, goalCount: 1, goalNames: [g.name || 'Goal Achieved'] };
+              } else {
+                contributionsMap[gDate].hasGoal = true;
+                contributionsMap[gDate].goalCount = (contributionsMap[gDate].goalCount || 0) + 1;
+                if (!contributionsMap[gDate].goalNames) {
+                  contributionsMap[gDate].goalNames = [];
+                }
+                contributionsMap[gDate].goalNames.push(g.name || 'Goal Achieved');
+              }
             }
           }
         }
@@ -135,12 +167,15 @@ const HeatMap: React.FC<HeatMapProps> = ({
 
         const isCurrentYear = runner.getFullYear() === selectedYear;
         const dayInfo = contributionsMap[dateStr];
-        
+       
         weekDays.push({
           dateStr,
           isCurrentYear,
           count: dayInfo ? dayInfo.count : 0,
           points: dayInfo ? dayInfo.points : 0,
+          hasGoal: dayInfo ? !!dayInfo.hasGoal : false,
+          goalCount: dayInfo ? (dayInfo.goalCount || 0) : 0,
+          goalNames: dayInfo ? (dayInfo.goalNames || []) : [],
           dayOfWeek: d,
           dayOfMonth: runner.getDate(),
           month: runner.getMonth()
@@ -150,12 +185,12 @@ const HeatMap: React.FC<HeatMapProps> = ({
       grid.push(weekDays);
     }
     return grid;
-  }, [entries, customData, selectedYear]);
+  }, [entries, customData, goals, selectedYear]);
 
   if (!isScrollable) {
     return (
-      <div 
-        onTouchStartCapture={(e) => e.stopPropagation()} 
+      <div
+        onTouchStartCapture={(e) => e.stopPropagation()}
         onTouchEndCapture={(e) => e.stopPropagation()}
         className="relative pt-1 w-full"
       >
@@ -205,27 +240,32 @@ const HeatMap: React.FC<HeatMapProps> = ({
 
                     let shadeClass = "bg-gray-200/60 dark:bg-slate-800/80";
                     let activeBorder = "border-[0.5px] border-gray-150/40 dark:border-slate-800/40";
-                    
-                    if (day.isCurrentYear && !isFutureMonth && day.count > 0) {
+                   
+                    if (day.isCurrentYear && !isFutureMonth && (day.count > 0 || day.hasGoal)) {
+                      const activeTheme = day.hasGoal ? themeColors.emerald : colors;
                       if (day.points >= 100) {
-                        shadeClass = colors.full;
+                        shadeClass = activeTheme.full;
                       } else if (day.points >= 60) {
-                        shadeClass = colors.high;
+                        shadeClass = activeTheme.high;
                       } else if (day.points >= 30) {
-                        shadeClass = colors.med;
+                        shadeClass = activeTheme.med;
                       } else {
-                        shadeClass = colors.low;
+                        shadeClass = activeTheme.low;
                       }
-                      activeBorder = colors.activeBorder;
+                      activeBorder = activeTheme.activeBorder;
                     } else if (!day.isCurrentYear) {
                       shadeClass = "bg-transparent opacity-0 pointer-events-none";
                       activeBorder = "border-transparent";
                     }
 
                     const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-                    const formattedTip = isClickable
-                      ? `${monthNames[day.month]} ${day.dayOfMonth}, ${selectedYear}: ${day.count} log${day.count !== 1 ? 's' : ''} (${day.points} pts)`
-                      : "";
+                    let formattedTip = "";
+                    if (isClickable) {
+                      formattedTip = `${monthNames[day.month]} ${day.dayOfMonth}, ${selectedYear}: ${day.count} log${day.count !== 1 ? 's' : ''} (${day.points} pts)`;
+                      if (day.hasGoal && day.goalNames && day.goalNames.length > 0) {
+                        formattedTip += ` • ${day.goalNames.join(', ')}`;
+                      }
+                    }
 
                     return (
                       <div
@@ -258,8 +298,8 @@ const HeatMap: React.FC<HeatMapProps> = ({
   }
 
   return (
-    <div 
-      onTouchStartCapture={(e) => e.stopPropagation()} 
+    <div
+      onTouchStartCapture={(e) => e.stopPropagation()}
       onTouchEndCapture={(e) => e.stopPropagation()}
       className="relative pt-1 w-full"
     >
@@ -278,7 +318,7 @@ const HeatMap: React.FC<HeatMapProps> = ({
         {/* Outer scrolling container for horizontal scroll support */}
         <div className="flex-1 overflow-x-auto pb-1.5 [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-gray-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar-track]:bg-transparent no-scrollbar">
           <div className="w-max min-w-max space-y-1 select-none">
-            
+           
             {/* Month Labels row */}
             <div className="flex gap-[2px] h-4">
               {yearGrid.map((week, wIdx) => {
@@ -311,27 +351,32 @@ const HeatMap: React.FC<HeatMapProps> = ({
 
                     let shadeClass = "bg-gray-200/60 dark:bg-slate-800/80";
                     let activeBorder = "border-[0.5px] border-gray-150/40 dark:border-slate-800/40";
-                    
-                    if (day.isCurrentYear && !isFutureMonth && day.count > 0) {
+                   
+                    if (day.isCurrentYear && !isFutureMonth && (day.count > 0 || day.hasGoal)) {
+                      const activeTheme = day.hasGoal ? themeColors.emerald : colors;
                       if (day.points >= 100) {
-                        shadeClass = colors.full;
+                        shadeClass = activeTheme.full;
                       } else if (day.points >= 60) {
-                        shadeClass = colors.high;
+                        shadeClass = activeTheme.high;
                       } else if (day.points >= 30) {
-                        shadeClass = colors.med;
+                        shadeClass = activeTheme.med;
                       } else {
-                        shadeClass = colors.low;
+                        shadeClass = activeTheme.low;
                       }
-                      activeBorder = colors.activeBorder;
+                      activeBorder = activeTheme.activeBorder;
                     } else if (!day.isCurrentYear) {
                       shadeClass = "bg-transparent opacity-0 pointer-events-none";
                       activeBorder = "border-transparent";
                     }
 
                     const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-                    const formattedTip = isClickable
-                      ? `${monthNames[day.month]} ${day.dayOfMonth}, ${selectedYear}: ${day.count} log${day.count !== 1 ? 's' : ''} (${day.points} pts)`
-                      : "";
+                    let formattedTip = "";
+                    if (isClickable) {
+                      formattedTip = `${monthNames[day.month]} ${day.dayOfMonth}, ${selectedYear}: ${day.count} log${day.count !== 1 ? 's' : ''} (${day.points} pts)`;
+                      if (day.hasGoal && day.goalNames && day.goalNames.length > 0) {
+                        formattedTip += ` • ${day.goalNames.join(', ')}`;
+                      }
+                    }
 
                     return (
                       <div

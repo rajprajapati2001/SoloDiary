@@ -2,9 +2,9 @@ import React, { useEffect, useRef } from 'react';
 import { Goal } from '../types';
 
 interface LineGraphProps {
-  data: { 
-    day: number; 
-    points: number; 
+  data: {
+    day: number;
+    points: number;
     fullDate?: string;
     achievedGoals?: Goal[];
   }[];
@@ -14,12 +14,12 @@ interface LineGraphProps {
   onPointClick?: (fullDate: string) => void;
 }
 
-const LineGraph: React.FC<LineGraphProps> = ({ 
-  data, 
-  monthName, 
-  showGoalNames = true, 
+const LineGraph: React.FC<LineGraphProps> = ({
+  data,
+  monthName,
+  showGoalNames = true,
   variant = 'stats',
-  onPointClick 
+  onPointClick
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const hasScrolledRef = useRef<string>('');
@@ -28,21 +28,21 @@ const LineGraph: React.FC<LineGraphProps> = ({
     if (containerRef.current && data.length > 0 && hasScrolledRef.current !== monthName) {
       const today = new Date();
       const isCurrentMonth = today.toLocaleString('default', { month: 'long' }) === monthName;
-      
+     
       if (isCurrentMonth) {
         const todayDay = today.getDate();
         const todayIndex = data.findIndex(d => d.day === todayDay);
-        
+       
         if (todayIndex !== -1) {
           const svgWidth = 800;
           const padding = 40;
           const x = padding + (todayIndex * (svgWidth - padding * 2)) / (data.length - 1);
-          
+         
           // Calculate scroll position to center today's point
           const container = containerRef.current;
           const scrollWidth = container.scrollWidth;
           const clientWidth = container.clientWidth;
-          
+         
           // The SVG width in pixels is scrollWidth
           const scrollX = (x / svgWidth) * scrollWidth;
           container.scrollTo({
@@ -74,8 +74,8 @@ const LineGraph: React.FC<LineGraphProps> = ({
   const todayIndex = isCurrentMonth ? data.findIndex(d => d.day === today.getDate()) : -1;
 
   return (
-        <div 
-      ref={containerRef} 
+        <div
+      ref={containerRef}
       onTouchStart={() => {
         document.body.dataset.disableSwipeNav = 'true';
       }}
@@ -87,8 +87,8 @@ const LineGraph: React.FC<LineGraphProps> = ({
       }}
       className="linegraph-container relative w-full overflow-x-auto overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] no-scrollbar"
     >
-      
-      {/* Legend - Only visible if NOT in dashboard 
+     
+      {/* Legend - Only visible if NOT in dashboard
       {variant !== 'dashboard' && (
         <div className="absolute top-2 right-4 text-[8px] font-bold dark:text-slate-100 text-slate-600 uppercase tracking-widest bg-white/80 dark:bg-slate-800/60 px-2 py-1 rounded-md border border-slate-100 dark:border-slate-700">
           1 Day = 100 Points
@@ -104,15 +104,15 @@ const LineGraph: React.FC<LineGraphProps> = ({
         </defs>
 
         <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="#e2e8f0" strokeWidth="1" />
-        
+       
         <path
           d={`M ${padding},${height - padding} L ${points} L ${width - padding},${height - padding} Z`}
           fill="url(#gradient)"
           opacity="0.1"
         />
-        
+       
         <polyline fill="none" stroke="#3b82f6" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" points={points} />
-        
+       
         {data.map((d, i) => {
           const x = padding + (i * (width - padding * 2)) / (data.length - 1);
           const y = height - padding - (d.points * (height - padding * 2)) / maxPoints;
@@ -124,7 +124,7 @@ const LineGraph: React.FC<LineGraphProps> = ({
               <circle cx={x} cy={y} r="4" fill={hasGoals ? "#10b981" : "#3b82f6"} />
 
               {/* Today's radio-wave ripple animation */}
-              {i === todayIndex && (
+              {i === todayIndex && variant !== 'stats' && (
                 <g>
                   <circle cx={x} cy={y} r={6} stroke="#3b82f6" className="svg-ripple delay-2" />
                   <circle cx={x} cy={y} r={6} stroke="#3b82f6" className="svg-ripple delay-1" />
@@ -140,30 +140,38 @@ const LineGraph: React.FC<LineGraphProps> = ({
                 </text>
               )}
 
-              
+             
               {hasGoals && (
                 <g>
                   <circle cx={x} cy={y} r="8" fill="none" stroke="#10b981" strokeWidth="1" strokeDasharray="2 1" />
-                  
+                 
                   <text x={x} y={y - 20} textAnchor="middle" className="fill-emerald-500 text-[14px] font-black">★</text>
-                  
-                  {showGoalNames && (
-                    <text 
-                      x={x} 
-                      y={y - 33} 
-                      textAnchor="middle" 
-                      style={{ 
-                        paintOrder: 'stroke', 
+                 
+                  {showGoalNames && d.achievedGoals && d.achievedGoals.length > 0 && (
+                    <text
+                      x={x}
+                      y={y - 33 - (d.achievedGoals.length - 1) * 11}
+                      textAnchor="middle"
+                      style={{
+                        paintOrder: 'stroke',
                         strokeLinejoin: 'round',
                         stroke: variant === 'dashboard' ? 'none' : 'white',
                         strokeWidth: variant === 'dashboard' ? '0px' : '3px'
                       }}
-                      className="goal-label fill-emerald-600 dark:fill-emerald-500 text-[8px] font-bold tracking-tight"
+                      className="goal-label fill-emerald-600 dark:fill-emerald-500 text-[10px] font-extrabold tracking-tight"
                     >
-                      {d.achievedGoals?.map(g => g.name).reverse().join(', ')}
+                      {d.achievedGoals.slice().reverse().map((g, index) => (
+                        <tspan
+                          key={g.id || index}
+                          x={x}
+                          dy={index === 0 ? 0 : '11px'}
+                        >
+                          {g.name}
+                        </tspan>
+                      ))}
                     </text>
                   )}
-                  <title>Goals: {d.achievedGoals?.map(g => g.name).join(', ')}</title>
+                  <title>Goals: {d.achievedGoals?.map(g => g.name).reverse().join(', ')}</title>
                 </g>
               )}
 
