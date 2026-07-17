@@ -1,5 +1,5 @@
 import React from 'react';
-import { Facebook, Instagram, Send, Mail, Github, MessageCircle } from 'lucide-react';
+import { Globe, Camera, Send, Mail, SquareCode, MessageCircle } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
 import MainLogo from '../assets/icons/solodiary_icon.ico'
@@ -12,11 +12,11 @@ const Footer: React.FC<FooterProps> = ({ isFull }) => {
   const currentYear = new Date().getFullYear();
 
   const socialLinks = [
-      { name: 'GitHub', icon: Github, url: 'https://github.com/rajprajapati2001', color: 'text-gray-400 dark:hover:text-white' },
-      { name: 'Instagram', icon: Instagram, url: 'https://www.instagram.com/raj_pankaj_prajapati', color: 'text-pink-500' },
+      { name: 'GitHub', icon: SquareCode, url: 'https://github.com/rajprajapati2001', color: 'text-gray-400 dark:hover:text-white' },
+      { name: 'Instagram', icon: Camera, url: 'https://www.instagram.com/raj_pankaj_prajapati', color: 'text-pink-500' },
       { name: 'Gmail', icon: Mail, url: 'mailto:rp5876907@gmail.com', color: 'text-red-500' },
       { name: 'Telegram', icon: Send, url: 'https://t.me/raj_prajapati14022001', color: 'text-blue-500' },
-      { name: 'Facebook', icon: Facebook, url: 'https://www.facebook.com', color: 'text-blue-600' },
+      { name: 'Facebook', icon: Globe, url: 'https://www.facebook.com', color: 'text-blue-600' },
       { name: 'WhatsApp', icon: MessageCircle, url: 'https://wa.me/+916353636344', color: 'text-green-500' },
   ];
 

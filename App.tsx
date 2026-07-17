@@ -356,20 +356,113 @@ const App: React.FC = () => {
   const handleDeleteGoal = async (id: string) => {
     if (!window.confirm('Are you sure you want to delete this goal?')) return;
     const db = await getDB();
+    const goalToDelete = goals.find(g => g.id === id);
     await db.delete('goals', id);
     setGoals(p => p.filter(i => i.id !== id));
+
+    if (goalToDelete) {
+      const targetCode = goalToDelete.code;
+      const allEntries = await db.getAll('entries');
+      const entriesToDelete = allEntries.filter((e: any) => e.code === targetCode);
+      
+      for (const entry of entriesToDelete) {
+        await db.delete('entries', entry.id);
+      }
+      
+      const remainingEntries = entries.filter(e => e.code !== targetCode);
+      setEntries(remainingEntries);
+      syncGoalsWithEntries(remainingEntries);
+    }
   };
 
   const handleEditGoal = async (g: Goal) => {
     const db = await getDB();
+    const oldGoal = goals.find(item => item.id === g.id);
     await db.put('goals', g);
     setGoals(p => p.map(i => i.id === g.id ? g : i));
-    syncGoalsWithEntries(entries);
+
+    if (oldGoal) {
+      const oldCode = oldGoal.code;
+      const newCode = g.code;
+      const newName = g.name;
+
+      // Sync auto templates as well!
+      try {
+        const allAuto = await db.getAll('auto_templates');
+        const txAuto = db.transaction('auto_templates', 'readwrite');
+        for (const at of allAuto) {
+          if (at.code && at.code.toUpperCase() === oldCode.toUpperCase()) {
+            at.code = newCode;
+            at.name = newName;
+            await txAuto.store.put(at);
+          }
+        }
+        await txAuto.done;
+      } catch (err) {
+        console.error('Error syncing auto_templates during goal edit:', err);
+      }
+
+      const tx = db.transaction('entries', 'readwrite');
+      const updatedEntries = entries.map(e => {
+        if (e.code === oldCode) {
+          const updatedEntry = {
+            ...e,
+            code: newCode,
+            name: newName
+          };
+          tx.store.put(updatedEntry);
+          return updatedEntry;
+        }
+        return e;
+      });
+      await tx.done;
+
+      setEntries(updatedEntries);
+      syncGoalsWithEntries(updatedEntries);
+    } else {
+      syncGoalsWithEntries(entries);
+    }
   };
 
   const handleTemplateAction = async (action: 'add' | 'edit' | 'delete', t: any) => {
     const db = await getDB();
     if (action === 'add' || action === 'edit') {
+      if (action === 'edit') {
+        const oldTemplate = templates.find(item => item.id === t.id);
+        if (oldTemplate) {
+          const oldCode = oldTemplate.code;
+          const newCode = t.code;
+          const newName = t.name;
+
+          // Sync auto templates as well!
+          try {
+            const allAuto = await db.getAll('auto_templates');
+            const txAuto = db.transaction('auto_templates', 'readwrite');
+            for (const at of allAuto) {
+              if (at.code && at.code.toUpperCase() === oldCode.toUpperCase()) {
+                at.code = newCode;
+                at.name = newName;
+                await txAuto.store.put(at);
+              }
+            }
+            await txAuto.done;
+          } catch (err) {
+            console.error('Error syncing auto_templates during template edit:', err);
+          }
+
+          setEntries(p => p.map(e => {
+            if (e.code.toUpperCase() === oldCode.toUpperCase()) {
+              return {
+                ...e,
+                code: newCode,
+                name: newName
+              };
+            }
+            return e;
+          }));
+        }
+      }
+
       await db.put('activity_templates', t);
       if (action === 'add') setTemplates(p => [...p, t]);
       else setTemplates(p => p.map(i => i.id === t.id ? t : i));
@@ -494,6 +587,8 @@ const App: React.FC = () => {
         {currentPage === 'activities' && (
           <ActivitiesView
             templates={templates}
+            entries={entries}
+            goals={goals}
             onAdd={t => handleTemplateAction('add', t)}
             onEdit={t => handleTemplateAction('edit', t)}
             onDelete={id => handleTemplateAction('delete', id)}
@@ -503,6 +598,8 @@ const App: React.FC = () => {
           <GoalsView
             userName={userName || 'User'}
             goals={goals}
+            entries={entries}
+            templates={templates}
             onAddGoal={handleAddGoal}
             onDeleteGoal={handleDeleteGoal}
             onEditGoal={handleEditGoal}

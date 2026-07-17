@@ -1,6 +1,8 @@
-![Logo](./assets/solodiary_icon_128x128.png)  
+<div align="center">
+  <img src="./assets/icons/solodiary_icon_512x512.png" width="150px" />
+  <h1>SoloDiary</h1>
+</div>
 
-# SoloDiary
 SoloDiary is a high-fidelity, tracking web application designed for individuals who demand a structured approach to self-improvement. It combines activity logging, goal management, financial tracking, and personal journaling into a single, aesthetically refined dashboard. Whether you're building habits, tracking your daily wins, or simply reflecting on your day, SoloDiary gives you the tools to measure your growth — beautifully and privately.
 `Design Your Routine. Visualize Your Wins. Grow Every Day.`
 
@@ -48,26 +50,36 @@ SoloDiary is a high-fidelity, tracking web application designed for individuals 
 
 ```text
 SoloDiary/
-├── components/          
-│   ├── ActivitiesView.tsx   # View Activity template management
-│   ├── CalendarView.tsx     # Monthly point-tracking calendar
-│   ├── Dashboard.tsx        # Main UI with time-cards and daily logs
-│   ├── DiaryView.tsx        # View diary entries
-│   ├── EntryForm.tsx        # Add Events, Goals, Diary, Finance
-│   ├── Footer.tsx           # Footer with social links
-│   ├── GoalsView.tsx        # Objective setting and tracking interface
-│   ├── LineGraph.tsx        # visualized LineGraph
-│   └── StatsView.tsx        # Reporting engine & Data Hub (Import/Export)
-├── constants/           
-│   └── constants.ts         # Initial activity templates (Sleep, Meals, etc.)
-├── db/                  
-│   └── db.ts                # Dexie.js schema (entries, goals, templates, settings)
-├── types/               
-│   └── types.ts             # Global TypeScript interfaces (ActivityEntry, Goal)
-├── App.tsx              # Core logic, hash-routing, and theme management
-├── index.tsx            # React entry point
-├── index.html           
-└── README.md            # System documentation
+├── components/
+│   ├── ActivitiesView.tsx
+│   ├── AutoFill.tsx
+│   ├── CalendarView.tsx
+│   ├── Dashboard.tsx
+│   ├── DiaryView.tsx
+│   ├── EntryForm.tsx
+│   ├── Footer.tsx
+│   ├── GoalsView.tsx
+│   ├── HeatMap.tsx
+│   ├── LineGraph.tsx
+│   ├── NoInternet.tsx
+│   ├── QuickPopData.tsx
+│   ├── StatsView.tsx
+│   ├── TimeProgressBar.tsx
+│   └── TodayProgressBar.tsx
+├── fonts/
+│   └── digitaldismay.otf
+├── assets/
+│   ├── icons/
+│   │   └── solodiary_icon.ico
+│   └── solodiary_icon_128x128.png
+├── App.tsx
+├── capacitor.config.ts
+├── constants.ts
+├── db.ts
+├── index.css
+├── index.html
+├── index.tsx
+└── README.md
 ```
 ---
 
@@ -109,7 +121,7 @@ Click the button below to download the latest stable APK:
 ![Android](https://img.shields.io/badge/Android-APK_Supported-green?style=for-the-badge&logo=android)
 
 *Alternatively, copy this link:* 
-[Direct APK Link](https://raw.githubusercontent.com/rajprajapati2001/SoloDiary/refs/heads/main/android/app/build/apk/solodiary.apk) 🚀
+[Direct APK Link](https://raw.githubusercontent.com/rajprajapati2001/SoloDiary/refs/heads/main/android/app/build/outputs/apk/release/app-release.apk) 🚀
 
 ---
 ## 📲 Convert Web to APK (Step-by-Step Guide)

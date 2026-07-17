@@ -771,7 +771,6 @@ if (completionPercentage >= 85) {
 <TodayProgressBar
   entries={entries}
   selectedDate={activeDate}
-  onActivityClick={scrollToActivity}
 />
                 </div> 
 
@@ -862,9 +861,9 @@ if (completionPercentage >= 85) {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-blue-500/5 p-4 rounded-xl border border-blue-500/10 text-center">
                     <p className="text-[10px] font-bold text-gray-400 uppercase">
-                      Total Months Points
+                      Total Months Point
                     </p>
-                    <p className="text-3xl text-blue-600 font-digital mt-1">
+                    <p className="text-4xl text-blue-600 font-digital mt-1">
                       {activeYearEntries.reduce((s, e) => s + e.points, 0)}
                     </p>
                   </div>
@@ -873,7 +872,7 @@ if (completionPercentage >= 85) {
                     <p className="text-[10px] font-bold text-gray-400 uppercase">
                       Month Progress %
                     </p>
-                    <p className="text-3xl text-purple-600 font-digital mt-1">
+                    <p className="text-4xl text-purple-600 font-digital mt-1">
                       {Math.min(
                         (activeYearEntries.reduce((s, e) => s + e.points, 0) / (365 * 100)) * 100,
                         100
@@ -976,7 +975,7 @@ if (completionPercentage >= 85) {
                               <h3 className="text-2xl font-black text-gray-800 dark:text-white">{year}</h3>
                             </div>
                             <div className="text-right">
-                              <p className="text-3xl text-indigo-500 font-digital">{score}</p>
+                              <p className="text-4xl text-indigo-500 font-digital">{score}</p>
                               {/* 4. Shows the percentage out of the yearly point goal */}
                               <p className="text-xs text-gray-400">{yearlyProgress.toFixed(0)}% • Total Points</p>
                             </div>
@@ -1336,10 +1335,17 @@ if (completionPercentage >= 85) {
                   </div>
 
                   <div className="text-center sm:text-right z-10 flex flex-col items-center sm:items-end gap-1">
-                    <div className="px-4 py-2 rounded-2xl border font-black text-xs inline-flex items-center gap-2 backdrop-blur-md bg-white/20 border-white/30 shadow-sm">
-                      <Trophy size={14} className="text-amber-300 animate-pulse" />
-                      <span className="tracking-wide">{profileStats.rank}</span>
-                    </div>
+
+<div className="relative overflow-hidden px-4 py-2 rounded-2xl border font-black text-xs inline-flex items-center gap-2 backdrop-blur-md bg-white/20 border-white/30 shadow-sm isolation-isolate">
+  <style>{`@keyframes inlineShimmer { 100% { transform: translateX(100%); } }`}</style>
+
+  {/* Using Tailwind's custom arbitrary animation class */}
+  <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/30 to-transparent skew-x-[-45deg] animate-[inlineShimmer_2.5s_infinite_linear]" />
+  
+  <Trophy size={14} className="text-amber-300 relative z-10" />
+  <span className="tracking-wide relative z-10">{profileStats.rank}</span>
+</div>
+
                     <p className="text-[9px] mt-1 text-white/75 uppercase tracking-wider font-semibold">
                       Rank evaluated by tracking year points
                     </p>

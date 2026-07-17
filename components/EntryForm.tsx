@@ -4,6 +4,7 @@ import { ActivityEntry, ActivityTemplate, Goal } from '../types';
 import { X, NotebookTabs, Save, Banknote, Clock, Zap, Target, FileText, Calendar as CalendarIcon, Link as LinkIcon, ChevronDown, Code, Star, ArrowDownLeft, ArrowUpRight, NotebookPen, Activity, KeySquare } from 'lucide-react';
 import { useReducedMotion, motion, AnimatePresence } from 'motion/react';
 import { CURRENCY_MAP } from '../constants';
+import TimeProgressBar from './TimeProgressBar';
 
 interface EntryFormProps {
   isOpen: boolean;
@@ -253,6 +254,13 @@ const EntryForm: React.FC<EntryFormProps> = ({ isOpen, onClose, onSave, initialD
   const selectedTemplate = useMemo(() => templates.find(t => t.id === selectedTemplateId), [templates, selectedTemplateId]);
   const selectedGoal = useMemo(() => goals.find(g => g.id === selectedGoalId), [goals, selectedGoalId]);
 
+  const isGoal = useMemo(() => {
+    if (selectedGoalId) return true;
+    const cleanCode = code.trim().toUpperCase();
+    if (!cleanCode) return false;
+    return goals.some(g => g.code.toUpperCase() === cleanCode);
+  }, [selectedGoalId, code, goals]);
+
   const nameSuggestions = useMemo(() => {
     if (!showNameSuggestions || !name.trim()) return [];
     const search = name.toLowerCase();
@@ -357,7 +365,7 @@ const EntryForm: React.FC<EntryFormProps> = ({ isOpen, onClose, onSave, initialD
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
             onClick={handleCloseWithAnimation}
-            className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-[1px] cursor-pointer"
+            className="fixed inset-0 z-[200] bg-black/70 backdrop-blur-[1px] cursor-pointer"
           />
 
           {/* Modal */}
@@ -388,7 +396,7 @@ const EntryForm: React.FC<EntryFormProps> = ({ isOpen, onClose, onSave, initialD
               rotateX: 5,
               transition: { duration: 0.18, ease: "easeOut" }
             }}
-            className={`fixed inset-0 z-[101] flex items-center justify-center md:p-4 p-2 pointer-events-none`}
+            className={`fixed inset-0 z-[201] flex items-center justify-center md:p-4 p-2 pointer-events-none`}
           >
 <div
   className={`bg-white dark:bg-slate-900 w-full max-w-lg md:rounded-[2.5rem] rounded-[1.5rem] shadow-xl overflow-hidden max-h-[90vh] flex flex-col border border-slate-100 dark:border-white/10 pointer-events-auto`}
@@ -397,7 +405,7 @@ const EntryForm: React.FC<EntryFormProps> = ({ isOpen, onClose, onSave, initialD
   <div className="px-6 py-4 border-b border-gray-100 dark:border-white/10 flex justify-between items-center bg-white dark:bg-slate-900 z-10">
     <div className="flex items-center gap-3">
       {icon || (title?.toLowerCase().includes('key') || title?.toLowerCase().includes('auto') ? (
-        <KeySquare size={25} className="text-emerald-500 dark:text-emerald-400" />
+        <KeySquare size={25} className="text-violet-500 dark:text-violet-400" />
       ) : (
         <NotebookTabs size={25} className="text-blue-500 dark:text-blue-400" />
       ))}
@@ -761,6 +769,17 @@ const EntryForm: React.FC<EntryFormProps> = ({ isOpen, onClose, onSave, initialD
         </div>
       )}
 
+      {/* Time Progress Bar Preview */}
+      {(fromTime || toTime) && (
+        <div>
+          <TimeProgressBar
+            startTime={fromTime || "00:00"}
+            endTime={isLongEvent ? (toTime || fromTime || "00:00") : undefined}
+            isGoal={isGoal}
+          />
+        </div>
+      )}
+
       {/* Footer Actions */}
 <div className="flex gap-3 pt-6">
   <button
@@ -774,9 +793,13 @@ const EntryForm: React.FC<EntryFormProps> = ({ isOpen, onClose, onSave, initialD
   <button
     type="submit"
     disabled={isClosing || isSubmitting}
-    className="flex-[2] py-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 dark:from-emerald-700 dark:to-teal-700 dark:hover:from-emerald-600 dark:hover:to-teal-600 text-white font-black rounded-2xl shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 uppercase tracking-widest text-sm disabled:opacity-70 disabled:cursor-not-allowed"
+    className={`flex-[2] py-4 bg-gradient-to-r ${
+      title?.toLowerCase().includes('key')
+        ? 'from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 dark:from-violet-700 dark:to-indigo-700 dark:hover:from-violet-600 dark:hover:to-indigo-600 shadow-violet-500/10'
+        : 'from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 dark:from-emerald-700 dark:to-teal-700 dark:hover:from-emerald-600 dark:hover:to-teal-600 shadow-emerald-500/10'
+    } text-white font-black rounded-2xl shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 uppercase tracking-widest text-sm disabled:opacity-70 disabled:cursor-not-allowed`}
   >
-    <Save size={20} /> Save Record
+    <Save size={20} /> {title?.toLowerCase().includes('key') ? 'Save Key' : 'Save Record'}
   </button>
 </div>
     </form>

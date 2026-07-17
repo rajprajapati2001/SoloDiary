@@ -5,7 +5,7 @@ import { TodayProgressBar } from './TodayProgressBar';
 import QuickPopData from './QuickPopData';
 import TimeProgressBar from './TimeProgressBar';
 import { ActivityEntry, Goal } from '../types';
-import { TrendingUp, Award, Clock, Edit2, Trash2, Star, Banknote, Eye, EyeOff, Target, Calendar, Paperclip, Snowflake , ChartLine, ScrollText, Check, X as CloseIcon, ChevronLeft, ChevronRight, Sun, MoonStar, CloudSun, CloudMoon, Cloud, Wind, CloudDrizzle, CloudRain, CloudHail, CloudSnow, CloudLightning, Moon, Bubbles , type LucideIcon, ThermometerSun, Cloudy, Droplets } from 'lucide-react';
+import { TrendingUp, Award, Clock, Edit2, Trash2, Star, Banknote, Eye, ClockFadingIcon, EyeOff, Target, Calendar, Paperclip, Snowflake , ChartLine, ScrollText, Check, X as CloseIcon, ChevronLeft, ChevronRight, Sun, MoonStar, CloudSun, CloudMoon, Cloud, Wind, CloudDrizzle, CloudRain, CloudHail, CloudSnow, CloudLightning, Moon, Bubbles , type LucideIcon, ThermometerSun, Cloudy, Droplets, TimerReset } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { getCurrencySymbol, getAggregateCurrencyDisplay } from '../constants';
 
@@ -614,7 +614,7 @@ const totalYearlyPoints = useMemo(
       <div className="bg-white dark:bg-slate-800 md:p-6 p-1 pt-3 pb-3 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 relative overflow-visible">
       <div className="flex items-center justify-between mb-2">
         <h3 className="inline-flex items-center pl-2 gap-3 text-lg font-bold uppercase tracking-tighter text-gray-800 dark:text-white">
-          <Clock className="text-blue-500 shrink-0" size={24} />
+          <ClockFadingIcon className="text-blue-500 shrink-0" size={24} />
           <span>Activity Architecture</span>
         </h3>
         

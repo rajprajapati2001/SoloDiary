@@ -1,16 +1,18 @@
-import React, { useState, useRef } from 'react';
-import { Goal } from '../types';
-import { X, Plus, Trash2, Target, CheckCircle, Edit2, Flag, Search, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import React, { useState, useRef, useMemo } from 'react';
+import { Goal, ActivityEntry, ActivityTemplate } from '../types';
+import { X, Plus, Trash2, Target, CheckCircle, Edit2, Flag, Search, AlertCircle, CalendarIcon, Code, Star, CalendarDays, CalendarFold } from 'lucide-react';
 
 interface GoalsViewProps {
   userName: string;
   goals: Goal[];
+  entries: ActivityEntry[];
+  templates: ActivityTemplate[];
   onAddGoal: (goal: Goal) => void;
   onDeleteGoal: (id: string) => void;
   onEditGoal: (goal: Goal) => void;
 }
 
-const GoalsView: React.FC<GoalsViewProps> = ({ userName, goals, onAddGoal, onDeleteGoal, onEditGoal }) => {
+const GoalsView: React.FC<GoalsViewProps> = ({ userName, goals = [], entries = [], templates = [], onAddGoal, onDeleteGoal, onEditGoal }) => {
   const currentYear = new Date().getFullYear();
   const currentMonthName = new Date().toLocaleString('default', { month: 'long' });
 
@@ -26,10 +28,35 @@ const GoalsView: React.FC<GoalsViewProps> = ({ userName, goals, onAddGoal, onDel
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [points, setPoints] = useState<number | ''>(0);
+  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   const formRef = useRef<HTMLDivElement>(null);
-  const years = Array.from({ length: 6 }, (_, i) => currentYear + i);
+
+  // Real-time duplication logic
+  const isDuplicateName = useMemo(() => {
+    const trimmedName = name.trim().toLowerCase();
+    if (!trimmedName) return false;
+    return goals.some(g => g.id !== editingId && g.name.toLowerCase() === trimmedName);
+  }, [name, goals, editingId]);
+
+const isDuplicateCode = useMemo(() => {
+  const trimmedCode = code.trim().toUpperCase();
+  if (!trimmedCode) return false;
+
+  // Check for duplicates in goals
+  const duplicateInGoals = goals.some(
+    (g) => g.id !== editingId && g.code.toUpperCase() === trimmedCode
+  );
+
+  // Check for duplicates in entries
+  const duplicateInEntries = entries.some((e) => e.code.toUpperCase() === trimmedCode);
+
+  // Check for duplicates in activity templates
+  const duplicateInTemplates = templates.some((t) => t.code.toUpperCase() === trimmedCode);
+
+  return duplicateInGoals || duplicateInEntries || duplicateInTemplates;
+}, [code, goals, entries, templates, editingId]);
 
   // Filter & sort goals. Sorted by year descending so dividers flow chronologically.
   const filteredGoals = goals.filter(goal => 
@@ -49,13 +76,45 @@ const GoalsView: React.FC<GoalsViewProps> = ({ userName, goals, onAddGoal, onDel
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
+
+    const trimmedCode = code.trim().toUpperCase();
+    const trimmedName = name.trim();
+
+    // Check duplicates across goals, entries, and templates
+    const duplicateGoalCode = goals.find(g => g.id !== editingId && g.code.toUpperCase() === trimmedCode);
+    const duplicateInEntries = entries.find(e => e.code && e.code.toUpperCase() === trimmedCode);
+    const duplicateInTemplates = templates.find(t => t.code && t.code.toUpperCase() === trimmedCode);
+    const duplicateGoalName = goals.find(g => g.id !== editingId && g.name.toLowerCase() === trimmedName.toLowerCase());
+
+    // Error box trigger protection if they click submit anyways
+    if (duplicateGoalCode) {
+      setError(`Code "${trimmedCode}" is already assigned to objective: ${duplicateGoalCode.name}`);
+      return;
+    }
+
+    if (duplicateInTemplates) {
+      setError(`Code "${trimmedCode}" is already used by an activity template: ${duplicateInTemplates.name}`);
+      return;
+    }
+
+    if (duplicateInEntries) {
+      setError(`Code "${trimmedCode}" is already present in diary entries.`);
+      return;
+    }
+
+    if (duplicateGoalName) {
+      setError(`Goal title "${trimmedName}" already exists.`);
+      return;
+    }
+
     const goalData = {
       id: editingId || Math.random().toString(36).substr(2, 9),
       deadlineMonth,
       deadlineYear,
-      code,
-      name,
-      points: Number(points) || 0,
+      code: trimmedCode,
+      name: trimmedName,
+      points: points === '' ? 0 : Number(points),
     };
 
     if (editingId) {
@@ -73,7 +132,6 @@ const GoalsView: React.FC<GoalsViewProps> = ({ userName, goals, onAddGoal, onDel
   };
 
   const startEdit = (goal: Goal) => {
-    if (goal.achievedAt) return;
     setEditingId(goal.id);
     setDeadlineMonth(goal.deadlineMonth);
     setDeadlineYear(goal.deadlineYear || currentYear);
@@ -81,6 +139,7 @@ const GoalsView: React.FC<GoalsViewProps> = ({ userName, goals, onAddGoal, onDel
     setName(goal.name);
     setPoints(goal.points);
     setShowForm(true);
+    setError(null);
 
     setTimeout(() => {
       formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -94,6 +153,7 @@ const GoalsView: React.FC<GoalsViewProps> = ({ userName, goals, onAddGoal, onDel
     setPoints(0);
     setDeadlineMonth(currentMonthName);
     setDeadlineYear(currentYear);
+    setError(null);
   };
 
   const toggleForm = () => {
@@ -175,83 +235,126 @@ const GoalsView: React.FC<GoalsViewProps> = ({ userName, goals, onAddGoal, onDel
         />
       </div>
 
-      {showForm && (
-        <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-white/20 backdrop-blur-md shadow-xl animate-in slide-in-from-top-4 duration-300">
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-1 md:col-span-2 lg:col-span-2">
-              <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase opacity-60 px-1">Month</label>
-                <select
-                  value={deadlineMonth}
-                  onChange={e => setDeadlineMonth(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border dark:bg-black/20 dark:border-white/10 outline-none text-sm font-bold dark:text-white"
-                >
-                  {months.map(m => (
-                    <option key={m} value={m}>{m}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase opacity-60 px-1">Year</label>
-                <select
-                  value={deadlineYear}
-                  onChange={e => setDeadlineYear(Number(e.target.value))}
-                  className="w-full px-4 py-2.5 rounded-xl border dark:bg-black/20 dark:border-white/10 outline-none text-sm font-bold dark:text-white"
-                >
-                  {years.map(y => (
-                    <option key={y} value={y}>{y}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="space-y-1 lg:col-span-2 md:col-span-3">
-              <label className="text-[10px] font-black uppercase opacity-60 px-1">Goal Title</label>
-              <input
-                type="text"
-                value={name}
-                onChange={e => setName(e.target.value)}
-                placeholder="Objective"
-                className="w-full px-4 py-2.5 rounded-xl border dark:bg-black/20 dark:border-white/10 outline-none text-sm font-bold dark:text-white"
-                required
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-1 md:col-span-2 lg:col-span-2">
-              <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase opacity-60 px-1">Code</label>
-                <input
-                  type="text"
-                  value={code}
-                  onChange={e => setCode(e.target.value)}
-                  placeholder="XYZ"
-                  className="w-full px-4 py-2.5 uppercase rounded-xl border dark:bg-black/20 dark:border-white/10 outline-none text-sm font-bold dark:text-white"
-                  required
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase opacity-60 px-1">Points</label>
-                <input
-                  type="number"
-                  value={points}
-                  onChange={e => setPoints(e.target.value === "" ? "" : Number(e.target.value))}
-                  placeholder="Pts"
-                  className="w-full px-4 py-2.5 rounded-xl border dark:bg-black/20 dark:border-white/10 outline-none text-sm font-bold dark:text-white"
-                  required
-                />
-              </div>
-            </div>
+{showForm && (
+  <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 md:p-6 p-3 rounded-3xl border border-gray-100 dark:border-slate-700/60 shadow-xl space-y-4 animate-in slide-in-from-top-4 duration-300">
+    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 md:gap-4 gap-2">
+      <div className="grid grid-cols-2 md:gap-4 gap-2 md:grid-cols-1 md:col-span-2 lg:col-span-2">
+        {/* MONTH SELECTOR */}
+        <div className="space-y-1">
+          <label className="text-[10px] font-black uppercase opacity-60 px-1 text-gray-500 dark:text-slate-400">Month</label>
+          <div className="relative flex items-center">
+            <CalendarDays size={16} className="absolute left-3 text-blue-500 pointer-events-none" />
+            <select
+              value={deadlineMonth}
+              onChange={e => setDeadlineMonth(e.target.value)}
+              className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 dark:bg-slate-900 outline-none text-sm font-bold dark:text-white appearance-none"
+            >
+              {months.map(m => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
           </div>
+        </div>
 
-          <button type="submit" className="w-full mt-6 py-3 bg-blue-600 text-white font-black rounded-2xl shadow-xl hover:bg-blue-700 transition-colors uppercase tracking-widest text-sm">
-            {editingId ? 'Update Objective' : 'Save Goal'}
-          </button>
-        </form>
-      )}
+        {/* YEAR SELECTOR */}
+        <div className="space-y-1">
+          <label className="text-[10px] font-black uppercase opacity-60 px-1 text-gray-500 dark:text-slate-400">Year</label>
+          <div className="relative flex items-center">
+            <CalendarFold size={16} className="absolute left-3 text-blue-500 pointer-events-none" />
+            <select
+              value={deadlineYear}
+              onChange={e => setDeadlineYear(Number(e.target.value))}
+              className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 dark:bg-slate-900 outline-none text-sm font-bold dark:text-white appearance-none"
+            >
+              {Array.from({ length: 10 }, (_, index) => new Date().getFullYear() - 1 + index).map(y => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
 
-      <div className="bg-white/10 dark:bg-slate-800/50 rounded-3xl shadow-2xl border border-white/20 overflow-hidden backdrop-blur-md">
+      {/* GOAL TITLE INPUT */}
+      <div className="space-y-1 lg:col-span-2 md:col-span-3">
+        <label className={`text-[10px] font-black uppercase px-1 transition-colors ${isDuplicateName ? 'text-red-500' : 'text-gray-500 dark:text-slate-400'}`}>
+          Goal Title {isDuplicateName && '(Already Exists)'}
+        </label>
+        <div className="relative flex items-center">
+          <Target size={16} className={`absolute left-3 pointer-events-none ${isDuplicateName ? 'text-red-500' : 'text-emerald-500'}`} />
+          <input
+            type="text"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            placeholder="Objective"
+            className={`w-full pl-9 pr-4 py-2.5 rounded-xl border outline-none text-sm font-bold dark:bg-slate-900 dark:text-white transition-all ${
+              isDuplicateName 
+                ? 'border-red-500 ring-4 ring-red-500/10 focus:border-red-500' 
+                : 'border-gray-200 dark:border-slate-700 focus:border-blue-500'
+            }`}
+            required
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-1 md:col-span-2 lg:col-span-2">
+        {/* CODE INPUT */}
+        <div className="space-y-1">
+          <label className={`text-[10px] font-black uppercase px-1 transition-colors ${isDuplicateCode ? 'text-red-500' : 'text-gray-500 dark:text-slate-400'}`}>
+            Code {isDuplicateCode && '(In Use)'}
+          </label>
+          <div className="relative flex items-center">
+            <Code size={16} className={`absolute left-3 pointer-events-none ${isDuplicateCode ? 'text-red-500' : 'text-slate-400'}`} />
+            <input
+              type="text"
+              value={code}
+              onChange={e => setCode(e.target.value)}
+              placeholder="XYZ"
+              className={`w-full pl-9 pr-4 py-2.5 uppercase rounded-xl border outline-none text-sm font-bold dark:bg-slate-900 dark:text-white transition-all ${
+                isDuplicateCode 
+                  ? 'border-red-500 ring-4 ring-red-500/10 focus:border-red-500' 
+                  : 'border-gray-200 dark:border-slate-700 focus:border-blue-500'
+              }`}
+              required
+            />
+          </div>
+        </div>
+
+        {/* POINTS INPUT */}
+        <div className="space-y-1">
+          <label className="text-[10px] font-black uppercase opacity-60 px-1 text-gray-500 dark:text-slate-400">Points</label>
+          <div className="relative flex items-center">
+            <Star size={16} className="absolute left-3 text-amber-500 pointer-events-none" />
+            <input
+              type="number"
+              value={points === '' ? '' : points}
+              onChange={e => setPoints(e.target.value === "" ? "" : Number(e.target.value))}
+              placeholder="Pts"
+              className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 dark:bg-slate-900 outline-none text-sm font-bold dark:text-white focus:border-blue-500 transition-colors"
+              required
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {/* SUBMIT BUTTON */}
+    <button type="submit" className="w-full mt-2 py-3 bg-blue-600 text-white font-black rounded-2xl shadow-xl hover:bg-blue-700 transition-colors uppercase tracking-widest text-sm">
+      {editingId ? 'Update Objective' : 'Save Goal'}
+    </button>
+
+    {/* ERROR MSG CONTAINER */}
+    {error && (
+      <div className="flex items-center gap-2 text-red-500 text-xs font-bold bg-red-50 dark:bg-red-950/30 p-3 rounded-xl border border-red-200 dark:border-red-900/50 mt-3">
+        <AlertCircle size={14} />
+        {error}
+      </div>
+    )}
+  </form>
+)}
+
+      <div className="bg-white/10 dark:bg-slate-800/50 rounded-3xl shadow-2xl border border-gray-100 dark:border-slate-700 overflow-hidden backdrop-blur-md">
         {/* Mobile View */}
-        <div className="block md:hidden divide-y divide-white/10">
+        <div className="block md:hidden divide-y divide-gray-100 dark:divide-slate-700">
           {sortedGoals.map(goal => {
             const goalYear = goal.deadlineYear || currentYear;
             const showYearDivider = goalYear !== lastMobileYear;
@@ -260,15 +363,15 @@ const GoalsView: React.FC<GoalsViewProps> = ({ userName, goals, onAddGoal, onDel
             return (
               <React.Fragment key={goal.id}>
                 {showYearDivider && (
-                <div className="grid grid-cols-3 items-center bg-gray-100 dark:bg-slate-900/60 px-4 py-2 text-2xl font-digital uppercase tracking-wider text-emerald-500 dark:text-emerald-400">
-                  <div className="flex justify-start">── ⋆⋅</div>
-                  <div className="text-center">{goalYear}</div>
-                  <div className="flex justify-end">⋅⋆ ──</div>
-                </div>
+                  <div className="grid grid-cols-3 items-center bg-gray-100 dark:bg-slate-900/60 px-4 py-2 text-2xl font-digital uppercase tracking-wider text-emerald-500 dark:text-emerald-400">
+                    <div className="flex justify-start">── ⋆⋅</div>
+                    <div className="text-center">{goalYear}</div>
+                    <div className="flex justify-end">⋅⋆ ──</div>
+                  </div>
                 )}
                 <div className={`px-4 py-3.5 flex items-start gap-3 ${goal.achievedAt ? 'opacity-60 bg-emerald-500/5' : ''}`}>
                   <div className="pt-0.5 shrink-0">
-                    {goal.achievedAt ? <CheckCircle className="text-emerald-500" size={22} /> : <div className="w-[22px] h-[22px] rounded-full border-2 border-white/20" />}
+                    {goal.achievedAt ? <CheckCircle className="text-emerald-500" size={22} /> : <div className="w-[22px] h-[22px] rounded-full border-2 border-gray-300 dark:border-white/20" />}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
@@ -293,14 +396,8 @@ const GoalsView: React.FC<GoalsViewProps> = ({ userName, goals, onAddGoal, onDel
                     )}
                   </div>
                   <div className="shrink-0 flex items-center gap-0.5 pt-0.5">
-                    {!goal.achievedAt ? (
-                      <>
-                        <button onClick={() => startEdit(goal)} className="p-1.5 text-gray-400 hover:text-blue-500 rounded-lg hover:bg-blue-500/10 transition-colors"><Edit2 size={16} /></button>
-                        <button onClick={() => onDeleteGoal(goal.id)} className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-500/10 transition-colors"><Trash2 size={16} /></button>
-                      </>
-                    ) : (
-                      <span className="text-[9px] font-bold opacity-40 uppercase tracking-widest">Archived</span>
-                    )}
+                    <button onClick={() => startEdit(goal)} className="p-1.5 text-gray-400 hover:text-blue-500 rounded-lg hover:bg-blue-500/10 transition-colors"><Edit2 size={16} /></button>
+                    <button onClick={() => onDeleteGoal(goal.id)} className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-500/10 transition-colors"><Trash2 size={16} /></button>
                   </div>
                 </div>
               </React.Fragment>
@@ -316,7 +413,7 @@ const GoalsView: React.FC<GoalsViewProps> = ({ userName, goals, onAddGoal, onDel
         {/* Desktop View */}
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left min-w-[600px]">
-            <thead className="bg-black/10">
+            <thead className="bg-gray-50 dark:bg-slate-900/50">
               <tr>
                 <th className="pl-5 pr-2 py-3 text-[10px] font-black uppercase opacity-60 w-12 text-center">Done</th>
                 <th className="px-3 py-3 text-[10px] font-black uppercase opacity-60 w-24">Code</th>
@@ -325,7 +422,7 @@ const GoalsView: React.FC<GoalsViewProps> = ({ userName, goals, onAddGoal, onDel
                 <th className="pl-3 pr-5 py-3 text-[10px] font-black uppercase opacity-60 w-24 text-right">Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
+            <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
               {sortedGoals.map(goal => {
                 const goalYear = goal.deadlineYear || currentYear;
                 const showYearDivider = goalYear !== lastDesktopYear;
@@ -344,9 +441,9 @@ const GoalsView: React.FC<GoalsViewProps> = ({ userName, goals, onAddGoal, onDel
                         </td>
                       </tr>
                     )}
-                    <tr className={`${goal.achievedAt ? 'opacity-60 bg-emerald-500/5' : ''} hover:bg-white/5 transition-colors group`}>
+                    <tr className={`${goal.achievedAt ? 'opacity-60 bg-emerald-500/5' : ''} hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-colors group`}>
                       <td className="pl-5 pr-2 py-3.5 text-center align-top pt-4">
-                        {goal.achievedAt ? <CheckCircle className="text-emerald-500 mx-auto" size={20} /> : <div className="w-5 h-5 rounded-full border-2 border-white/20 mx-auto" />}
+                        {goal.achievedAt ? <CheckCircle className="text-emerald-500 mx-auto" size={20} /> : <div className="w-5 h-5 rounded-full border-2 border-gray-300 dark:border-white/20 mx-auto" />}
                       </td>
                       <td className="px-3 whitespace-nowrap py-3.5 align-top pt-4">
                         <span className="font-black text-blue-500 bg-blue-500/10 px-2.5 py-1 rounded-md uppercase tracking-wider text-xs border border-blue-500/20">{goal.code}</span>
@@ -369,14 +466,10 @@ const GoalsView: React.FC<GoalsViewProps> = ({ userName, goals, onAddGoal, onDel
                       </td>
                       <td className="px-3 py-3.5 font-black text-blue-500 text-base text-center align-top pt-4">{goal.points >= 0 ? `+${goal.points}` : goal.points} </td>
                       <td className="pl-3 pr-5 py-3.5 text-right align-top pt-3">
-                        {!goal.achievedAt ? (
-                          <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button onClick={() => startEdit(goal)} className="p-1.5 text-gray-400 hover:text-blue-500 rounded-lg hover:bg-blue-500/10 transition-colors"><Edit2 size={16} /></button>
-                            <button onClick={() => onDeleteGoal(goal.id)} className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-500/10 transition-colors"><Trash2 size={16} /></button>
-                          </div>
-                        ) : (
-                          <span className="text-[9px] font-bold opacity-40 uppercase tracking-widest">Archived</span>
-                        )}
+                        <div className="flex justify-end gap-1">
+                          <button onClick={() => startEdit(goal)} className="p-1.5 text-gray-400 hover:text-blue-500 rounded-lg hover:bg-blue-500/10 transition-colors"><Edit2 size={16} /></button>
+                          <button onClick={() => onDeleteGoal(goal.id)} className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-500/10 transition-colors"><Trash2 size={16} /></button>
+                        </div>
                       </td>
                     </tr>
                   </React.Fragment>
