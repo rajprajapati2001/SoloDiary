@@ -1,6 +1,6 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { ActivityTemplate, ActivityEntry, Goal } from '../types';
-import { X, Plus, Trash2, Edit2, Zap, AlertCircle, List, Search, NotebookPen, Code, Star } from 'lucide-react';
+import { X, Plus, Trash2, Edit2, Zap, AlertCircle, List, Search, Code, Star } from 'lucide-react';
 import { getDB } from '../db';
 
 interface ActivitiesViewProps {
@@ -25,26 +25,46 @@ const ActivitiesView: React.FC<ActivitiesViewProps> = ({ templates = [], entries
 
   const formRef = useRef<HTMLDivElement>(null);
 
+  // Find the template currently being edited
+  const editingTemplate = useMemo(() => {
+    if (!editingId) return null;
+    return templates.find(t => t.id === editingId);
+  }, [editingId, templates]);
+
   // Real-time duplication checks using useMemo
-  const isDuplicateName = useMemo(() => {
+  const duplicateNameObj = useMemo(() => {
     const trimmedName = name.trim().toLowerCase();
-    if (!trimmedName) return false;
-    return templates.some(t => t.id !== editingId && t.name.toLowerCase() === trimmedName);
+    if (!trimmedName) return null;
+    return templates.find(t => t.id !== editingId && t.name.toLowerCase() === trimmedName) || null;
   }, [name, templates, editingId]);
 
-  const isDuplicateCode = useMemo(() => {
+  const duplicateCodeObj = useMemo(() => {
     const trimmedCode = code.trim().toUpperCase();
-    if (!trimmedCode) return false;
+    if (!trimmedCode) return null;
+
+    // If editing and code hasn't changed from original, it's allowed for this template
+    if (editingTemplate && editingTemplate.code.toUpperCase() === trimmedCode) {
+      return null;
+    }
 
     // Check against other activity templates
-    const duplicateInTemplates = templates.some(t => t.id !== editingId && t.code.toUpperCase() === trimmedCode);
-    // Check against existing diary entries (any entry using the code)
-    const duplicateInEntries = entries.some(e => e.code && e.code.toUpperCase() === trimmedCode);
-    // Check against goals
-    const duplicateInGoals = goals.some(g => g.code && g.code.toUpperCase() === trimmedCode);
+    const foundTemplate = templates.find(t => t.id !== editingId && t.code.toUpperCase() === trimmedCode);
+    if (foundTemplate) return { type: 'template', name: foundTemplate.name };
 
-    return duplicateInTemplates || duplicateInEntries || duplicateInGoals;
-  }, [code, templates, entries, goals, editingId]);
+    // Check against goals
+    const foundGoal = goals.find(g => g.code && g.code.toUpperCase() === trimmedCode);
+    if (foundGoal) return { type: 'goal', name: foundGoal.name };
+
+    // Check against entries (if not editing, or if editing and changing code to an existing entry code)
+    const foundEntry = entries.find(e => e.code && e.code.toUpperCase() === trimmedCode);
+    if (foundEntry) return { type: 'entry', name: foundEntry.name || trimmedCode };
+
+    return null;
+  }, [code, templates, entries, goals, editingId, editingTemplate]);
+
+  const isDuplicateName = Boolean(duplicateNameObj);
+  const isDuplicateCode = Boolean(duplicateCodeObj);
+  const hasConflict = isDuplicateName || isDuplicateCode;
 
   // Filter and then sort
   const filteredTemplates = templates.filter(t => 
@@ -61,32 +81,6 @@ const ActivitiesView: React.FC<ActivitiesViewProps> = ({ templates = [], entries
     const trimmedCode = code.trim().toUpperCase();
     const trimmedName = name.trim();
 
-    const duplicateCodeObj = templates.find(t => t.id !== editingId && t.code.toUpperCase() === trimmedCode);
-    const duplicateNameObj = templates.find(t => t.id !== editingId && t.name.toLowerCase() === trimmedName.toLowerCase());
-    const duplicateInEntries = entries.find(e => e.code && e.code.toUpperCase() === trimmedCode);
-    const duplicateInGoals = goals.find(g => g.code && g.code.toUpperCase() === trimmedCode);
-
-    // Fallback block error messages if they force try to click save
-    if (duplicateCodeObj) {
-      setError(`Code "${trimmedCode}" is already in use by activity: ${duplicateCodeObj.name}`);
-      return;
-    }
-
-    if (duplicateInGoals) {
-      setError(`Code "${trimmedCode}" is already used by a goal: ${duplicateInGoals.name}`);
-      return;
-    }
-
-    if (duplicateInEntries) {
-      setError(`Code "${trimmedCode}" is already present in diary entries.`);
-      return;
-    }
-
-    if (duplicateNameObj) {
-      setError(`Activity name "${trimmedName}" already exists.`);
-      return;
-    }
-
     const template: ActivityTemplate = {
       id: editingId || Math.random().toString(36).substr(2, 9),
       code: trimmedCode,
@@ -97,7 +91,7 @@ const ActivitiesView: React.FC<ActivitiesViewProps> = ({ templates = [], entries
     if (editingId) {
       setIsUpdating(true);
       
-      // Artificial delay to showcase the loading state in red box
+      // Artificial delay to showcase the loading state
       await new Promise(resolve => setTimeout(resolve, 1500));
       
       // Update from everywhere (entries database)
@@ -169,6 +163,14 @@ const ActivitiesView: React.FC<ActivitiesViewProps> = ({ templates = [], entries
     }, 100);
   };
 
+  // --- CONFIRMATION HANDLER FOR DELETION ---
+  const handleDeleteClick = (template: ActivityTemplate) => {
+    const isConfirmed = window.confirm(`Are you sure you want to delete this activity ("${template.name}")?`);
+    if (isConfirmed) {
+      onDelete(template.id);
+    }
+  };
+
   const toggleForm = () => {
     if (showForm) {
       reset();
@@ -191,10 +193,8 @@ const ActivitiesView: React.FC<ActivitiesViewProps> = ({ templates = [], entries
 
         {/* Left Section: Icon + Headings */}
         <div className="flex items-center gap-4 relative z-10">
-          {/* Upgraded List Icon Badge */}
           <div className="relative flex items-center justify-center p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-900/50 shadow-sm shadow-blue-100/50 dark:shadow-none shrink-0 transition-transform hover:scale-105">
             <List size={24} strokeWidth={2.2} />
-            {/* Subtle glow effect breaking outside the badge */}
             <span className="absolute inset-0 rounded-xl bg-blue-400/20 blur-xl -z-10 animate-pulse" />
           </div>
 
@@ -239,7 +239,6 @@ const ActivitiesView: React.FC<ActivitiesViewProps> = ({ templates = [], entries
           className="w-full pl-11 pr-4 py-3 rounded-2xl border border-gray-200 dark:border-slate-700 dark:bg-slate-800/50 dark:text-white outline-none font-bold text-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
         />
       </div>
-      {/* ------------------------- */}
 
 {showForm && (
   <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 md:p-6 p-3 rounded-3xl border border-gray-100 dark:border-slate-700 shadow-xl space-y-4 animate-in slide-in-from-top-4 duration-300">
@@ -248,10 +247,9 @@ const ActivitiesView: React.FC<ActivitiesViewProps> = ({ templates = [], entries
       {/* ACTIVITY NAME INPUT */}
       <div className="space-y-1 md:col-span-2">
         <label className={`text-[10px] font-black uppercase px-1 transition-colors flex items-center gap-1 ${isDuplicateName ? 'text-red-500' : 'text-gray-500 dark:text-slate-400'}`}>
-          Activity Name {isDuplicateName && '(Already Exists)'}
+          Activity Name {isDuplicateName && `(Already Exists: ${duplicateNameObj?.name})`}
         </label>
         <div className="relative flex items-center">
-          {/* ICON POSITIONED ON THE LEFT */}
           <Zap size={16} className={`absolute left-3 pointer-events-none ${isDuplicateName ? 'text-red-500' : 'text-blue-500'}`} />
           <input
             type="text"
@@ -259,7 +257,6 @@ const ActivitiesView: React.FC<ActivitiesViewProps> = ({ templates = [], entries
             onChange={e => setName(e.target.value)}
             placeholder="Title"
             disabled={isUpdating}
-            /* CHANGED pl-4 pr-10 TO pl-9 pr-4 to accommodate the left-aligned icon */
             className={`w-full pl-9 pr-4 py-2.5 rounded-xl border outline-none text-sm font-bold dark:bg-slate-900 dark:text-white transition-all ${
               isDuplicateName 
                 ? 'border-red-500 ring-4 ring-red-500/10 focus:border-red-500' 
@@ -274,10 +271,9 @@ const ActivitiesView: React.FC<ActivitiesViewProps> = ({ templates = [], entries
         {/* CODE INPUT */}
         <div className="space-y-1">
           <label className={`text-[10px] font-black uppercase px-1 transition-colors flex items-center gap-1 ${isDuplicateCode ? 'text-red-500' : 'text-gray-500 dark:text-slate-400'}`}>
-            Code {isDuplicateCode && '(In Use)'}
+            Code {isDuplicateCode && `(In Use by ${duplicateCodeObj?.type}: ${duplicateCodeObj?.name})`}
           </label>
           <div className="relative flex items-center">
-            {/* ICON POSITIONED ON THE LEFT */}
             <Code size={16} className={`absolute left-3 pointer-events-none ${isDuplicateCode ? 'text-red-500' : 'text-slate-400'}`} />
             <input
               type="text"
@@ -285,7 +281,6 @@ const ActivitiesView: React.FC<ActivitiesViewProps> = ({ templates = [], entries
               onChange={e => setCode(e.target.value)}
               placeholder="XYZ"
               disabled={isUpdating}
-              /* CHANGED pl-4 pr-10 TO pl-9 pr-4 */
               className={`w-full uppercase pl-9 pr-4 py-2.5 rounded-xl border outline-none text-sm font-bold dark:bg-slate-900 dark:text-white transition-all ${
                 isDuplicateCode 
                   ? 'border-red-500 ring-4 ring-red-500/10 focus:border-red-500' 
@@ -302,7 +297,6 @@ const ActivitiesView: React.FC<ActivitiesViewProps> = ({ templates = [], entries
             Default Points
           </label>
           <div className="relative flex items-center">
-            {/* ICON POSITIONED ON THE LEFT */}
             <Star size={16} className="absolute left-3 text-amber-500 pointer-events-none" />
             <input
               type="number"
@@ -310,7 +304,6 @@ const ActivitiesView: React.FC<ActivitiesViewProps> = ({ templates = [], entries
               onChange={e => setPoints(e.target.value === '' ? '' : Number(e.target.value))}
               placeholder="0"
               disabled={isUpdating}
-              /* CHANGED pl-4 pr-10 TO pl-9 pr-4 */
               className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 dark:bg-slate-900 dark:text-white outline-none text-sm font-bold focus:border-blue-500 transition-colors"
               required
             />
@@ -324,9 +317,15 @@ const ActivitiesView: React.FC<ActivitiesViewProps> = ({ templates = [], entries
       <button 
         type="submit" 
         disabled={isUpdating}
-        className={`w-full py-2.5 bg-blue-600 text-white font-black rounded-xl shadow-lg hover:bg-blue-700 transition-colors uppercase text-xs tracking-widest ${isUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}
+        className={`w-full py-2.5 text-white font-black rounded-xl shadow-lg transition-colors uppercase text-xs tracking-widest ${
+          isUpdating 
+            ? 'bg-blue-600 opacity-50 cursor-not-allowed' 
+            : hasConflict 
+              ? 'bg-red-600 hover:bg-red-700 shadow-red-500/20' 
+              : 'bg-blue-600 hover:bg-blue-700'
+        }`}
       >
-        {editingId ? 'Update' : 'Save'}
+        {isUpdating ? 'Updating...' : hasConflict ? 'Force Save' : editingId ? 'Update' : 'Save'}
       </button>
     </div>
 
@@ -341,14 +340,14 @@ const ActivitiesView: React.FC<ActivitiesViewProps> = ({ templates = [], entries
     {!isUpdating && editingId && matchingCount !== null && (
       <div className="flex items-center gap-2.5 text-blue-600 dark:text-blue-400 text-xs font-bold bg-blue-50 dark:bg-blue-950/30 p-3.5 rounded-xl border border-blue-200 dark:border-blue-900/50">
         <Zap size={14} className="text-blue-500 shrink-0 animate-pulse" />
-        <span>Total {matchingCount} records found. If updated, all of them will be renamed.</span>
+        <span>Total {matchingCount} historical entry records found. Updating will also rename them across all records.</span>
       </div>
     )}
 
     {isUpdating && (
       <div className="flex items-center gap-2.5 text-emerald-500 text-xs font-bold bg-emerald-50 dark:bg-emerald-950/30 p-3.5 rounded-xl border border-emerald-200 dark:border-emerald-900/50">
         <span className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin shrink-0" />
-        <span>Updating total of {matchingCount !== null ? matchingCount : 0} activity from records...</span>
+        <span>Updating activity and renaming {matchingCount !== null ? matchingCount : 0} matching history records...</span>
       </div>
     )}
 
@@ -380,7 +379,7 @@ const ActivitiesView: React.FC<ActivitiesViewProps> = ({ templates = [], entries
               </div>
               <div className="shrink-0 flex items-center gap-0.5">
                 <button onClick={() => startEdit(t)} className="p-1.5 text-gray-400 hover:text-blue-500 rounded-lg hover:bg-blue-500/10 transition-colors"><Edit2 size={16}/></button>
-                <button onClick={() => onDelete(t.id)} className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-500/10 transition-colors"><Trash2 size={16}/></button>
+                <button onClick={() => handleDeleteClick(t)} className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-500/10 transition-colors"><Trash2 size={16}/></button>
               </div>
             </div>
           ))}
@@ -420,7 +419,7 @@ const ActivitiesView: React.FC<ActivitiesViewProps> = ({ templates = [], entries
                   <td className="pl-3 pr-5 py-3.5 text-right">
                     <div className="flex justify-end gap-1">
                       <button onClick={() => startEdit(t)} className="p-1.5 text-gray-400 hover:text-blue-500 rounded-lg hover:bg-blue-500/10 transition-colors"><Edit2 size={16}/></button>
-                      <button onClick={() => onDelete(t.id)} className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-500/10 transition-colors"><Trash2 size={16}/></button>
+                      <button onClick={() => handleDeleteClick(t)} className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-500/10 transition-colors"><Trash2 size={16}/></button>
                     </div>
                   </td>
                 </tr>

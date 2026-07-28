@@ -33,6 +33,12 @@ const GoalsView: React.FC<GoalsViewProps> = ({ userName, goals = [], entries = [
 
   const formRef = useRef<HTMLDivElement>(null);
 
+  // Find the goal currently being edited (if any) to check its original code
+  const editingGoal = useMemo(() => {
+    if (!editingId) return null;
+    return goals.find(g => g.id === editingId);
+  }, [editingId, goals]);
+
   // Real-time duplication logic
   const isDuplicateName = useMemo(() => {
     const trimmedName = name.trim().toLowerCase();
@@ -40,23 +46,30 @@ const GoalsView: React.FC<GoalsViewProps> = ({ userName, goals = [], entries = [
     return goals.some(g => g.id !== editingId && g.name.toLowerCase() === trimmedName);
   }, [name, goals, editingId]);
 
-const isDuplicateCode = useMemo(() => {
-  const trimmedCode = code.trim().toUpperCase();
-  if (!trimmedCode) return false;
+  const isDuplicateCode = useMemo(() => {
+    const trimmedCode = code.trim().toUpperCase();
+    if (!trimmedCode) return false;
 
-  // Check for duplicates in goals
-  const duplicateInGoals = goals.some(
-    (g) => g.id !== editingId && g.code.toUpperCase() === trimmedCode
-  );
+    // If we are editing and the code hasn't changed from this goal's original code, it's allowed
+    if (editingGoal && editingGoal.code.toUpperCase() === trimmedCode) {
+      return false;
+    }
 
-  // Check for duplicates in entries
-  const duplicateInEntries = entries.some((e) => e.code.toUpperCase() === trimmedCode);
+    // Check for duplicates in goals (excluding the one currently being edited)
+    const duplicateInGoals = goals.some(
+      (g) => g.id !== editingId && g.code.toUpperCase() === trimmedCode
+    );
 
-  // Check for duplicates in activity templates
-  const duplicateInTemplates = templates.some((t) => t.code.toUpperCase() === trimmedCode);
+    // Check for duplicates in entries (allow if the entry belongs to this goal's original code)
+    const duplicateInEntries = entries.some(
+      (e) => e.code.toUpperCase() === trimmedCode && (!editingGoal || editingGoal.code.toUpperCase() !== trimmedCode)
+    );
 
-  return duplicateInGoals || duplicateInEntries || duplicateInTemplates;
-}, [code, goals, entries, templates, editingId]);
+    // Check for duplicates in activity templates
+    const duplicateInTemplates = templates.some((t) => t.code.toUpperCase() === trimmedCode);
+
+    return duplicateInGoals || duplicateInEntries || duplicateInTemplates;
+  }, [code, goals, entries, templates, editingId, editingGoal]);
 
   // Filter & sort goals. Sorted by year descending so dividers flow chronologically.
   const filteredGoals = goals.filter(goal => 
@@ -81,9 +94,9 @@ const isDuplicateCode = useMemo(() => {
     const trimmedCode = code.trim().toUpperCase();
     const trimmedName = name.trim();
 
-    // Check duplicates across goals, entries, and templates
+    // Check duplicates across goals, entries, and templates (ignoring current editing goal or its corresponding entry)
     const duplicateGoalCode = goals.find(g => g.id !== editingId && g.code.toUpperCase() === trimmedCode);
-    const duplicateInEntries = entries.find(e => e.code && e.code.toUpperCase() === trimmedCode);
+    const duplicateInEntries = entries.find(e => e.code && e.code.toUpperCase() === trimmedCode && (!editingGoal || editingGoal.code.toUpperCase() !== trimmedCode));
     const duplicateInTemplates = templates.find(t => t.code && t.code.toUpperCase() === trimmedCode);
     const duplicateGoalName = goals.find(g => g.id !== editingId && g.name.toLowerCase() === trimmedName.toLowerCase());
 

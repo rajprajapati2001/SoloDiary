@@ -907,9 +907,9 @@ const openExternalLink = async () => {
   
 const openAndroidLink = async () => {
   try {
-    await Browser.open({ url: 'https://github.com/rajprajapati2001/SoloDiary/raw/refs/heads/main/android/app/build/outputs/apk/release/app-release.apk' });
+    await Browser.open({ url: 'https://raw.githubusercontent.com/rajprajapati2001/SoloDiary/refs/heads/main/android/app/build/outputs/apk/release/app-release.apk' });
   } catch (error) {
-    window.open('https://github.com/rajprajapati2001/SoloDiary/raw/refs/heads/main/android/app/build/outputs/apk/release/app-release.apk', '_system');
+    window.open('https://raw.githubusercontent.com/rajprajapati2001/SoloDiary/refs/heads/main/android/app/build/outputs/apk/release/app-release.apk', '_system');
     console.error("Browser plugin error:", error);
   }
 };

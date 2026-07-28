@@ -6,18 +6,21 @@
 SoloDiary is a high-fidelity, tracking web application designed for individuals who demand a structured approach to self-improvement. It combines activity logging, goal management, financial tracking, and personal journaling into a single, aesthetically refined dashboard. Whether you're building habits, tracking your daily wins, or simply reflecting on your day, SoloDiary gives you the tools to measure your growth — beautifully and privately.
 `Design Your Routine. Visualize Your Wins. Grow Every Day.`
 
-![SoloDiary Preview](https://img.shields.io/badge/Solo-Diary-blue?style=for-the-badge)
-![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
-![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)
-![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
-![Android](https://img.shields.io/badge/Android-APK_Supported-green?style=for-the-badge&logo=android)
-![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
-![Dexie.js](https://img.shields.io/badge/Dexie.js-black?style=for-the-badge&logo=Database+Database&logoColor=FFFFFF)
+<div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
+  <img src="https://img.shields.io/badge/Solo-Diary-blue?style=for-the-badge" alt="SoloDiary Preview">
+  <img src="https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React">
+  <img src="https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white" alt="Vite">
+  <img src="https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript">
+  <img src="https://img.shields.io/badge/Android-APK_Supported-green?style=for-the-badge&logo=android" alt="Android">
+  <img src="https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white" alt="TailwindCSS">
+  <img src="https://img.shields.io/badge/Dexie.js-black?style=for-the-badge&logo=Database+Database&logoColor=FFFFFF" alt="Dexie.js">
+</div>
 
+---
 
 🌐 Web App: [solo-diary-khaki.vercel.app](https://solo-diary-khaki.vercel.app/)
 
-📱 Android APK: [Download SoloDiary APK](android/app/build/outputs/apk/release/app-release.apk)
+📱 Android APK: [Download SoloDiary APK](https://raw.githubusercontent.com/rajprajapati2001/SoloDiary/refs/heads/main/android/app/build/outputs/apk/release/app-release.apk)
 
 
 ## Screenshots  

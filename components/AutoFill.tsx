@@ -219,7 +219,7 @@ const SortableItem: React.FC<SortableItemProps> = ({ t, toggleTemplate, onEdit, 
             {t.name}
           </h4>
           <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 tracking-wide mt-0.5">
-            {t.isLongEvent ? `${t.fromTime} – ${t.toTime}` : t.toTime}
+            {t.isLongEvent ? `${t.fromTime} – ${t.toTime}` : t.fromTime || t.toTime}
           </p>
         </div>
 

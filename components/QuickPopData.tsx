@@ -886,8 +886,10 @@ if (completionPercentage >= 85) {
                     const monthDate = `${activeYear}-${String(i + 1).padStart(2, '0')}`;
                     const data = entries.filter(e => (e.fromDate || e.toDate).startsWith(monthDate));
                     const score = data.reduce((s, e) => s + e.points, 0);
+                    const daysInMonth = new Date(activeYear, i + 1, 0).getDate(); // Get days in month
+                    const maxPoints = daysInMonth * 100; // Max possible pts in the month
                     //const progress = Math.min((score / (30 * 100)) * 100, 100);
-                    const progress = (score / (30 * 100)) * 100;
+                    const progress = (score / maxPoints) * 100; // Correct progress calculation
 
                     return (
                       <button
