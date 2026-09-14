@@ -13,6 +13,7 @@ const NoInternet = lazy(() => import('./components/NoInternet'));
 import { ActivityEntry, Goal, ActivityTemplate, Page, AutoTemplate } from './types';
 import { getDB } from './db';
 import { INITIAL_ACTIVITIES } from './constants';
+import { AssistantActions, AssistantRecordInput } from './assistantActions';
 import UserIcon from './assets/icons/user.png';
 import MainLogo from "./assets/icons/solodiary_icon.ico";
 
@@ -335,6 +336,64 @@ const App: React.FC = () => {
     setEntries(updatedEntries);
     syncGoalsWithEntries(updatedEntries);
   };
+
+  const handleAssistantRecord = useCallback(async (input: AssistantRecordInput) => {
+    const requestedActivity = String(input.name || input.activity || input.code || '').trim();
+    const matchedTemplate = templates.find(template =>
+      template.name.toLowerCase() === requestedActivity.toLowerCase() ||
+      template.code.toLowerCase() === requestedActivity.toLowerCase()
+    );
+    const name = String(input.name || input.activity || matchedTemplate?.name || '').trim();
+    if (!name) return;
+
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const currentTime = now.toTimeString().slice(0, 5);
+    const fromDate = input.date?.trim() || today;
+    const fromTime = input.time?.trim() || currentTime;
+    const secondTime = input.secondTime?.trim() || input.toTime?.trim() || '';
+    const toDate = input.toDate?.trim() || (secondTime ? fromDate : null);
+    const points = input.points === undefined ? (matchedTemplate?.points || 0) : (Number(input.points) || 0);
+    const cash = Number(input.cash || 0) || 0;
+    const debit = Number(input.debit || 0) || (cash < 0 ? Math.abs(cash) : 0);
+    const credit = Number(input.credit || 0) || (cash > 0 ? cash : 0);
+    const entry: ActivityEntry = {
+      id: Math.random().toString(36).slice(2, 11),
+      isLongEvent: Boolean(secondTime),
+      fromDate,
+      fromTime,
+      toDate,
+      toTime: secondTime || null,
+      code: String(input.code || matchedTemplate?.code || '').trim(),
+      name,
+      points,
+      debit,
+      credit,
+      moneyCode: String(input.currency || localStorage.getItem('solo_diary_default_currency') || 'INR'),
+      description: String(input.description || '').trim(),
+      attachment: '',
+      createdAt: Date.now(),
+    };
+
+    const db = await getDB();
+    await db.put('entries', entry);
+    await fetchData();
+  }, [fetchData, templates]);
+
+  useEffect(() => {
+    let disposed = false;
+    let listener: { remove: () => Promise<void> } | undefined;
+    const consume = async () => {
+      if (!disposed) {
+        listener = await AssistantActions.addListener('addRecord', handleAssistantRecord);
+      }
+    };
+    consume();
+    return () => {
+      disposed = true;
+      listener?.remove();
+    };
+  }, [handleAssistantRecord]);
 
   const handleDeleteEntry = async (id: string) => {
     if (!window.confirm('Are you sure you want to delete this record?')) return;

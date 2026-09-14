@@ -13,6 +13,7 @@ export interface ActivityEntry {
   attachment: string;
   debit?: number;
   credit?: number;
+  moneyCode?: string;
   createdAt: number;
 }
 

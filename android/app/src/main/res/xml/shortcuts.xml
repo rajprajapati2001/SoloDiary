@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <capability android:name="raj.solodiary.intent.ADD_RECORD">
+        <intent
+            android:action="raj.solodiary.intent.ADD_RECORD"
+            android:targetPackage="raj.solodiary.reactjs"
+            android:targetClass="raj.solodiary.reactjs.MainActivity">
+            <parameter android:name="activity" android:key="activity" />
+            <parameter android:name="name" android:key="name" />
+            <parameter android:name="code" android:key="code" />
+            <parameter android:name="points" android:key="points" />
+            <parameter android:name="cash" android:key="cash" />
+            <parameter android:name="description" android:key="description" />
+            <parameter android:name="date" android:key="date" />
+            <parameter android:name="time" android:key="time" />
+            <parameter android:name="secondTime" android:key="secondTime" />
+        </intent>
+    </capability>
+</shortcuts>
