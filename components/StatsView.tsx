@@ -39,6 +39,7 @@ const StatsView: React.FC<StatsViewProps> = ({ userName, entries, goals, onRefre
   });
   const [showExportModal, setShowExportModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showTodayProgressBar, setShowTodayProgressBar] = useState<boolean>(true);
   const [exportData, setExportData] = useState<string>('');
   const [copied, setCopied] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -668,17 +669,37 @@ const yearPoints = useMemo(() => {
   }, [currentMonthEntries]);
 
   const filteredGroupedLogsByDate = useMemo(() => {
-  if (!searchQuery.trim()) return groupedLogsByDate;
-  const q = searchQuery.toLowerCase();
-  const result: Record<string, ActivityEntry[]> = {};
-  Object.keys(groupedLogsByDate).forEach(dateStr => {
-    const matched = groupedLogsByDate[dateStr].filter(e =>
-      e.description?.toLowerCase().includes(q) || e.name.toLowerCase().includes(q)
-    );
-    if (matched.length > 0) result[dateStr] = matched;
-  });
-  return result;
-}, [groupedLogsByDate, searchQuery]);
+    if (!searchQuery.trim()) return groupedLogsByDate;
+    const q = searchQuery.toLowerCase().trim();
+    const result: Record<string, ActivityEntry[]> = {};
+    Object.keys(groupedLogsByDate).forEach(dateStr => {
+      // Check date formats matching line 2565
+      const dateObj = new Date(dateStr);
+      const dateGB = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toLowerCase();
+      const dateWeekday = dateObj.toLocaleDateString('en-GB', { weekday: 'long' }).toLowerCase();
+      const dateWeekdayShort = dateObj.toLocaleDateString('en-GB', { weekday: 'short' }).toLowerCase();
+      const dateMonthLong = dateObj.toLocaleDateString('en-GB', { month: 'long' }).toLowerCase();
+      const isDateMatch = dateStr.toLowerCase().includes(q) || 
+                          dateGB.includes(q) || 
+                          dateWeekday.includes(q) || 
+                          dateWeekdayShort.includes(q) ||
+                          dateMonthLong.includes(q);
+
+      if (isDateMatch) {
+        result[dateStr] = groupedLogsByDate[dateStr];
+      } else {
+        const matched = groupedLogsByDate[dateStr].filter(e =>
+          e.description?.toLowerCase().includes(q) || 
+          e.name.toLowerCase().includes(q) ||
+          e.code?.toLowerCase().includes(q) ||
+          (e.fromTime && e.fromTime.toLowerCase().includes(q)) ||
+          (e.toTime && e.toTime.toLowerCase().includes(q))
+        );
+        if (matched.length > 0) result[dateStr] = matched;
+      }
+    });
+    return result;
+  }, [groupedLogsByDate, searchQuery]);
 
   const hasAttachmentsInReport = useMemo(() => currentMonthEntries.some(e => !!e.attachment), [currentMonthEntries]);
   const hasTransactionsInReport = useMemo(() => currentMonthEntries.some(e => (e.debit || 0) > 0 || (e.credit || 0) > 0), [currentMonthEntries]);
@@ -1029,8 +1050,34 @@ const downloadFallback = (canvas, fileName) => {
 };
 
 const handleWebReport = async () => {
+  const previousSearch = searchQuery;
+  if (previousSearch) {
+    setSearchQuery('');
+    await new Promise(resolve => setTimeout(resolve, 80));
+  }
+
   const element = document.getElementById('printable-report');
-  if (!element) return;
+  if (!element) {
+    if (previousSearch) setSearchQuery(previousSearch);
+    return;
+  }
+
+  // Clear search input value attribute for clean initial state in exported HTML
+  const searchInputEl = element.querySelector('#search-description-input') as HTMLInputElement | null;
+  if (searchInputEl) {
+    searchInputEl.setAttribute('value', '');
+    searchInputEl.value = '';
+  }
+
+  // Sync toggle input checked attribute before outerHTML extraction
+  const toggleInput = element.querySelector('#toggle-progress-bar-input') as HTMLInputElement | null;
+  if (toggleInput) {
+    if (showTodayProgressBar) {
+      toggleInput.setAttribute('checked', '');
+    } else {
+      toggleInput.removeAttribute('checked');
+    }
+  }
 
   // 1. Gather Styles
   const styles = Array.from(document.styleSheets)
@@ -1101,6 +1148,32 @@ const handleWebReport = async () => {
         [data-finance-toggle].finance-active { outline: 3px solid #f59e0b !important; outline-offset: -3px; background: #fffbeb !important; }
         .goal-labels-hidden .goal-label { display: none !important; }
         [data-toggle-labels] { cursor: pointer; }
+
+        /* TodayProgressBar row animation in exported HTML */
+        .today-progress-row td {
+          padding-top: 8px;
+          padding-bottom: 8px;
+          transition: padding 0.3s ease-in-out;
+        }
+        .today-progress-row.progress-hidden td {
+          padding-top: 0 !important;
+          padding-bottom: 0 !important;
+          border-top: none !important;
+          border-bottom: none !important;
+        }
+        .today-progress-wrapper {
+          max-height: 250px;
+          opacity: 1;
+          transform: translateY(0);
+          transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+          overflow: hidden;
+        }
+        .today-progress-row.progress-hidden .today-progress-wrapper {
+          max-height: 0 !important;
+          opacity: 0 !important;
+          transform: translateY(-8px) !important;
+          pointer-events: none !important;
+        }
       </style>
     </head>
     <body>
@@ -1230,37 +1303,75 @@ const handleWebReport = async () => {
           }
         });
 
-        // --- Search Description Filter ---
+        // --- Search Description & Today Progress Bar Filter ---
         (function() {
           var searchInput = document.getElementById('search-description-input');
-          if (searchInput) {
-            searchInput.addEventListener('input', function() {
-              var query = this.value.toLowerCase();
-              var rows = document.querySelectorAll('tr.log-row');
-              rows.forEach(function(row) {
-                var text = row.textContent.toLowerCase();
-                row.style.display = (query === '' || text.indexOf(query) !== -1) ? '' : 'none';
-              });
+          var toggleBar = document.getElementById('toggle-progress-bar-input');
 
-              // Hide/show today progress bars
-              var progressRows = document.querySelectorAll('tr.today-progress-row');
-              progressRows.forEach(function(row) {
-                row.style.display = (query === '') ? '' : 'none';
-              });
+          function updateLedgerVisibility() {
+            var query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+            var isProgressEnabled = toggleBar ? toggleBar.checked : true;
 
-              // Show/hide date headers
-              var headers = document.querySelectorAll('tr[id^="ledger-date-"]');
-              headers.forEach(function(header) {
-                var next = header.nextElementSibling;
-                var visible = false;
-                while (next && (next.classList.contains('log-row') || next.classList.contains('today-progress-row'))) {
-                  if (next.classList.contains('log-row') && next.style.display !== 'none') { visible = true; break; }
-                  next = next.nextElementSibling;
+            var headers = document.querySelectorAll('tr[id^="ledger-date-"]');
+            headers.forEach(function(header) {
+              // Check if query matches the date header (date string, formatted date, weekday, etc.)
+              var headerText = header.textContent.toLowerCase();
+              var dateAttr = (header.getAttribute('data-date') || '').toLowerCase();
+              var headerId = header.id.toLowerCase();
+              var isDateMatch = (query !== '') && (
+                headerText.indexOf(query) !== -1 ||
+                dateAttr.indexOf(query) !== -1 ||
+                headerId.indexOf(query) !== -1
+              );
+
+              var next = header.nextElementSibling;
+              var hasVisibleLogs = false;
+              var dateProgressRow = null;
+
+              while (next && (!next.id || !next.id.startsWith('ledger-date-'))) {
+                if (next.classList.contains('today-progress-row')) {
+                  dateProgressRow = next;
+                } else if (next.classList.contains('log-row')) {
+                  var rowText = next.textContent.toLowerCase();
+                  var rowCode = (next.getAttribute('data-code') || '').toLowerCase();
+                  var isRowMatch = (query === '') || isDateMatch || (rowText.indexOf(query) !== -1) || (rowCode.indexOf(query) !== -1);
+                  next.style.display = isRowMatch ? '' : 'none';
+                  if (isRowMatch) {
+                    hasVisibleLogs = true;
+                  }
                 }
-                header.style.display = visible ? '' : 'none';
-              });
+                next = next.nextElementSibling;
+              }
+
+              var isDateVisible = (query === '') || isDateMatch || hasVisibleLogs;
+              header.style.display = isDateVisible ? '' : 'none';
+
+              if (dateProgressRow) {
+                if (isDateVisible) {
+                  dateProgressRow.style.display = '';
+                  if (isProgressEnabled) {
+                    dateProgressRow.classList.remove('progress-hidden');
+                  } else {
+                    dateProgressRow.classList.add('progress-hidden');
+                  }
+                } else {
+                  dateProgressRow.style.display = 'none';
+                  dateProgressRow.classList.add('progress-hidden');
+                }
+              }
             });
           }
+
+          if (searchInput) {
+            searchInput.addEventListener('input', updateLedgerVisibility);
+          }
+
+          if (toggleBar) {
+            toggleBar.addEventListener('change', updateLedgerVisibility);
+          }
+
+          // Initial sync on load
+          updateLedgerVisibility();
         })();
 
         window.toggleFinanceHighlight = function(mode) {
@@ -1319,6 +1430,10 @@ const handleWebReport = async () => {
     </body>
     </html>
   `;
+
+  if (previousSearch) {
+    setSearchQuery(previousSearch);
+  }
 
   const fileName = `SoloDiary-${userName || 'User'}-${selectedMonth}${selectedYear}.html`;
 
@@ -1848,18 +1963,18 @@ const [showLabels, setShowLabels] = useState(true);
               </div>
 
               <div className="flex gap-2">
-                 <div className="bg-slate-950 text-white px-6 py-4 rounded-xl flex flex-col items-center justify-center min-w-[100px] shadow-sm">
+                 <div className="shadow-sm bg-slate-950 text-white px-6 py-4 rounded-xl flex flex-col items-center justify-center min-w-[100px]">
                     <span className="text-3xl  font-semibold leading-none">{monthProgressPct.toFixed(1)}%</span>
                     <span className="text-[8px] uppercase  font-semibold opacity-60 mt-1 tracking-widest">Efficiency</span>
                  </div>
-                 <div className="border-[2px] border-slate-950 text-slate-950 px-6 py-4 rounded-xl flex flex-col items-center justify-center min-w-[100px]">
+                 <div className="shadow-sm border-[2px] border-slate-950 text-slate-950 px-6 py-4 rounded-xl flex flex-col items-center justify-center min-w-[100px]">
                     <span className="text-3xl  font-semibold leading-none">{userMonthPoints}</span>
                     <span className="text-[8px] uppercase  font-semibold opacity-40 mt-1 tracking-widest">Points</span>
                  </div>
               </div>
            </div>
 
-           <div className="w-full h-6 bg-slate-100 rounded-full overflow-hidden border border-slate-200 p-0.5">
+           <div className="w-full h-6 bg-slate-100 rounded-full overflow-hidden border border-slate-200 p-0.5 shadow-sm">
               <div className="h-full bg-gradient-to-r from-slate-950 to-blue-700 rounded-full transition-all duration-1000" style={{ width: `${Math.min(monthProgressPct, 100)}%` }} />
            </div>
         </div>
@@ -1882,7 +1997,7 @@ const [showLabels, setShowLabels] = useState(true);
              />
           </div>
           <div className="space-y-3 flex flex-col h-full">
-            <div className="p-5 border-[2px] border-slate-950 rounded-xl bg-white flex flex-col justify-center relative overflow-hidden group shadow-sm">
+            <div className="p-5 border-[2px] border-slate-950 rounded-xl bg-white flex flex-col justify-center relative overflow-hidden group shadow-lg">
               <div className="absolute top-0 right-0 p-2 opacity-10 text-slate-900">
                 <Zap size={40} />
               </div>
@@ -1892,7 +2007,7 @@ const [showLabels, setShowLabels] = useState(true);
             
             <div className="grid grid-cols-2 gap-3">
               {/* Yearly Points Card */}
-              <div className="p-4 bg-white border-[2px] border-slate-950 rounded-xl flex flex-col justify-between relative overflow-hidden group shadow-sm">
+              <div className="p-4 bg-white border-[2px] border-slate-950 rounded-xl flex flex-col justify-between relative overflow-hidden group shadow-lg">
                 {/* Background Icon Asset */}
                 <div className="absolute top-0 right-0 p-2 opacity-10 text-slate-900 pointer-events-none">
                   <Award size={40} />
@@ -1908,7 +2023,7 @@ const [showLabels, setShowLabels] = useState(true);
               <div 
                 data-finance-toggle="goals"
                 onClick={() => handleFinanceToggle('goals')}
-                className={`p-4 rounded-xl flex flex-col justify-between cursor-pointer transition-all duration-300 hover:scale-[1.02] active:scale-95 relative overflow-hidden group shadow-sm ${
+                className={`p-4 rounded-xl flex flex-col justify-between cursor-pointer transition-all duration-300 hover:scale-[1.02] active:scale-95 relative overflow-hidden group shadow-lg ${
                   financeHighlight === 'goals' 
                     ? 'bg-purple-100 border-2 border-purple-400 ring-2 ring-purple-200' 
                     : 'bg-white border-[2px] border-slate-950'
@@ -1932,7 +2047,7 @@ const [showLabels, setShowLabels] = useState(true);
     <div 
       data-finance-toggle="net"
       onClick={() => handleFinanceToggle('net')}
-      className={`p-5 border-[2px] rounded-xl flex flex-col justify-center relative overflow-hidden group shadow-sm transition-all duration-300 cursor-pointer hover:scale-[1.02] active:scale-95 ${
+      className={`p-5 border-[2px] rounded-xl flex flex-col justify-center relative overflow-hidden group shadow-lg transition-all duration-300 cursor-pointer hover:scale-[1.02] active:scale-95 ${
         financeHighlight === 'net' ? 'border-amber-500 ring-2 ring-amber-200 bg-amber-50' : (isNegative ? 'border-red-500 bg-white' : 'border-emerald-500 bg-white')
       }`}>
       <div className={`absolute top-0 right-0 p-2 opacity-10 ${isNegative ? 'text-red-900' : 'text-emerald-900'}`}>
@@ -1954,7 +2069,7 @@ const [showLabels, setShowLabels] = useState(true);
   <div 
     data-finance-toggle="debit"
     onClick={() => handleFinanceToggle('debit')}
-    className={`p-4 [overflow-wrap:anywhere] rounded-lg flex flex-col justify-between cursor-pointer transition-all duration-300 hover:scale-[1.02] active:scale-95 relative overflow-hidden group ${
+    className={`shadow-lg p-4 [overflow-wrap:anywhere] rounded-lg flex flex-col justify-between cursor-pointer transition-all duration-300 hover:scale-[1.02] active:scale-95 relative overflow-hidden group ${
       financeHighlight === 'debit' ? 'bg-red-100 border-2 border-red-400 ring-2 ring-red-200' : 'bg-red-50/50 border border-red-100'
     }`}>
      {/* Large Background Color Icon Added */}
@@ -1972,7 +2087,7 @@ const [showLabels, setShowLabels] = useState(true);
   <div 
     data-finance-toggle="credit"
     onClick={() => handleFinanceToggle('credit')}
-    className={`p-4 [overflow-wrap:anywhere] rounded-lg flex flex-col justify-between cursor-pointer transition-all duration-300 hover:scale-[1.02] active:scale-95 relative overflow-hidden group ${
+    className={`shadow-lg p-4 [overflow-wrap:anywhere] rounded-lg flex flex-col justify-between cursor-pointer transition-all duration-300 hover:scale-[1.02] active:scale-95 relative overflow-hidden group ${
       financeHighlight === 'credit' ? 'bg-emerald-100 border-2 border-emerald-400 ring-2 ring-emerald-200' : 'bg-emerald-50/50 border border-emerald-100'
     }`}>
      {/* Large Background Color Icon Added */}
@@ -1999,7 +2114,7 @@ const [showLabels, setShowLabels] = useState(true);
            </h3>
 
         
-  <div className="mb-8 border border-slate-100 py-2 rounded-xl bg-slate-50/50 print-section relative">
+  <div className="mb-8 border border-slate-100 py-2 rounded-xl shadow-md bg-slate-50/50 print-section relative">
     {/* Header Container */}
     <div className="flex items-center justify-between px-4 mb-4">
     <ChartNetwork size={16} className="text-purple-400" />
@@ -2057,7 +2172,7 @@ const [showLabels, setShowLabels] = useState(true);
     Progression Frequency Index ({selectedYear})
   </h3>
   
-  <div className="border border-slate-100 p-2.5 rounded-xl bg-slate-50/50 w-full">
+  <div className="border border-slate-100 p-2.5 rounded-xl bg-slate-100/50 shadow-[0px_0px_12px_1px_rgba(0,_0,_0,_0.1)] w-full">
       {/* Ultra-Stable CSS Grid Footer Layout */}
     <div className="grid grid-cols-3 items-center w-full text-[9px] font-medium select-none whitespace-nowrap">
       
@@ -2127,7 +2242,7 @@ return (
   {/* 1. LEFT SIDE: Legend (Aligned Left) */}
   <div className="flex items-center gap-1 justify-start font-bold">
     <span className="text-gray-400">Less Active </span>
-    <div className="w-3 h-3 rounded-[2px] bg-gray-200/60 dark:bg-slate-800/80 border border-gray-300/10 shrink-0"></div>
+    <div className="w-3 h-3 rounded-[2px] bg-gray-200/60 border border-gray-300/10 shrink-0"></div>
     <div className="w-3 h-3 rounded-[2px] bg-indigo-500/20 shrink-0"></div>
     <div className="w-3 h-3 rounded-[2px] bg-indigo-500/45 shrink-0"></div>
     <div className="w-3 h-3 rounded-[2px] bg-indigo-500/75 shrink-0"></div>
@@ -2225,65 +2340,87 @@ return (
   </div>
 </div>
 
-        {/* Goal Ledger Module "text-purple-600"*/}
-        <div className="mb-8 print-section">
-           <h3 id="strategic-objectives" className="text-sm  font-semibold uppercase tracking-tighter text-slate-950 mb-3 border-l-[3px] border-slate-950 pl-2 flex items-center gap-2">
-             <Target size={16} className="text-green-600" />
-             Strategic Objectives
-           </h3>
-           <div className="border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm">
-             <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-slate-950 text-white border-b border-slate-950">
-                    <th className="px-4 py-2 text-[7px]  font-semibold uppercase tracking-widest">ID</th>
-                    <th className="px-4 py-2 text-[7px]  font-semibold uppercase tracking-widest">Golas List</th>
-                    <th className="px-4 py-2 text-[7px]  font-semibold uppercase tracking-widest text-center">Value</th>
-                    <th className="px-4 py-2 text-[7px]  font-semibold uppercase tracking-widest text-right">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {reportGoals.sort((a,b) => (a.achievedAt ? 1 : -1)).map(g => (
-                    <tr 
-                      key={g.id} 
-                      data-code={g.code}
-                      onClick={() => {
-                        setHighlightedCode(highlightedCode === g.code ? null : g.code);
-                        setFinanceHighlight(null);
-                        // Scroll to first matching log row
-                        setTimeout(() => {
-                          const row = document.querySelector(`tr.log-row[data-code="${g.code}"]`);
-                          if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        }, 50);
-                      }}
-                      className={`goal-row cursor-pointer transition-all duration-200 ${highlightedCode === g.code || isGoalFinanceHighlighted(g) ? 'ring-1 ring-inset ring-amber-200 bg-amber-50' : (g.achievedAt ? 'bg-emerald-50/20' : 'bg-white hover:bg-slate-50')}`}
-                    >
-                      <td className={`px-4 py-2  font-semibold text-[9px] text-emerald-600 ${g.achievedAt ? 'line-through opacity-60' : ''}`}>{g.code}</td>
-                      <td className={`px-4 py-2 font-medium text-[9px] text-slate-950 ${g.achievedAt ? 'line-through opacity-30' : ''}`}>{g.name}</td>
-                      <td className={`px-4 py-2  font-semibold text-[9px] text-slate-950 text-center ${g.achievedAt ? 'line-through opacity-30' : ''}`}>+{g.points}</td>
-                      <td className="px-4 py-2 text-right">
-                         {g.achievedAt ? (
-                           <div className="flex flex-col items-end leading-none">
-                              <span className="text-emerald-700  font-semibold text-[7px] tracking-widest px-1.5 py-0.5 rounded bg-emerald-100 border border-emerald-200 uppercase flex items-center gap-1">
-                                <CheckCircle2 size={8} /> DONE
-                              </span>
-                              <span className="text-[6px]  font-semibold text-slate-400 mt-0.5 uppercase tracking-widest">{formatDateDDMMYYYY(g.achievedAt)}</span>
-                           </div>
-                         ) : (
-                           <span className="text-red-500  font-semibold text-[7px] tracking-widest uppercase inline-flex items-center gap-0.5">
-                            <Clock size={8} className="text-red-500" />
-                            PENDING
-                          </span>
-                         )}
-                      </td>
-                    </tr>
-                  ))}
-                  {reportGoals.length === 0 && (
-                    <tr><td colSpan={4} className="p-6 text-center text-[9px] font-medium text-slate-300 italic">No objectives recorded.</td></tr>
-                  )}
-                </tbody>
-             </table>
-           </div>
-        </div>
+{/* Goal Ledger Module */}
+<div className="mb-8 print-section">
+   <h3 id="strategic-objectives" className="text-sm font-semibold uppercase tracking-tighter text-slate-950 mb-3 border-l-[3px] border-slate-950 pl-2 flex items-center gap-2">
+     <Target size={16} className="text-green-600" />
+     Strategic Objectives
+   </h3>
+   <div className="border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm">
+     <table className="w-full text-left border-collapse">
+       <thead>
+         <tr className="bg-slate-950 text-white border-b border-slate-950">
+           <th className="px-3 py-2 text-[7px] font-semibold uppercase tracking-widest text-center w-10">Result</th>
+           <th className="px-4 py-2 text-[7px] font-semibold uppercase tracking-widest">ID</th>
+           <th className="px-4 py-2 text-[7px] font-semibold uppercase tracking-widest">Goals List</th>
+           <th className="px-4 py-2 text-[7px] font-semibold uppercase tracking-widest text-center">Value</th>
+           <th className="px-4 py-2 text-[7px] font-semibold uppercase tracking-widest text-right">Status</th>
+         </tr>
+       </thead>
+       <tbody className="divide-y divide-slate-100">
+         {reportGoals.sort((a, b) => (a.achievedAt ? 1 : -1)).map(g => (
+           <tr 
+             key={g.id} 
+             data-code={g.code}
+             onClick={() => {
+               setHighlightedCode(highlightedCode === g.code ? null : g.code);
+               setFinanceHighlight(null);
+               // Scroll to first matching log row
+               setTimeout(() => {
+                 const row = document.querySelector(`tr.log-row[data-code="${g.code}"]`);
+                 if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+               }, 50);
+             }}
+             className={`goal-row cursor-pointer transition-all duration-200 ${highlightedCode === g.code || isGoalFinanceHighlighted(g) ? 'ring-1 ring-inset ring-amber-200 bg-amber-50' : (g.achievedAt ? 'bg-emerald-50/20' : 'bg-white hover:bg-slate-50')}`}
+           >
+             {/* Result Indicator Column */}
+             <td className="px-3 py-2 text-center">
+               {g.achievedAt ? (
+                 <span className="inline-flex items-center justify-center text-emerald-600">
+                   <CheckCircle2 size={12} />
+                 </span>
+               ) : (
+                 <span className="inline-flex items-center justify-center text-red-500">
+                   <Clock size={12} />
+                 </span>
+               )}
+             </td>
+
+             {/* ID Column with conditional green/red color */}
+             <td className={`px-4 py-1 font-semibold text-[9px] ${g.achievedAt ? 'text-emerald-600' : 'text-red-500'}`}>
+               {g.code}
+             </td>
+
+             <td className="px-4 py-1 font-medium text-[9px] text-slate-950">{g.name}</td>
+             <td className="px-4 py-1 font-semibold text-[9px] text-slate-950 text-center">+{g.points}</td>
+             
+             {/* Status Column showing date instead of DONE */}
+             <td className="px-4 py-1 text-right">
+               {g.achievedAt ? (
+                 <div className="inline-flex flex-col items-end leading-none">
+                   <span className="text-emerald-700 font-semibold text-[7px] tracking-widest px-2 py-1 rounded bg-emerald-100 border border-emerald-200 uppercase inline-flex items-center gap-1">
+                     <CheckCircle2 size={9} /> {formatDateDDMMYYYY(g.achievedAt)}
+                   </span>
+                   <span className="text-[6px] font-semibold text-transparent mt-0.5 uppercase tracking-widest select-none">--</span>
+                 </div>
+               ) : (
+                 <div className="inline-flex flex-col items-end leading-none">
+                   <span className="text-red-700 font-semibold text-[7px] tracking-widest px-2 py-1 rounded bg-red-100 border border-red-200 uppercase inline-flex items-center gap-1">
+                     <Clock size={9} /> PENDING
+                   </span>
+                   <span className="text-[6px] font-semibold text-transparent mt-0.5 uppercase tracking-widest select-none">--</span>
+                 </div>
+               )}
+             </td>
+           </tr>
+         ))}
+         {reportGoals.length === 0 && (
+           <tr><td colSpan={5} className="p-6 text-center text-[9px] font-medium text-slate-300 italic">No objectives recorded.</td></tr>
+         )}
+       </tbody>
+     </table>
+   </div>
+</div>
 
         {/* Matrix */}
 <div className="mb-8">
@@ -2306,7 +2443,7 @@ return (
   data-has-goal={hasGoal ? 'true' : 'false'}
   // Toggle logic: if clicking the same one, turn it off (null), otherwise set to item.code
   onClick={() => { setHighlightedCode(highlightedCode === item.code ? null : item.code); setFinanceHighlight(null); }}
-  className={`matrix-card relative p-2 border rounded-lg flex flex-col justify-between min-h-[60px] shadow-sm transition-all cursor-pointer break-inside-avoid ${
+  className={`matrix-card relative p-2 border rounded-lg flex flex-col justify-between min-h-[60px] shadow-md transition-all cursor-pointer break-inside-avoid ${
     isActive 
       ? hasGoal
         ? 'border-emerald-500 ring-2 ring-emerald-100 bg-emerald-50' // If selected AND has a goal, it turns green!
@@ -2365,45 +2502,64 @@ return (
 
         {/* Detailed Ledger */}
 <div className="mb-8">
-  <div className="flex items-center justify-between mb-3">
+<div className="flex items-center justify-between mb-3">
     <h3 className="text-sm font-semibold uppercase tracking-tighter text-slate-950 border-l-[3px] border-slate-950 pl-2 flex items-center gap-2">
       <NotebookText size={16} className="text-pink-600" />
       Chronological Log Diary
     </h3>
-<div style={{ position: 'relative', display: 'inline-block' }}>
-  {/* The Icon: Positioned absolutely over the input */}
-  <Search 
-    size={14} 
-    className="text-pink-400" 
-    style={{
-      position: 'absolute',
-      left: '8px',
-      top: '50%',
-      transform: 'translateY(-40%)',
-      pointerEvents: 'none' // Ensures clicking the icon still focuses the input
-    }} 
-  />
-  <input
-    id="search-description-input"
-    type="text"
-    placeholder="Search Descriptions..."
-    value={searchQuery}
-    onChange={(e) => setSearchQuery(e.target.value)}
-    style={{
-      padding: '4px 12px 4px 28px', // Increased left padding (28px) to make room for the icon
-      backgroundColor: '#f8f9fa',
-      border: '1px solid #cbd5e1',
-      borderRadius: '12px',
-      fontSize: '10px',
-      fontWeight: 500,
-      width: '250px',
-      outline: 'none',
-      transition: 'box-shadow 0.2s ease', // Smooth focus ring
-    }}
-    onFocus={(e) => { e.target.style.boxShadow = '0 0 0 2px #ff6ad553'; }}
-    onBlur={(e) => { e.target.style.boxShadow = ''; }}
-  />
-</div>
+
+    {/* Right side container holding search and toggle in one line */}
+    <div className="flex items-center gap-3">
+      <div style={{ position: 'relative', display: 'inline-block' }}>
+        {/* The Icon: Positioned absolutely over the input */}
+        <Search 
+          size={14} 
+          className="text-pink-400" 
+          style={{
+            position: 'absolute',
+            left: '8px',
+            top: '50%',
+            transform: 'translateY(-40%)',
+            pointerEvents: 'none' // Ensures clicking the icon still focuses the input
+          }} 
+        />
+        <input
+          id="search-description-input"
+          type="text"
+          placeholder="Search Descriptions..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          style={{
+            padding: '4px 12px 4px 28px', // Increased left padding (28px) to make room for the icon
+            backgroundColor: '#f8f9fa',
+            border: '1px solid #cbd5e1',
+            borderRadius: '12px',
+            fontSize: '10px',
+            fontWeight: 500,
+            width: '250px',
+            outline: 'none',
+            transition: 'box-shadow 0.2s ease', // Smooth focus ring
+          }}
+          onFocus={(e) => { e.target.style.boxShadow = '0 0 0 2px #ff6ad553'; }}
+          onBlur={(e) => { e.target.style.boxShadow = ''; }}
+        />
+      </div>
+
+      <label 
+        className="relative inline-flex items-center cursor-pointer text-gray-900 gap-3 select-none"
+        title={showTodayProgressBar ? "Today's Progress Bar: On" : "Today's Progress Bar: Off"}
+      >
+        <input 
+          id="toggle-progress-bar-input"
+          type="checkbox" 
+          checked={showTodayProgressBar}
+          onChange={(e) => setShowTodayProgressBar(e.target.checked)}
+          className="sr-only peer" 
+        />
+        <div className="w-9 h-6 bg-slate-300 rounded-full peer peer-checked:bg-black transition-colors duration-200"></div>
+        <span className="dot absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform duration-200 ease-in-out peer-checked:translate-x-3 shadow-sm"></span>
+      </label>
+    </div>
   </div>
   <div className="border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm">
     <table className="w-full text-left border-collapse table-fixed">
@@ -2448,16 +2604,16 @@ return (
 
             return (
               <React.Fragment key={dateStr}>
-                <tr id={`ledger-date-${dateStr}`} className="bg-slate-100/50 border-y border-slate-100 transition-colors duration-500">
+                <tr id={`ledger-date-${dateStr}`} data-date={dateStr} className="bg-slate-100/50 border-y border-slate-100 transition-colors duration-500">
                   <td colSpan={hasAttachmentsInReport && hasTransactionsInReport ? 6 : hasAttachmentsInReport || hasTransactionsInReport ? 5 : 4} className="px-4 py-1.5">
                     <div className="flex justify-between items-center">
-                      <span className="text-[10px] font-semibold text-slate-950 tracking-[0.05em] uppercase flex items-center gap-2">
+                      <span className="text-[10px] font-semibold text-slate-950 tracking-[0.05em] uppercase flex items-center gap-2 rounded-full px-3.5 py-0.5 shadow-[0px_0px_8px_0px_rgba(0,_0,_0,_0.1)]">
                         <Clock size={10} className="text-blue-500" />
                         {new Date(dateStr).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                         <span className="text-gray-600/75">{` (${new Date(dateStr).toLocaleDateString('en-GB', { weekday: 'long' })})`}</span>
                         {achievedGoalsToday.length > 0 && <Star size={10} className="text-amber-500 fill-amber-500" />}
                       </span>
-                      <span className="text-[7px] font-semibold text-slate-400 uppercase tracking-widest px-1.5 py-0.25 p-0.5 rounded bg-white border border-slate-100 flex items-center gap-2">
+                      <span className="text-[7px] font-semibold text-slate-400 uppercase tracking-widest px-1.5 py-0.25 p-0.5 rounded-full bg-white shadow-[0px_0px_10px_0px_rgba(0,_0,_0,_0.1)] flex items-center gap-2">
                         <span>Debit: <span className="text-red-600 font-bold">-{dayDebit} {getCurrencySymbol(getAggregateCurrencyDisplay(dayLogs))}</span></span>
                         <span className="text-slate-300">|</span>
                         <span>Credit: <span className="text-emerald-600 font-bold">+{dayCredit} {getCurrencySymbol(getAggregateCurrencyDisplay(dayLogs))}</span></span>
@@ -2469,28 +2625,30 @@ return (
                 </tr>
 {/* TodayProgressBar - Only for the selected date */}
 
-  <tr className={`today-progress-row ${searchQuery.trim() ? 'hidden' : ''}`}>
-    <td colSpan={hasAttachmentsInReport && hasTransactionsInReport ? 6 : hasAttachmentsInReport || hasTransactionsInReport ? 5 : 4} className="px-4 py-2">
-      <TodayProgressBar
-        entries={entries}
-        selectedDate={dateStr}
-        variant="stats"
-        onActivityClick={(entryId) => {
-          const target = document.getElementById(`activity-${entryId}`);
-          if (target) {
-            target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            target.classList.add('bg-blue-50', 'dark:bg-blue-900/20');
-            setTimeout(() => {
-              target.classList.remove('bg-blue-50', 'dark:bg-blue-900/20');
-            }, 2000);
-          }
-        }}
-      />
+  <tr className={`today-progress-row transition-all duration-300 ${!showTodayProgressBar ? 'progress-hidden' : ''}`}>
+    <td colSpan={hasAttachmentsInReport && hasTransactionsInReport ? 6 : hasAttachmentsInReport || hasTransactionsInReport ? 5 : 4} className="px-4 py-2 transition-all duration-300">
+      <div className="today-progress-wrapper overflow-hidden transition-all duration-300 ease-in-out">
+        <TodayProgressBar
+          entries={entries}
+          selectedDate={dateStr}
+          variant="stats"
+          onActivityClick={(entryId) => {
+            const target = document.getElementById(`activity-${entryId}`);
+            if (target) {
+              target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              target.classList.add('bg-blue-50', 'dark:bg-blue-900/20');
+              setTimeout(() => {
+                target.classList.remove('bg-blue-50', 'dark:bg-blue-900/20');
+              }, 2000);
+            }
+          }}
+        />
+      </div>
     </td>
   </tr>
 
 
-                {groupedLogsByDate[dateStr].map(e => {
+                {dayLogs.map(e => {
                   const isHighlighted = highlightedCode === e.code || isEntryFinanceHighlighted(e);
                   const hasDescription = e.description && e.description.length > 0;
                   const hasQR = e.attachment && hasAttachmentsInReport;
@@ -2516,7 +2674,7 @@ return (
                           : 'hover:bg-slate-50/50'
                       }`}
                     >
-                      <td className="px-4 py-2 text-[8px] font-semibold text-slate-900 whitespace-nowrap leading-tight text-left">
+                      <td className="px-4 py-2 text-[9px] font-semibold text-slate-900 whitespace-nowrap leading-tight text-left">
                         {e.isLongEvent ? (
                           <>
                             {e.fromTime || e.toTime} <span className="text-gray-600/75">To</span> {e.toTime || e.fromTime}
@@ -2652,7 +2810,7 @@ return (
         </div>
         <div className="flex flex-col items-center">
           <span className="text-[6px]  font-semibold text-slate-400 uppercase tracking-widest">Scan to Visit</span>
-          <span className="text-[5px] font-medium text-slate-300 lowercase">solodiary.com</span>
+          <span className="text-[5px] font-medium text-slate-300 lowercase">solodiary website</span>
         </div>
       </div>
 

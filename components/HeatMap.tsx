@@ -238,8 +238,8 @@ const HeatMap: React.FC<HeatMapProps> = ({
                     const isFutureMonth = maxMonth !== undefined && day.month > maxMonth;
                     const isClickable = day.isCurrentYear && !isFutureMonth;
 
-                    let shadeClass = "bg-gray-200/60 dark:bg-slate-800/80";
-                    let activeBorder = "border-[0.5px] border-gray-150/40 dark:border-slate-800/40";
+                    let shadeClass = "bg-gray-200/60";
+                    let activeBorder = "border-[0.5px] border-gray-150/40";
                    
                     if (day.isCurrentYear && !isFutureMonth && (day.count > 0 || day.hasGoal)) {
                       const activeTheme = day.hasGoal ? themeColors.emerald : colors;
