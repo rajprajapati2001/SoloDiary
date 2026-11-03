@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { ActivityEntry, ActivityTemplate, Goal } from '../types';
-import { X, NotebookTabs, Save, Banknote, Clock, Zap, Target, FileText, Calendar as CalendarIcon, Link as LinkIcon, ChevronDown, Code, Star, ArrowDownLeft, ArrowUpRight, NotebookPen, Activity, KeySquare } from 'lucide-react';
+import { X, NotebookTabs, Save, Banknote, Clock, Zap, Target, FileText, Calendar as CalendarIcon, Link as LinkIcon, ChevronDown, Code, Star, ArrowDownLeft, ArrowUpRight, NotebookPen, Activity, KeySquare, Mic } from 'lucide-react';
 import { useReducedMotion, motion, AnimatePresence } from 'motion/react';
 import { CURRENCY_MAP } from '../constants';
 import TimeProgressBar from './TimeProgressBar';
+import VoiceRecognitionModal from './VoiceRecognitionModal';
+import { ParsedVoiceResult } from '../utils/voiceParser';
 
 interface EntryFormProps {
   isOpen: boolean;
@@ -84,6 +86,7 @@ const EntryForm: React.FC<EntryFormProps> = ({ isOpen, onClose, onSave, initialD
   const [showCodeSuggestions, setShowCodeSuggestions] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const [selectedGoalId, setSelectedGoalId] = useState('');
+  const [showVoiceModal, setShowVoiceModal] = useState(false);
 
   const nameSuggestionRef = useRef<HTMLDivElement>(null);
   const codeSuggestionRef = useRef<HTMLDivElement>(null);
@@ -304,6 +307,35 @@ const EntryForm: React.FC<EntryFormProps> = ({ isOpen, onClose, onSave, initialD
     }
   }, [templates]);
 
+  const handleVoiceFill = useCallback((parsed: ParsedVoiceResult) => {
+    setCode(parsed.code);
+    setName(parsed.name);
+    setPoints(parsed.points);
+    if (parsed.fromDate) setFromDate(parsed.fromDate);
+    if (parsed.fromTime) setFromTime(parsed.fromTime);
+    if (parsed.isLongEvent) {
+      setIsLongEvent(true);
+      if (parsed.toDate) setToDate(parsed.toDate);
+      if (parsed.toTime) setToTime(parsed.toTime);
+    }
+    if (parsed.isCashTransaction) {
+      setIsCashTransaction(true);
+      setDebit(parsed.debit || 0);
+      setCredit(parsed.credit || 0);
+      setMoneyCode(parsed.moneyCode || (localStorage.getItem('solo_diary_default_currency') || 'INR'));
+    }
+    if (parsed.description) {
+      setIsDescriptionOpen(true);
+      setDescription(parsed.description);
+    }
+    if (parsed.isGoal) {
+      const g = goals.find(x => x.code.toUpperCase() === parsed.code.toUpperCase());
+      if (g) setSelectedGoalId(g.id);
+    } else {
+      setSelectedGoalId('');
+    }
+  }, [goals]);
+
   const handleCloseWithAnimation = () => {
     if (isClosing || isSubmitting) return;
     onClose();
@@ -413,13 +445,15 @@ const EntryForm: React.FC<EntryFormProps> = ({ isOpen, onClose, onSave, initialD
         {title || (initialData ? 'Edit Event Record' : 'Add Event Details')}
       </h2>
     </div>
-    <button
-      disabled={isClosing || isSubmitting}
-      onClick={handleCloseWithAnimation}
-      className="p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-full transition-all text-slate-400 hover:text-slate-600 dark:hover:text-white disabled:opacity-70 disabled:cursor-not-allowed"
-    >
-      <X size={24} />
-    </button>
+    <div className="flex items-center gap-2">
+      <button
+        disabled={isClosing || isSubmitting}
+        onClick={handleCloseWithAnimation}
+        className="p-2 hover:bg-slate-100 dark:hover:bg-white/10 rounded-full transition-all text-slate-400 hover:text-slate-600 dark:hover:text-white disabled:opacity-70 disabled:cursor-not-allowed"
+      >
+        <X size={24} />
+      </button>
+    </div>
   </div>
 
   {/* Body */}
@@ -780,28 +814,38 @@ const EntryForm: React.FC<EntryFormProps> = ({ isOpen, onClose, onSave, initialD
         </div>
       )}
 
-      {/* Footer Actions */}
-<div className="flex gap-3 pt-6">
-  <button
-    type="button"
-    disabled={isClosing || isSubmitting}
-    onClick={handleCloseWithAnimation}
-    className="flex-1 py-4 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 dark:from-red-700 dark:to-rose-700 dark:hover:from-red-600 dark:hover:to-rose-600 text-white font-black rounded-2xl shadow-md active:scale-95 transition-all uppercase tracking-widest text-sm disabled:opacity-70 disabled:cursor-not-allowed"
-  >
-    Cancel
-  </button>
-  <button
-    type="submit"
-    disabled={isClosing || isSubmitting}
-    className={`flex-[2] py-4 bg-gradient-to-r ${
-      title?.toLowerCase().includes('key')
-        ? 'from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 dark:from-violet-700 dark:to-indigo-700 dark:hover:from-violet-600 dark:hover:to-indigo-600 shadow-violet-500/10'
-        : 'from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 dark:from-emerald-700 dark:to-teal-700 dark:hover:from-emerald-600 dark:hover:to-teal-600 shadow-emerald-500/10'
-    } text-white font-black rounded-2xl shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 uppercase tracking-widest text-sm disabled:opacity-70 disabled:cursor-not-allowed`}
-  >
-    <Save size={20} /> {title?.toLowerCase().includes('key') ? 'Save Key' : 'Save Record'}
-  </button>
-</div>
+      {/* Footer Actions: Micro, Cancel, Save Record */}
+      <div className="flex items-center gap-2.5 sm:gap-3 pt-6">
+        <button
+          type="button"
+          onClick={() => setShowVoiceModal(true)}
+          disabled={isClosing || isSubmitting}
+          className="w-14 h-14 bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-700 hover:from-violet-700 hover:to-indigo-800 text-white rounded-2xl shadow-md shadow-violet-500/25 flex items-center justify-center shrink-0 active:scale-95 transition-all disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
+          title="Voice to Fill Entry"
+          aria-label="Voice Fill"
+        >
+          <Mic size={22} className="drop-shadow-sm" />
+        </button>
+        <button
+          type="button"
+          disabled={isClosing || isSubmitting}
+          onClick={handleCloseWithAnimation}
+          className="flex-1 py-4 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 dark:from-red-700 dark:to-rose-700 dark:hover:from-red-600 dark:hover:to-rose-600 text-white font-black rounded-2xl shadow-md active:scale-95 transition-all uppercase tracking-widest text-sm disabled:opacity-70 disabled:cursor-not-allowed"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          disabled={isClosing || isSubmitting}
+          className={`flex-[2] py-4 bg-gradient-to-r ${
+            title?.toLowerCase().includes('key')
+              ? 'from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 dark:from-violet-700 dark:to-indigo-700 dark:hover:from-violet-600 dark:hover:to-indigo-600 shadow-violet-500/10'
+              : 'from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 dark:from-emerald-700 dark:to-teal-700 dark:hover:from-emerald-600 dark:hover:to-teal-600 shadow-emerald-500/10'
+          } text-white font-black rounded-2xl shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 uppercase tracking-widest text-sm disabled:opacity-70 disabled:cursor-not-allowed`}
+        >
+          <Save size={20} /> {title?.toLowerCase().includes('key') ? 'Save Key' : 'Save Record'}
+        </button>
+      </div>
     </form>
   ) : (
     <div className="md:pl-6 md:pr-6 p-4 space-y-3">
@@ -813,6 +857,14 @@ const EntryForm: React.FC<EntryFormProps> = ({ isOpen, onClose, onSave, initialD
   )}
 </div>
           </motion.div>
+
+          <VoiceRecognitionModal
+            isOpen={showVoiceModal}
+            onClose={() => setShowVoiceModal(false)}
+            onFill={handleVoiceFill}
+            templates={templates}
+            goals={goals}
+          />
         </>
       )}
     </AnimatePresence>,

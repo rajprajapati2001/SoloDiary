@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
-import { Plus, Home, List, Target, BarChart3, Sun, Moon, BookText, Loader2, User, CalendarSync } from 'lucide-react';
-import { motion } from 'motion/react';
+import { Plus, Home, List, Target, BarChart3, Sun, Moon, BookText, Loader2, User, CalendarSync, Mic } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 const Dashboard = lazy(() => import('./components/Dashboard'));
 import EntryForm from './components/EntryForm';
+import VoiceRecognitionModal from './components/VoiceRecognitionModal';
+import { ParsedVoiceResult } from './utils/voiceParser';
 const GoalsView = lazy(() => import('./components/GoalsView'));
 const ActivitiesView = lazy(() => import('./components/ActivitiesView'));
 const DiaryView = lazy(() => import('./components/DiaryView'));
@@ -14,6 +16,7 @@ import { ActivityEntry, Goal, ActivityTemplate, Page, AutoTemplate } from './typ
 import { getDB } from './db';
 import { INITIAL_ACTIVITIES } from './constants';
 import { AssistantActions, AssistantRecordInput } from './assistantActions';
+import { Capacitor } from '@capacitor/core';
 import UserIcon from './assets/icons/user.png';
 import MainLogo from "./assets/icons/solodiary_icon.ico";
 
@@ -113,6 +116,7 @@ const App: React.FC = () => {
   });
   const [hasBootedForm] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<ActivityEntry | null>(null);
   const [currentTimeClass, setCurrentTimeClass] = useState('sky-12-00');
   const [themeReady, setThemeReady] = useState(false);
@@ -121,6 +125,8 @@ const App: React.FC = () => {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   });
   const [fabReady, setFabReady] = useState(false);
+  const [isScrolledDown, setIsScrolledDown] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' ? window.innerWidth < 768 : false);
   const [slideDir, setSlideDir] = useState<'left' | 'right' | 'initial'>('initial');
   const [isStatsFullscreen, setIsStatsFullscreen] = useState(false);
   const touchStartX = useRef(0);
@@ -271,6 +277,42 @@ const App: React.FC = () => {
     return () => clearTimeout(t);
   }, []);
 
+  // Scroll detection to auto-shrink FAB buttons from 14 to 9 h/w
+  useEffect(() => {
+    let ticking = false;
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const scrollPos = window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
+          setIsScrolledDown(scrollPos > 35);
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    document.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      document.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
+
+  useEffect(() => {
+    setIsScrolledDown(false);
+  }, [currentPage]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    window.addEventListener('resize', handleResize, { passive: true });
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const shouldShrinkOnScroll = isScrolledDown && isMobile;
+
   const openEntryForm = useCallback((entry: ActivityEntry | null) => {
     setEditingEntry(entry);
     setIsFormOpen(true);
@@ -280,6 +322,33 @@ const App: React.FC = () => {
     setIsFormOpen(false);
     setEditingEntry(null);
   }, []);
+
+  const handleVoiceFillFromApp = useCallback((parsed: ParsedVoiceResult) => {
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const currentTime = now.toTimeString().slice(0, 5);
+
+    const defaultCurr = (typeof window !== 'undefined' && localStorage.getItem('solo_diary_default_currency')) || 'INR';
+
+    const voiceEntry: ActivityEntry = {
+      id: Math.random().toString(36).substr(2, 9),
+      isLongEvent: parsed.isLongEvent,
+      fromDate: parsed.fromDate || today,
+      fromTime: parsed.fromTime || currentTime,
+      toDate: parsed.isLongEvent ? (parsed.toDate || parsed.fromDate || today) : null,
+      toTime: parsed.isLongEvent ? (parsed.toTime || currentTime) : null,
+      code: parsed.code,
+      name: parsed.name,
+      points: parsed.points,
+      debit: parsed.debit || 0,
+      credit: parsed.credit || 0,
+      moneyCode: parsed.moneyCode || defaultCurr,
+      description: parsed.description || '',
+      createdAt: Date.now()
+    };
+
+    openEntryForm(voiceEntry);
+  }, [openEntryForm]);
 
   useEffect(() => {
     const updateTimeClass = () => {
@@ -298,8 +367,9 @@ const App: React.FC = () => {
     const db = await getDB();
     await db.put('entries', entry);
 
+    const exists = entries.some(e => e.id === entry.id);
     let newEntries: ActivityEntry[];
-    if (editingEntry) {
+    if (exists) {
       newEntries = entries.map(e => e.id === entry.id ? entry : e);
     } else {
       newEntries = [entry, ...entries];
@@ -318,6 +388,7 @@ const App: React.FC = () => {
     syncGoalsWithEntries(newEntries);
     setIsFormOpen(false);
     setEditingEntry(null);
+    await fetchData();
   };
   
   const handleAddEntries = async (newEntries: ActivityEntry[]) => {
@@ -384,8 +455,12 @@ const App: React.FC = () => {
     let disposed = false;
     let listener: { remove: () => Promise<void> } | undefined;
     const consume = async () => {
-      if (!disposed) {
-        listener = await AssistantActions.addListener('addRecord', handleAssistantRecord);
+      if (!disposed && Capacitor.isNativePlatform()) {
+        try {
+          listener = await AssistantActions.addListener('addRecord', handleAssistantRecord);
+        } catch (e) {
+          console.warn('AssistantActions not available:', e);
+        }
       }
     };
     consume();
@@ -695,19 +770,58 @@ const App: React.FC = () => {
 
       {!isStatsFullscreen && <Footer isFull={currentPage === 'home' || currentPage === 'chart'} />}
 
-      <motion.button
-        whileHover={{ scale: 1.15, rotate: 90, shadow: "0px 15px 30px rgba(59,130,246,0.45)" }}
-        whileTap={{ scale: 0.9 }}
-        transition={{ type: "spring", stiffness: 400, damping: 15 }}
-        onClick={() => openEntryForm(null)}
-        className={`fixed bottom-4 right-4 w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-700 text-white rounded-full shadow-[0_10px_25px_-5px_rgba(59,130,246,0.5)] flex items-center justify-center z-40 no-print cursor-pointer ${fabReady && currentPage === 'home' ? 'translate-y-0 opacity-100' : 'translate-y-24 opacity-0 pointer-events-none'} transition-transform duration-300`}
+      {/* Floating Action Buttons Container: Mic and Plus together on Bottom-Right */}
+      <motion.div 
+        layout={isMobile}
+        className={`fixed bottom-4 right-4 flex items-center z-40 no-print transition-all duration-300 ${
+          shouldShrinkOnScroll ? 'gap-2' : 'gap-2.5 sm:gap-3'
+        } ${
+          fabReady && currentPage === 'home' ? 'translate-y-0 opacity-100' : 'translate-y-24 opacity-0 pointer-events-none'
+        }`}
       >
-        <Plus 
-          size={32} 
-          strokeWidth={3} 
-          className="drop-shadow-md" 
-        />
-      </motion.button>
+        {/* Voice Recognition Pop Button in Violet (Icon only, no text) */}
+        <motion.button
+          layout={isMobile}
+          whileHover={{ scale: 1.08, shadow: "0px 15px 30px rgba(139,92,246,0.55)" }}
+          whileTap={{ scale: 0.92 }}
+          transition={{ type: "spring", stiffness: 380, damping: 22 }}
+          onClick={() => setIsVoiceModalOpen(true)}
+          className={`${
+            shouldShrinkOnScroll
+              ? 'h-9 w-9 shadow-lg shadow-violet-500/40'
+              : 'h-14 w-14 shadow-[0_10px_25px_-5px_rgba(139,92,246,0.6)]'
+          } bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-700 text-white rounded-full flex items-center justify-center cursor-pointer transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] shrink-0`}
+          title="Voice to Fill Entry"
+          aria-label="Voice to Fill Entry"
+        >
+          <Mic 
+            size={shouldShrinkOnScroll ? 16 : 24} 
+            className={`drop-shadow-md transition-all duration-300 ${!shouldShrinkOnScroll ? '' : ''}`} 
+          />
+        </motion.button>
+
+        {/* Plus Button in Blue */}
+        <motion.button
+          layout={isMobile}
+          whileHover={{ scale: 1.12, rotate: 90, shadow: "0px 15px 30px rgba(59,130,246,0.45)" }}
+          whileTap={{ scale: 0.92 }}
+          transition={{ type: "spring", stiffness: 380, damping: 22 }}
+          onClick={() => openEntryForm(null)}
+          className={`${
+            shouldShrinkOnScroll
+              ? 'w-9 h-9 shadow-lg shadow-blue-500/40'
+              : 'w-14 h-14 shadow-[0_10px_25px_-5px_rgba(59,130,246,0.5)]'
+          } bg-gradient-to-br from-blue-500 to-indigo-700 text-white rounded-full flex items-center justify-center cursor-pointer transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] shrink-0`}
+          title="Add Entry"
+          aria-label="Add Entry"
+        >
+          <Plus 
+            size={shouldShrinkOnScroll ? 18 : 30} 
+            strokeWidth={shouldShrinkOnScroll ? 2.5 : 3} 
+            className="drop-shadow-md transition-all duration-300" 
+          />
+        </motion.button>
+      </motion.div>
 
       {hasBootedForm && (
         <EntryForm
@@ -719,6 +833,14 @@ const App: React.FC = () => {
           goals={goals}
         />
       )}
+
+      <VoiceRecognitionModal
+        isOpen={isVoiceModalOpen}
+        onClose={() => setIsVoiceModalOpen(false)}
+        onFill={handleVoiceFillFromApp}
+        templates={templates}
+        goals={goals}
+      />
     </div>
   );
 };

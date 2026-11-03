@@ -38,6 +38,7 @@ const StatsView: React.FC<StatsViewProps> = ({ userName, entries, goals, onRefre
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   });
   const [showExportModal, setShowExportModal] = useState(false);
+  const [showJsonWebView, setShowJsonWebView] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showTodayProgressBar, setShowTodayProgressBar] = useState<boolean>(true);
   const [exportData, setExportData] = useState<string>('');
@@ -85,10 +86,6 @@ const StatsView: React.FC<StatsViewProps> = ({ userName, entries, goals, onRefre
     setShowExportModal(true);
     setCopied(false);
     
-    // Auto-copy on mobile for easy sharing
-    if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-      setTimeout(() => handleCopy(), 500);
-    }
   } catch (error) {
     console.error('Export failed:', error);
     alert('Export failed. Please try again.');
@@ -184,195 +181,377 @@ const subject = encodeURIComponent(`SoloDiary Backup - ${userName}`);
 };
 
 // ============================================
-// WEB VIEW - Enhanced for Mobile
+// WEB VIEW - JSON Viewer with Share & Close
 // ============================================
 
-const handleWebView = () => {
-  // 1. Generate HTML for the Activity Matrix
-  const matrixHtml = activitySummary.map(item => `
-    <div class="matrix-card" data-code="${item.code}" onclick="toggleHighlight('${item.code}')">
-      <div style="display: flex; justify-content: space-between; align-items: start;">
-        <span class="code-badge" style="font-size: 7px; font-weight: 900; color: #2563eb; background: #eff6ff; padding: 2px 6px; border-radius: 4px; border: 1px solid #dbeafe; text-transform: uppercase;">${item.code}</span>
-        <span style="font-size: 10px; font-weight: 900;">+${item.totalPoints}</span>
-      </div>
-      <div style="font-size: 9px; font-weight: 700; text-transform: uppercase; margin-top: 4px;">${item.name}</div>
-      <div style="font-size: 7px; color: #64748b; font-weight: 900; margin-top: 2px;">LOGS: ${item.count}</div>
-    </div>
-  `).join('');
+const handleNativeOrWebShare = async () => {
+  const cleanName = userName.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase() || 'user';
+  const date = new Date().toISOString().split('T')[0];
+  const filename = `solodiary-export-${cleanName}-${date}.json`;
 
-  // 2. Generate HTML for the Chronological Table
-  const tableBodyHtml = Object.keys(filteredGroupedLogsByDate).sort().map(dateStr => {
-    const dayLogs = groupedLogsByDate[dateStr];
-    const dayRows = dayLogs.map(log => `
-      <tr class="log-row" data-code="${log.code}" data-debit="${log.debit || 0}" data-credit="${log.credit || 0}">
-        <td style="padding: 8px; font-size: 8px; font-weight: 900; white-space: nowrap;">${log.toTime}</td>
-        <td style="padding: 8px; text-align: center;">
-          <span class="code-badge" style="font-size: 7px; font-weight: 900; color: #2563eb; background: #eff6ff; padding: 2px 6px; border-radius: 4px; border: 1px solid #dbeafe; text-transform: uppercase;">${log.code}</span>
-        </td>
-        <td style="padding: 8px;">
-          <div style="font-size: 10px; font-weight: 900; text-transform: uppercase;">${log.name}</div>
-          ${log.description ? `<div style="font-size: 8px; color: #64748b; margin-top: 2px; font-weight: 900;">${log.description}</div>` : ''}
-        </td>
-        <td style="padding: 8px; text-align: center; font-size: 10px; font-weight: 900;">+${log.points}</td>
-      </tr>
-    `).join('');
-
-    const formattedDate = new Date(dateStr).toLocaleDateString('en-GB', {
-      day: '2-digit', month: 'short', year: 'numeric', weekday: 'short'
-    });
-
-    return `
-      <tr style="background: #f1f5f9; border-top: 1px solid #e2e8f0;">
-        <td colspan="4" style="padding: 6px 12px; font-size: 10px; font-weight: 900; color: #0f172a;">
-          📅 ${formattedDate.toUpperCase()}
-        </td>
-      </tr>
-      ${dayRows}
-    `;
-  }).join('');
-
-  // 3. Complete Document Structure
-  const html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>SoloDiary Report - ${userName}</title>
-      <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: sans-serif; padding: 16px; background: #f8fafc; color: #0f172a; line-height: 1.5; }
-        .container { max-width: 800px; margin: 0 auto; background: white; border-radius: 16px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        .header { margin-bottom: 24px; border-bottom: 3px solid #0f172a; padding-bottom: 12px; }
-
-        /* Matrix Grid */
-        .matrix-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; margin-bottom: 30px; }
-        .matrix-card { padding: 10px; border: 1px solid #e2e8f0; border-radius: 10px; background: white; cursor: pointer; transition: all 0.2s ease; }
-        .matrix-card.active { border: 2px solid #2563eb !important; background: #eff6ff !important; transform: translateY(-2px); }
-
-        /* Table Styling */
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        .log-row { border-bottom: 1px solid #f1f5f9; transition: all 0.3s ease; border-left: 4px solid transparent; }
-        .log-row.highlighted { background: #fffbeb !important; border-left-color: #f59e0b !important; }
-
-        .code-badge { font-size: 7px; font-weight: 900; color: #2563eb; background: #eff6ff; padding: 2px 6px; border-radius: 4px; border: 1px solid #dbeafe; text-transform: uppercase; }
-
-        .actions { position: fixed; bottom: 0; left: 0; right: 0; padding: 16px; background: rgba(255,255,255,0.9); backdrop-filter: blur(10px); display: flex; gap: 12px; border-top: 1px solid #e2e8f0; }
-        .button { flex: 1; padding: 14px; border: none; border-radius: 40px; font-weight: 800; background: #0f172a; color: white; cursor: pointer; text-transform: uppercase; font-size: 12px; }
-
-        @media print {
-          .actions { display: none !important; }
-          body { padding: 0; background: white; }
-          .container { box-shadow: none; border: none; width: 100%; max-width: 100%; }
-          .matrix-card { break-inside: avoid; }
-          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-        }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <div class="header">
-          <h1 style="font-size: 22px; font-weight: 900; text-transform: uppercase; letter-spacing: -0.5px;">📋 SoloDiary Report</h1>
-          <p style="font-size: 12px; color: #64748b; font-weight: 600;">${userName} • ${new Date().toLocaleString()}</p>
-        </div>
-
-        <div style="display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap;">
-          <button class="finance-btn" onclick="toggleFinanceHighlight('net')" style="border-color: ${isNegative ? '#fca5a5' : '#6ee7b7'};">💰 Net: ${isNegative ? '-' : '+'} ${getAggregateCurrencyDisplay(currentMonthEntries)} ${Math.abs(netAmount).toLocaleString()}</button>
-          <button class="finance-btn" onclick="toggleFinanceHighlight('debit')" style="border-color: #fca5a5; color: #dc2626;">🔴 Debit: ${getAggregateCurrencyDisplay(currentMonthEntries)} ${totalDebitAmt.toLocaleString()}</button>
-          <button class="finance-btn" onclick="toggleFinanceHighlight('credit')" style="border-color: #6ee7b7; color: #059669;">🟢 Credit: ${getAggregateCurrencyDisplay(currentMonthEntries)} ${totalCreditAmt.toLocaleString()}</button>
-        </div>
-
-        <h3 style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; color: #475569;">Activity Breakdown</h3>
-        <div class="matrix-grid">${matrixHtml}</div>
-
-        <h3 style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; color: #475569;">Daily Ledger</h3>
-        <table>
-          <thead>
-            <tr style="background: #0f172a; color: white; font-size: 9px; text-transform: uppercase;">
-              <th style="padding: 10px; text-align: left;">Time</th>
-              <th style="padding: 10px; text-align: center;">Code</th>
-              <th style="padding: 10px; text-align: left;">Details</th>
-              <th style="padding: 10px; text-align: center;">Points</th>
-            </tr>
-          </thead>
-          <tbody>${tableBodyHtml}</tbody>
-        </table>
-        <div style="height: 100px;"></div>
-      </div>
-
-      <div class="actions">
-        <button class="button" style="background: #2563eb;" onclick="window.print()">Print PDF</button>
-        <button class="button" onclick="window.close()">Close</button>
-      </div>
-
-      <script>
-        window.toggleHighlight = function(code) {
-          var cards = document.querySelectorAll('.matrix-card');
-          var rows = document.querySelectorAll('.log-row');
-          var selectedCard = document.querySelector('.matrix-card[data-code="' + code + '"]');
-          document.querySelectorAll('.finance-btn').forEach(function(b) { b.classList.remove('active'); });
-
-          if (!selectedCard) return;
-          var isAlreadyActive = selectedCard.classList.contains('active');
-
-          cards.forEach(function(c) { c.classList.remove('active'); });
-          rows.forEach(function(r) { r.classList.remove('highlighted'); });
-
-          if (!isAlreadyActive) {
-            document.querySelectorAll('.matrix-card[data-code="' + code + '"]').forEach(function(c) { c.classList.add('active'); });
-            document.querySelectorAll('.log-row[data-code="' + code + '"]').forEach(function(r) { r.classList.add('highlighted'); });
-            var firstMatch = document.querySelector('.log-row[data-code="' + code + '"]');
-            if (firstMatch) firstMatch.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }
-        };
-
-        window.toggleFinanceHighlight = function(mode) {
-          var btns = document.querySelectorAll('.finance-btn');
-          var rows = document.querySelectorAll('.log-row');
-          var cards = document.querySelectorAll('.matrix-card');
-          var clickedBtn = null;
-          btns.forEach(function(b) {
-            if ((mode === 'net' && b.textContent.indexOf('Net') !== -1) ||
-                (mode === 'debit' && b.textContent.indexOf('Debit') !== -1) ||
-                (mode === 'credit' && b.textContent.indexOf('Credit') !== -1)) {
-              clickedBtn = b;
-            }
+  try {
+    if (Capacitor.isNativePlatform()) {
+      const result = await Filesystem.writeFile({
+        path: filename,
+        data: exportData,
+        directory: Directory.Cache,
+        encoding: Encoding.UTF8
+      });
+      await Share.share({
+        title: `SoloDiary Backup - ${userName}`,
+        text: 'Here is my SoloDiary data backup file.',
+        url: result.uri,
+        dialogTitle: 'Share Backup File'
+      });
+    } else if (navigator.share) {
+      try {
+        const file = new File([exportData], filename, { type: 'application/json' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            title: `SoloDiary Export - ${userName}`,
+            text: 'SoloDiary JSON Export File',
+            files: [file]
           });
-          var isActive = clickedBtn && clickedBtn.classList.contains('active');
-          btns.forEach(function(b) { b.classList.remove('active'); });
-          rows.forEach(function(r) { r.classList.remove('highlighted'); });
-          cards.forEach(function(c) { c.classList.remove('active'); });
-          if (!isActive) {
-            if (clickedBtn) clickedBtn.classList.add('active');
-            var highlightedCodes = new Set();
-            rows.forEach(function(r) {
-              var debit = parseFloat(r.getAttribute('data-debit') || '0');
-              var credit = parseFloat(r.getAttribute('data-credit') || '0');
-              var match = false;
-              if (mode === 'net') match = debit > 0 || credit > 0;
-              else if (mode === 'debit') match = debit > 0;
-              else if (mode === 'credit') match = credit > 0;
-              if (match) {
-                r.classList.add('highlighted');
-                highlightedCodes.add(r.getAttribute('data-code'));
-              }
+          return;
+        }
+      } catch (e) {
+        console.warn('File share check failed, trying text share:', e);
+      }
+
+      await navigator.share({
+        title: `SoloDiary Export - ${userName}`,
+        text: exportData
+      });
+    } else {
+      handleDownload();
+    }
+  } catch (error: any) {
+    if (error?.name !== 'AbortError') {
+      console.error('Share failed:', error);
+      handleDownload();
+    }
+  }
+};
+
+const handleWebView = async () => {
+  let jsonString = exportData;
+  if (!jsonString) {
+    try {
+      const db = await getDB();
+      const [allEntries, allGoals, allTemplates, allAutoTemplates] = await Promise.all([
+        db.getAll('entries'),
+        db.getAll('goals'),
+        db.getAll('activity_templates'),
+        db.getAll('auto_templates'),
+      ]);
+      const data = {
+        user: userName,
+        entries: allEntries,
+        goals: allGoals,
+        templates: allTemplates,
+        autoTemplates: allAutoTemplates,
+        exportedAt: new Date().toISOString(),
+        version: '1.0.0',
+        device: navigator.userAgent
+      };
+      jsonString = JSON.stringify(data, null, 2);
+      setExportData(jsonString);
+    } catch (err) {
+      console.error('Failed to get export data:', err);
+    }
+  }
+
+  // 1. Android Capacitor APK Compatibility
+  // Multi-window popups are restricted in Android WebView, and detached windows cannot run native plugins.
+  // When running on native platform (Capacitor APK), open the full-screen JSON view in-app.
+  if (Capacitor.isNativePlatform()) {
+    setShowJsonWebView(true);
+    return;
+  }
+
+  // 2. Browser Environment: Open clean HTML page with <pre> JSON and bottom Share & Close buttons
+  const cleanName = userName.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase() || 'user';
+  const fileName = `solodiary-export-${cleanName}-${new Date().toISOString().split('T')[0]}.json`;
+  const escapedExportData = (jsonString || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  const safeUserName = userName.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>SoloDiary Export - ${safeUserName}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background-color: #0b1120;
+      color: #f1f5f9;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding-bottom: 90px;
+    }
+    .header {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background: rgba(15, 23, 42, 0.95);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 14px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .title-area {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .badge {
+      background: #2563eb;
+      color: #ffffff;
+      font-size: 10px;
+      font-weight: 800;
+      padding: 4px 8px;
+      border-radius: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .title-text {
+      font-size: 13px;
+      font-weight: 700;
+      color: #ffffff;
+      letter-spacing: -0.01em;
+    }
+    .meta-text {
+      font-size: 10px;
+      color: #94a3b8;
+      margin-top: 2px;
+    }
+    .content-container {
+      flex: 1;
+      max-width: 1200px;
+      width: 100%;
+      margin: 0 auto;
+    }
+    pre {
+      background: #020617;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 18px;
+      color: #38bdf8;
+      font-size: 9px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-all;
+      overflow-x: auto;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+      user-select: all;
+      -webkit-user-select: all;
+    }
+    .bottom-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 30;
+      background: rgba(15, 23, 42, 0.95);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 14px 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 16px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 12px 28px;
+      border-radius: 12px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      min-width: 140px;
+    }
+    .btn-share {
+      background: #10b981;
+      color: #ffffff;
+      box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
+    }
+    .btn-share:hover {
+      background: #059669;
+      transform: translateY(-1px);
+    }
+    .btn-share:active {
+      transform: scale(0.97);
+    }
+    .btn-close {
+      background: #475569;
+      color: #ffffff;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+    }
+    .btn-close:hover {
+      background: #334155;
+      transform: translateY(-1px);
+    }
+    .btn-close:active {
+      transform: scale(0.97);
+    }
+    .toast {
+      position: fixed;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1e293b;
+      color: #fff;
+      border: 1px solid #334155;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 11px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+      z-index: 40;
+    }
+    .toast.show {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="title-area">
+      <span class="badge">JSON</span>
+      <div>
+        <div class="title-text">SoloDiary Export • ${safeUserName}</div>
+        <div class="meta-text">${new Date().toLocaleString()}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="content-container">
+    <pre id="json-content">${escapedExportData}</pre>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <div class="bottom-bar">
+    <button type="button" class="btn btn-share" id="btn-share" onclick="handleShare()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+      Share
+    </button>
+    <button type="button" class="btn btn-close" id="btn-close" onclick="handleClose()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      Close
+    </button>
+  </div>
+
+  <script>
+    function showToast(msg) {
+      var t = document.getElementById('toast');
+      if (t) {
+        t.innerText = msg;
+        t.classList.add('show');
+        setTimeout(function() { t.classList.remove('show'); }, 2200);
+      }
+    }
+
+    async function handleShare() {
+      var el = document.getElementById('json-content');
+      var raw = el ? el.textContent : '';
+      var fn = ${JSON.stringify(fileName)};
+
+      // 1. Try file sharing via Web Share API
+      try {
+        if (navigator.share && typeof File !== 'undefined') {
+          var file = new File([raw], fn, { type: 'application/json' });
+          if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              title: 'SoloDiary Backup',
+              text: 'Here is my SoloDiary data backup file.',
+              files: [file]
             });
-            cards.forEach(function(c) {
-              if (highlightedCodes.has(c.getAttribute('data-code'))) c.classList.add('active');
-            });
-            var first = document.querySelector('.log-row.highlighted');
-            if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            showToast('Shared successfully!');
+            return;
           }
-        };
-      </script>
-    </body>
-    </html>
-  `;
+        }
+      } catch (e) {
+        if (e.name === 'AbortError') return;
+        console.warn('File share failed, attempting text share:', e);
+      }
+
+      // 2. Try text sharing via Web Share API
+      try {
+        if (navigator.share) {
+          await navigator.share({
+            title: 'SoloDiary Backup',
+            text: raw
+          });
+          showToast('Shared successfully!');
+          return;
+        }
+      } catch (e) {
+        if (e.name === 'AbortError') return;
+        console.warn('Text share failed, falling back to download:', e);
+      }
+
+      // 3. Fallback: Direct file download
+      try {
+        var blob = new Blob([raw], { type: 'application/json' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = fn;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast('Downloaded ' + fn);
+      } catch (err) {
+        alert('Could not share or download: ' + err);
+      }
+    }
+
+    function handleClose() {
+      try {
+        window.close();
+      } catch (e) {}
+
+      setTimeout(function() {
+        if (!window.closed) {
+          if (window.history.length > 1) {
+            window.history.back();
+          } else {
+            window.close();
+          }
+        }
+      }, 100);
+    }
+  </script>
+</body>
+</html>`;
 
   const newWindow = window.open('', '_blank');
   if (newWindow) {
     newWindow.document.write(html);
     newWindow.document.close();
+  } else {
+    // If popup was blocked or window.open failed, open in-app full-screen view
+    setShowJsonWebView(true);
   }
 };
 
@@ -1730,7 +1909,7 @@ const [showLabels, setShowLabels] = useState(true);
             
             <div className="md:p-8 overflow-y-auto bg-gray-100 dark:bg-black/40 font-mono text-[11px] dark:text-emerald-400 scrollbar-thin scrollbar-thumb-gray-400 overflow-auto 
             [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-              <div className="pl-3 pr-3 p-2 md:pl-0 md:pr-0 md:p-0 flex justify-between items-center mb-4">
+              <div className="pl-3 pr-3 p-2 md:pl-0 md:pr-0 md:p-0 flex justify-between items-center ">
                  <div className="flex items-center gap-2">
                    <Eye size={14} className="opacity-60" />
                    <span className="text-[10px] font-black uppercase opacity-60 tracking-widest">Manifest Preview</span>
@@ -1741,7 +1920,7 @@ const [showLabels, setShowLabels] = useState(true);
                    </button>
                    <button onClick={handleCopy} className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase transition-all ${copied ? 'bg-emerald-500 text-white' : 'bg-gray-200 dark:bg-slate-700 dark:text-white hover:bg-gray-300 dark:hover:bg-slate-600'}`}>
                       {copied ? <CheckCircle2 size={12}/> : <Copy size={12} />}
-                      {copied ? 'Copied' : <span className="hidden md:inline">Copy</span>}
+                      {copied ? '' : <span className="hidden md:inline">Copy</span>}
                    </button>
                  </div>
               </div>
@@ -1762,6 +1941,60 @@ const [showLabels, setShowLabels] = useState(true);
                 Close
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Full-Screen JSON Web View (Optimized for Android Capacitor APK and web fallback) */}
+      {showJsonWebView && (
+        <div className="fixed inset-0 z-[200] bg-slate-950 flex flex-col animate-in fade-in duration-200">
+          {/* Header */}
+          <div className="p-4 px-6 bg-slate-900 border-b border-slate-800 flex justify-between items-center shrink-0">
+            <div className="flex items-center gap-3">
+              <span className="bg-blue-600 text-white text-[10px] font-black uppercase px-2.5 py-1 rounded-md tracking-wider">
+                JSON
+              </span>
+              <div>
+                <h2 className="text-sm font-bold text-white uppercase tracking-tight">
+                  SoloDiary Export • {userName}
+                </h2>
+                <p className="text-[10px] text-slate-400 font-mono">
+                  {new Date().toLocaleDateString()} • {exportData.length} chars
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowJsonWebView(false)}
+              className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-colors"
+              title="Close"
+            >
+              <X size={22} />
+            </button>
+          </div>
+
+          {/* Scrollable JSON Pre View */}
+          <div className="flex-1 overflow-auto p-4 md:p-6 bg-slate-950">
+            <pre className="p-4 md:p-6 bg-slate-900/90 text-sky-400 font-mono text-xs md:text-sm leading-relaxed rounded-2xl border border-slate-800/80 shadow-2xl whitespace-pre-wrap break-all select-all">
+              {exportData}
+            </pre>
+          </div>
+
+          {/* Fixed Bottom Action Bar */}
+          <div className="p-4 px-6 bg-slate-900/95 backdrop-blur border-t border-slate-800 flex items-center justify-center gap-4 shrink-0">
+            <button
+              onClick={handleNativeOrWebShare}
+              className="flex-1 max-w-xs py-3.5 px-6 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-lg shadow-emerald-900/30 flex items-center justify-center gap-2.5 transition-all"
+            >
+              <Share2 size={16} />
+              <span>Share</span>
+            </button>
+            <button
+              onClick={() => setShowJsonWebView(false)}
+              className="flex-1 max-w-xs py-3.5 px-6 bg-slate-700 hover:bg-slate-600 active:scale-95 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-lg flex items-center justify-center gap-2.5 transition-all"
+            >
+              <X size={16} />
+              <span>Close</span>
+            </button>
           </div>
         </div>
       )}
