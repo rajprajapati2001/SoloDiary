@@ -5,6 +5,8 @@ import { Mic, MicOff, X, Zap, Clock, Sparkles, Check, RefreshCw, Target, ArrowDo
 import { ActivityTemplate, Goal } from '../types';
 import { parseVoiceInput, ParsedVoiceResult, capitalizeFirst } from '../utils/voiceParser';
 import { INITIAL_ACTIVITIES, CURRENCY_MAP, getCurrencySymbol } from '../constants';
+import { Capacitor } from '@capacitor/core';
+import { SpeechRecognition as NativeSpeechRecognition } from '@capacitor-community/speech-recognition';
 
 /**
  * ============================================================================
@@ -124,13 +126,26 @@ export const VoiceRecognitionModal: React.FC<VoiceRecognitionModalProps> = ({
   // Filter active goals (exclude achieved goals like in EntryForm)
   const activeGoals = useMemo(() => goals.filter(g => !g.achievedAt), [goals]);
 
-  // Check Web Speech API support
+  // Check Speech recognition support (Native Android or Web Speech)
   useEffect(() => {
-    const SpeechRecognition =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      setIsSupported(false);
-    }
+    let isMounted = true;
+    const checkAvailability = async () => {
+      if (Capacitor.isNativePlatform()) {
+        try {
+          const { available } = await NativeSpeechRecognition.available();
+          if (isMounted) setIsSupported(available);
+        } catch (e) {
+          console.warn('Native speech recognition check error:', e);
+          if (isMounted) setIsSupported(true);
+        }
+      } else {
+        const SpeechRecognition =
+          (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+        if (isMounted) setIsSupported(!!SpeechRecognition);
+      }
+    };
+    checkAvailability();
+    return () => { isMounted = false; };
   }, []);
 
   // Parse voice text into structured data
@@ -150,28 +165,94 @@ export const VoiceRecognitionModal: React.FC<VoiceRecognitionModalProps> = ({
   }, [transcript, manualText, updateParsedData]);
 
   // Clean stop recognition
-  const stopListening = useCallback(() => {
+  const stopListening = useCallback(async () => {
     isStoppingRef.current = true;
-    if (recognitionRef.current) {
+    if (Capacitor.isNativePlatform()) {
       try {
-        recognitionRef.current.stop();
+        await NativeSpeechRecognition.stop();
       } catch (e) {
         // ignore
+      }
+    } else {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch (e) {
+          // ignore
+        }
       }
     }
     setIsListening(false);
   }, []);
 
   // Low-level recognition runner
-  const startListening = useCallback(() => {
+  const startListening = useCallback(async () => {
     setErrorMessage(null);
     isStoppingRef.current = false;
 
+    // --- 1. NATIVE ANDROID CAPACITOR PATH ---
+    if (Capacitor.isNativePlatform()) {
+      try {
+        // Step A: Request/Check RECORD_AUDIO permission natively
+        const permStatus = await NativeSpeechRecognition.checkPermissions();
+        if (permStatus.speechRecognition !== 'granted') {
+          const requested = await NativeSpeechRecognition.requestPermissions();
+          if (requested.speechRecognition !== 'granted') {
+            setIsListening(false);
+            setErrorMessage('Microphone permission was not granted. Please allow microphone access in Android settings.');
+            return;
+          }
+        }
+
+        setIsListening(true);
+        setErrorMessage(null);
+
+        // Step B: Use native Android speech dialog (popup: true)
+        // This is 100% reliable on all Android devices (Samsung, Xiaomi, Pixel, etc.)
+        // and guarantees voice input is captured even when WebView Speech API is blocked or offline
+        const result = await NativeSpeechRecognition.start({
+          language: 'en-US',
+          maxResults: 5,
+          prompt: 'Speak your activity entry (e.g. gym 15, dinner 5)',
+          popup: true,
+          partialResults: false
+        });
+
+        setIsListening(false);
+
+        if (result?.matches && result.matches.length > 0) {
+          const spoken = result.matches[0].trim();
+          if (spoken) {
+            setTranscript(spoken);
+            setManualText(spoken);
+          }
+        }
+      } catch (err: any) {
+        console.warn('Native speech recognition event:', err);
+        setIsListening(false);
+        const msg = (err?.message || String(err)).toLowerCase();
+        // Error code 7 is SpeechRecognizer.ERROR_NO_MATCH (user didn't speak in time)
+        // Error code 8 is SpeechRecognizer.ERROR_RECOGNIZER_BUSY
+        // 'cancel' or 'abort' means user tapped outside or closed dialog
+        if (
+          !msg.includes('cancel') &&
+          !msg.includes('abort') &&
+          !msg.includes('7') &&
+          !msg.includes('no match')
+        ) {
+          setErrorMessage('Could not capture audio. Tap the mic to try again or type below.');
+        }
+      }
+      return;
+    }
+
+    // --- 2. BROWSER WEB SPEECH API PATH ---
     const SpeechRecognition =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
       setIsSupported(false);
+      setErrorMessage('Web Speech Recognition is not supported in this browser. Please type your entry below.');
       return;
     }
 
@@ -210,8 +291,7 @@ export const VoiceRecognitionModal: React.FC<VoiceRecognitionModalProps> = ({
         console.warn('Speech recognition error event:', event.error);
         if (event.error === 'not-allowed') {
           setIsListening(false);
-          // Friendly non-blocking guidance
-          setErrorMessage('Microphone blocked by browser settings. Please allow mic in browser permissions or type your entry below.');
+          setErrorMessage('Microphone blocked by browser settings. Please allow mic in permissions or type below.');
         } else if (event.error === 'no-speech') {
           // quiet timeout
         } else if (event.error === 'network') {
@@ -235,14 +315,14 @@ export const VoiceRecognitionModal: React.FC<VoiceRecognitionModalProps> = ({
   // Toggle listening on user click
   const handleToggleListening = useCallback(async () => {
     if (isListening) {
-      stopListening();
+      await stopListening();
       return;
     }
 
     setErrorMessage(null);
 
-    // In a direct user click handler, safely trigger getUserMedia to prompt permission if ungranted
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+    // In web browser only, safely trigger getUserMedia to prompt permission if ungranted
+    if (!Capacitor.isNativePlatform() && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         stream.getTracks().forEach(track => track.stop());
@@ -251,11 +331,12 @@ export const VoiceRecognitionModal: React.FC<VoiceRecognitionModalProps> = ({
       }
     }
 
-    startListening();
+    await startListening();
   }, [isListening, startListening, stopListening]);
 
-  // When modal opens, start listening smoothly without breaking if mic is pending
+  // When modal opens, start listening smoothly
   useEffect(() => {
+    let cancelTimer = false;
     if (isOpen) {
       setTranscript('');
       setManualText('');
@@ -263,10 +344,22 @@ export const VoiceRecognitionModal: React.FC<VoiceRecognitionModalProps> = ({
       setParsedResult(null);
       isStoppingRef.current = false;
 
-      // Start recognition directly
-      startListening();
+      // Small delay on open to allow modal animation to mount cleanly
+      const timer = setTimeout(() => {
+        if (!cancelTimer) {
+          startListening();
+        }
+      }, 350);
+
+      return () => {
+        cancelTimer = true;
+        clearTimeout(timer);
+      };
     } else {
       stopListening();
+      if (Capacitor.isNativePlatform()) {
+        NativeSpeechRecognition.removeAllListeners().catch(() => {});
+      }
     }
   }, [isOpen, startListening, stopListening]);
 

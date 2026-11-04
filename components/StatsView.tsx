@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { ActivityEntry, Goal } from '../types';
 import { getCurrencySymbol, getAggregateCurrencyDisplay } from '../constants';
-import { Printer, FileChartColumn, FileText, TrendingUp, Award, ImageDown,  Banknote,FileCode2, BadgeCheck , EyeOff, NotebookText, ChartLine, Landmark, ExternalLink, CheckCircle2, Zap, Target, ClipboardList, Star, Clock, DatabaseBackup, Download, Upload, X, Copy, Share2, Eye, Layout, Mail, Globe, Calendar, Grid3x3, Search, ChartNetwork } from 'lucide-react';
+import { Printer, FileChartColumn, FileText, TrendingUp, Award, ImageDown,  Banknote,FileCode2, BadgeCheck , EyeOff, NotebookText, ChartLine, Landmark, ExternalLink, CheckCircle2, Zap, Target, ClipboardList, Star, Clock, DatabaseBackup, Download, Upload, X, Copy, Share2, Eye, Layout, Mail, Globe, Calendar, Grid3x3, Search, ChartNetwork, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import LineGraph from './LineGraph';
 import CalendarView from './CalendarView';
@@ -10,6 +10,7 @@ import HeatMap from './HeatMap';
 import MainLogo from "../assets/icons/solodiary_icon.ico";
 import AndroidIcon from "../assets/icons/android.png"
 import BGSDReport from "../assets/SoloDiaryReport-25kb.jpg"
+import solodiarySvgRaw from '../assets/solodiary_icon_256x256.svg?raw';
 // html2canvas and jsPDF are loaded dynamically when needed
 import { Browser } from '@capacitor/browser';
 import { Share } from '@capacitor/share';
@@ -17,6 +18,42 @@ import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { FileOpener } from '@capawesome-team/capacitor-file-opener';
 import { TodayProgressBar } from './TodayProgressBar';
+
+const cleanSolodiarySvg = solodiarySvgRaw
+  .replace(/<\?xml.*?\?>\s*/i, '')
+  .replace(/width="256"\s+height="256"/, 'width="100%" height="100%"')
+  .trim();
+const solodiarySvgDataUrl = `data:image/svg+xml;utf8,${encodeURIComponent(cleanSolodiarySvg)}`;
+
+const getUserInitials = (name: string): string => {
+  if (!name || !name.trim()) return 'U';
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 1) {
+    return parts[0].slice(0, 2).toUpperCase();
+  }
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+};
+
+const getAvatarColor = (name: string): string => {
+  const colors = [
+    '#2563eb', // blue
+    '#7c3aed', // purple
+    '#059669', // emerald
+    '#d97706', // amber
+    '#dc2626', // red
+    '#4f46e5', // indigo
+    '#0284c7', // sky
+    '#db2777', // pink
+    '#0d9488', // teal
+    '#475569', // slate
+  ];
+  let hash = 0;
+  for (let i = 0; i < (name || '').length; i++) {
+    hash = (hash << 5) - hash + name.charCodeAt(i);
+    hash |= 0;
+  }
+  return colors[Math.abs(hash) % colors.length];
+};
 
 interface StatsViewProps {
   userName: string;
@@ -45,6 +82,13 @@ const StatsView: React.FC<StatsViewProps> = ({ userName, entries, goals, onRefre
   const [copied, setCopied] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Export Portal Manifest Preview & Action States
+  const [isFullCodeVisible, setIsFullCodeVisible] = useState(false);
+  const [isLoadingFullCode, setIsLoadingFullCode] = useState(false);
+  const [hasScrolledPre, setHasScrolledPre] = useState(false);
+  const [exportLoadingButton, setExportLoadingButton] = useState<'download' | 'share' | 'gmail' | 'close' | null>(null);
+  const preContainerRef = useRef<HTMLDivElement>(null);
+
   const months = [
     { v: '01', l: 'January' }, { v: '02', l: 'February' }, { v: '03', l: 'March' },
     { v: '04', l: 'April' }, { v: '05', l: 'May' }, { v: '06', l: 'June' },
@@ -59,6 +103,45 @@ const StatsView: React.FC<StatsViewProps> = ({ userName, entries, goals, onRefre
   const yearsList = Array.from({ length: endYear - startYear + 1 }, (_, i) => startYear + i);
 
   const monthLabelText = months.find(m => m.v === selectedMonth)?.l || '';
+
+  const exportDataLines = useMemo(() => {
+    if (!exportData) return [];
+    return exportData.split('\n');
+  }, [exportData]);
+
+  const isLongExportData = exportDataLines.length > 30;
+
+  const displayedExportCode = useMemo(() => {
+    if (!exportData) return '';
+    if (isFullCodeVisible || !isLongExportData) {
+      return exportData;
+    }
+    return exportDataLines.slice(0, 30).join('\n') + '\n\n  // ... [Preview truncated: ' + (exportDataLines.length - 30) + ' more lines hidden. Scroll down & click "Show More" to load full code]';
+  }, [exportData, exportDataLines, isFullCodeVisible, isLongExportData]);
+
+  const handlePreScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (!isFullCodeVisible && isLongExportData) {
+      if (e.currentTarget.scrollTop > 8) {
+        setHasScrolledPre(true);
+      }
+    }
+  };
+
+  const handleShowMoreCode = () => {
+    setIsLoadingFullCode(true);
+    setTimeout(() => {
+      setIsFullCodeVisible(true);
+      setIsLoadingFullCode(false);
+    }, 500);
+  };
+
+  const handleShowLessCode = () => {
+    setIsFullCodeVisible(false);
+    setHasScrolledPre(false);
+    if (preContainerRef.current) {
+      preContainerRef.current.scrollTop = 0;
+    }
+  };
 
   const handleExport = async () => {
   try {
@@ -83,6 +166,10 @@ const StatsView: React.FC<StatsViewProps> = ({ userName, entries, goals, onRefre
     
     const jsonString = JSON.stringify(data, null, 2);
     setExportData(jsonString);
+    setIsFullCodeVisible(false);
+    setIsLoadingFullCode(false);
+    setHasScrolledPre(false);
+    setExportLoadingButton(null);
     setShowExportModal(true);
     setCopied(false);
     
@@ -656,6 +743,54 @@ const handleDownload = async () => {
     const fileName = `solodiary-export-${userName.replace(/\s+/g, '-').toLowerCase()}-${new Date().toISOString().split('T')[0]}.json`;
     const blob = new Blob([exportData], { type: 'application/json' });
     await universalDownload(blob, fileName, 'application/json');
+  };
+
+  const handleDownloadWithLoading = async () => {
+    if (exportLoadingButton) return;
+    setExportLoadingButton('download');
+    try {
+      await handleDownload();
+      await new Promise(resolve => setTimeout(resolve, 600));
+    } catch (err) {
+      console.error('Download failed:', err);
+    } finally {
+      setExportLoadingButton(null);
+    }
+  };
+
+  const handleShareWithLoading = async () => {
+    if (exportLoadingButton) return;
+    setExportLoadingButton('share');
+    try {
+      await handleShare();
+      await new Promise(resolve => setTimeout(resolve, 600));
+    } catch (err) {
+      console.error('Share failed:', err);
+    } finally {
+      setExportLoadingButton(null);
+    }
+  };
+
+  const handleGmailShareWithLoading = async () => {
+    if (exportLoadingButton) return;
+    setExportLoadingButton('gmail');
+    try {
+      await handleGmailShare();
+      await new Promise(resolve => setTimeout(resolve, 600));
+    } catch (err) {
+      console.error('Gmail share failed:', err);
+    } finally {
+      setExportLoadingButton(null);
+    }
+  };
+
+  const handleCloseWithLoading = () => {
+    if (exportLoadingButton) return;
+    setExportLoadingButton('close');
+    setTimeout(() => {
+      setShowExportModal(false);
+      setExportLoadingButton(null);
+    }, 350);
   };
 
 
@@ -1278,28 +1413,77 @@ const handleWebReport = async () => {
     <head>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <link rel="icon" type="image/x-icon" href="https://raw.githubusercontent.com/rajprajapati2001/SoloDiary/main/assets/icons/solodiary_icon_512x512.png">
+      <link rel="icon" type="image/svg+xml" href="${solodiarySvgDataUrl}">
       <title>SoloDiary Report</title>
       <script src="https://cdn.tailwindcss.com"></script>
       <style>
         ${styles}
         body { background-color: #f3f4f6; }
-        /* Force CalendarView dark bg in print & export */
-        .bg-slate-800\/80,
-        .bg-slate-800\/80 > div.bg-white {
-          background-color: rgba(30,41,59,0.8) !important;
-          color: white !important;
+        /* Force CalendarView dark styling in print & export (works completely offline) */
+        [class*="bg-slate-800"] {
+          background-color: #1e293b !important;
+          color: #ffffff !important;
+          border-color: #334155 !important;
         }
-        .bg-slate-800\/80 h3,
-        .bg-slate-800\/80 button,
-        .bg-slate-800\/80 span {
-          color: white !important;
+        [class*="bg-slate-800"] h3 {
+          color: #ffffff !important;
         }
-        .bg-slate-800\/80 .text-gray-400 { color: #94a3b8 !important; }
-        .bg-slate-800\/80 .text-gray-700,
-        .bg-slate-800\/80 .dark\:text-gray-300 { color: #cbd5e1 !important; }
-        .bg-slate-800\/80 .bg-blue-100 { background-color: rgba(30,58,138,0.4) !important; color: #93c5fd !important; }
-        .bg-slate-800\/80 .text-blue-600 { color: #93c5fd !important; }
+        [class*="bg-slate-800"] button {
+          color: #f1f5f9 !important;
+        }
+        [class*="bg-slate-800"] .grid {
+          display: grid !important;
+        }
+        [class*="bg-slate-800"] .grid-cols-7 {
+          display: grid !important;
+          grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
+          gap: 4px !important;
+        }
+        [class*="bg-slate-800"] .flex {
+          display: flex !important;
+        }
+        [class*="bg-slate-800"] .items-center {
+          align-items: center !important;
+        }
+        [class*="bg-slate-800"] .justify-between {
+          justify-content: space-between !important;
+        }
+        [class*="bg-slate-800"] .justify-center {
+          justify-content: center !important;
+        }
+        [class*="bg-slate-800"] .flex-col {
+          flex-direction: column !important;
+        }
+        [class*="bg-slate-800"] .text-center {
+          text-align: center !important;
+        }
+        [class*="bg-slate-800"] .text-slate-400,
+        [class*="bg-slate-800"] .text-gray-400 {
+          color: #94a3b8 !important;
+        }
+        [class*="bg-slate-800"] .text-slate-200,
+        [class*="bg-slate-800"] .text-gray-700,
+        [class*="bg-slate-800"] [class*="text-gray-300"] {
+          color: #e2e8f0 !important;
+        }
+        [class*="bg-slate-800"] [class*="bg-blue-900"],
+        [class*="bg-slate-800"] .bg-blue-100 {
+          background-color: rgba(30, 58, 138, 0.7) !important;
+          color: #93c5fd !important;
+        }
+        [class*="bg-slate-800"] [class*="bg-red-900"],
+        [class*="bg-slate-800"] .bg-red-100 {
+          background-color: rgba(127, 29, 29, 0.7) !important;
+          color: #fca5a5 !important;
+        }
+        [class*="bg-slate-800"] [class*="bg-blue-600"] {
+          background-color: #2563eb !important;
+          color: #ffffff !important;
+        }
+        [class*="bg-slate-800"] [class*="bg-emerald-500"] {
+          background-color: rgba(16, 185, 129, 0.6) !important;
+          color: #ffffff !important;
+        }
         * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         .matrix-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; margin-bottom: 30px; }
         .matrix-card { padding: 10px; border: 1px solid #e2e8f0; border-radius: 10px; background: white; cursor: pointer; transition: all 0.2s ease; }
@@ -1897,22 +2081,27 @@ const [showLabels, setShowLabels] = useState(true);
       {showExportModal && (
         <div className="flex justify-center items-center">
           <div className="bg-white dark:bg-slate-900 w-full max-w-3xl rounded-[2.5rem] shadow-2xl flex flex-col max-h-[85vh] border border-white/20 overflow-hidden">
-            <div className="md:p-8 p-2 pl-8 pr-8 border-b border-gray-100 dark:border-white/10 flex justify-between items-center bg-gray-50/50 dark:bg-slate-800/50">
+            <div className="md:p-8 p-4 pl-6 pr-6 border-b border-gray-100 dark:border-white/10 flex justify-between items-center bg-gray-50/50 dark:bg-slate-800/50 shrink-0">
               <div>
                 <h2 className="text-2xl font-black uppercase tracking-tighter text-gray-900 dark:text-white">Export Portal</h2>
                 <p className="text-[10px] font-bold opacity-50 uppercase tracking-[0.2em] text-gray-500 dark:text-slate-400">Multi-Channel Data Sharing</p>
               </div>
-              <button onClick={() => setShowExportModal(false)} className="p-3 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-all">
+              <button 
+                onClick={() => setShowExportModal(false)} 
+                className="p-3 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-all"
+                title="Close"
+              >
                 <X size={28} className="text-gray-900 dark:text-white" />
               </button>
             </div>
             
-            <div className="md:p-8 overflow-y-auto bg-gray-100 dark:bg-black/40 font-mono text-[11px] dark:text-emerald-400 scrollbar-thin scrollbar-thumb-gray-400 overflow-auto 
-            [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-              <div className="pl-3 pr-3 p-2 md:pl-0 md:pr-0 md:p-0 flex justify-between items-center ">
+            <div className="md:p-6 p-4 overflow-y-auto bg-gray-100 dark:bg-black/40 font-mono text-[11px] dark:text-emerald-400 flex flex-col flex-1 min-h-0">
+              <div className="flex justify-between items-center pb-3 shrink-0">
                  <div className="flex items-center gap-2">
                    <Eye size={14} className="opacity-60" />
-                   <span className="text-[10px] font-black uppercase opacity-60 tracking-widest">Manifest Preview</span>
+                   <span className="text-[10px] font-black uppercase opacity-60 tracking-widest">
+                     Manifest Preview {isLongExportData ? `(${isFullCodeVisible ? `${exportDataLines.length} lines` : 'Preview'})` : ''}
+                   </span>
                  </div>
                  <div className="flex gap-2">
                    <button onClick={handleWebView} className="flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase bg-slate-200 dark:bg-slate-700 dark:text-white hover:opacity-80 transition-all">
@@ -1920,25 +2109,147 @@ const [showLabels, setShowLabels] = useState(true);
                    </button>
                    <button onClick={handleCopy} className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase transition-all ${copied ? 'bg-emerald-500 text-white' : 'bg-gray-200 dark:bg-slate-700 dark:text-white hover:bg-gray-300 dark:hover:bg-slate-600'}`}>
                       {copied ? <CheckCircle2 size={12}/> : <Copy size={12} />}
-                      {copied ? '' : <span className="hidden md:inline">Copy</span>}
+                      {copied ? 'Copied!' : <span className="hidden md:inline">Copy</span>}
                    </button>
                  </div>
               </div>
-              <pre className="whitespace-pre-wrap leading-relaxed select-all md:p-4 p-2 bg-white/5 md:rounded-xl border border-black/5 dark:border-white/5">{exportData}</pre>
+
+              {/* Scrollable Code Box */}
+              <div className="relative flex flex-col flex-1 min-h-0">
+                <div
+                  ref={preContainerRef}
+                  onScroll={handlePreScroll}
+                  className={`overflow-y-auto bg-white/50 dark:bg-slate-950/80 rounded-xl border border-black/5 dark:border-white/10 p-3 md:p-4 transition-all duration-300 relative ${
+                    isFullCodeVisible ? 'max-h-[380px] md:max-h-[440px]' : 'max-h-[220px] md:max-h-[260px]'
+                  }`}
+                >
+                  <pre className="whitespace-pre-wrap leading-relaxed select-all text-slate-800 dark:text-emerald-400 font-mono text-[11px] break-all">
+                    {displayedExportCode}
+                  </pre>
+
+                  {/* Loading spinner when expanding */}
+                  {isLoadingFullCode && (
+                    <div className="my-4 p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-center justify-center gap-3 text-emerald-600 dark:text-emerald-400 animate-pulse">
+                      <Loader2 size={18} className="animate-spin text-emerald-500" />
+                      <span className="text-xs font-black uppercase tracking-wider">
+                        Loading remaining {exportDataLines.length - 30} database records...
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Sticky Show More Button that appears after scrolling a little on */}
+                  {!isFullCodeVisible && isLongExportData && !isLoadingFullCode && hasScrolledPre && (
+                    <div className="sticky bottom-0 left-0 right-0 pt-6 pb-1 bg-gradient-to-t from-gray-200 dark:from-slate-950 via-gray-200/90 dark:via-slate-950/90 to-transparent flex flex-col items-center justify-center animate-in fade-in duration-200">
+                      <button
+                        type="button"
+                        onClick={handleShowMoreCode}
+                        className="group flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-full text-xs font-black uppercase tracking-wider shadow-lg shadow-emerald-900/30 active:scale-95 transition-all cursor-pointer border border-emerald-400/30"
+                      >
+                        <ChevronDown size={15} className="group-hover:translate-y-0.5 transition-transform" />
+                        <span>Show More ({exportDataLines.length - 30} remaining lines)</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Initial helper text if not yet scrolled */}
+                {!isFullCodeVisible && isLongExportData && !hasScrolledPre && (
+                  <div className="text-center mt-2">
+                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest bg-slate-200/60 dark:bg-slate-800/60 px-3 py-1 rounded-full">
+                      ↓ Scroll code to reveal Show More
+                    </span>
+                  </div>
+                )}
+
+                {/* Full code info & collapse toggle */}
+                {isFullCodeVisible && isLongExportData && (
+                  <div className="flex justify-between items-center px-1 pt-2 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 shrink-0">
+                    <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                      <CheckCircle2 size={12} /> All {exportDataLines.length} lines loaded
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleShowLessCode}
+                      className="hover:text-slate-900 dark:hover:text-white flex items-center gap-1 transition-colors cursor-pointer"
+                    >
+                      <ChevronUp size={13} /> Show Less
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
             
-            <div className="md:p-8 p-5 border-t border-gray-100 dark:border-white/10 grid grid-cols-2 md:grid-cols-4 gap-3 bg-gray-50/50 dark:bg-slate-800/50">
-              <button onClick={handleDownload} className="px-6 py-4 bg-blue-600 text-white font-black rounded-2xl shadow-xl flex items-center justify-center gap-3 uppercase tracking-widest text-[11px] hover:scale-105 active:scale-95 transition-all">
-                <Download size={20} /> JSON
+            <div className="md:p-8 p-5 border-t border-gray-100 dark:border-white/10 grid grid-cols-2 md:grid-cols-4 gap-3 bg-gray-50/50 dark:bg-slate-800/50 shrink-0">
+              <button 
+                onClick={handleDownloadWithLoading} 
+                disabled={!!exportLoadingButton}
+                className="px-6 py-4 bg-blue-600 text-white font-black rounded-2xl shadow-xl flex items-center justify-center gap-3 uppercase tracking-widest text-[11px] hover:scale-105 active:scale-95 transition-all disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
+              >
+                {exportLoadingButton === 'download' ? (
+                  <>
+                    <Loader2 size={20} className="animate-spin text-white" />
+                    <span>Loading...</span>
+                  </>
+                ) : (
+                  <>
+                    <Download size={20} />
+                    <span>JSON</span>
+                  </>
+                )}
               </button>
-              <button onClick={handleShare} className="px-6 py-4 bg-emerald-600 text-white font-black rounded-2xl shadow-xl flex items-center justify-center gap-3 uppercase tracking-widest text-[11px] hover:scale-105 active:scale-95 transition-all">
-                <Share2 size={20} /> Share
+
+              <button 
+                onClick={handleShareWithLoading} 
+                disabled={!!exportLoadingButton}
+                className="px-6 py-4 bg-emerald-600 text-white font-black rounded-2xl shadow-xl flex items-center justify-center gap-3 uppercase tracking-widest text-[11px] hover:scale-105 active:scale-95 transition-all disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
+              >
+                {exportLoadingButton === 'share' ? (
+                  <>
+                    <Loader2 size={20} className="animate-spin text-white" />
+                    <span>Loading...</span>
+                  </>
+                ) : (
+                  <>
+                    <Share2 size={20} />
+                    <span>Share</span>
+                  </>
+                )}
               </button>
-              <button onClick={handleGmailShare} className="px-6 py-4 bg-red-600 text-white font-black rounded-2xl shadow-xl flex items-center justify-center gap-3 uppercase tracking-widest text-[11px] hover:scale-105 active:scale-95 transition-all">
-                <Mail size={20} /> Gmail
+
+              <button 
+                onClick={handleGmailShareWithLoading} 
+                disabled={!!exportLoadingButton}
+                className="px-6 py-4 bg-red-600 text-white font-black rounded-2xl shadow-xl flex items-center justify-center gap-3 uppercase tracking-widest text-[11px] hover:scale-105 active:scale-95 transition-all disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
+              >
+                {exportLoadingButton === 'gmail' ? (
+                  <>
+                    <Loader2 size={20} className="animate-spin text-white" />
+                    <span>Loading...</span>
+                  </>
+                ) : (
+                  <>
+                    <Mail size={20} />
+                    <span>Gmail</span>
+                  </>
+                )}
               </button>
-              <button onClick={() => setShowExportModal(false)} className="px-6 py-4 bg-gray-400 dark:bg-slate-700 text-white font-black rounded-2xl shadow-xl flex items-center justify-center gap-3 uppercase tracking-widest text-[11px] hover:opacity-80 transition-all">
-                Close
+
+              <button 
+                onClick={handleCloseWithLoading} 
+                disabled={!!exportLoadingButton}
+                className="px-6 py-4 bg-gray-400 dark:bg-slate-700 text-white font-black rounded-2xl shadow-xl flex items-center justify-center gap-3 uppercase tracking-widest text-[11px] hover:opacity-80 active:scale-95 transition-all disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
+              >
+                {exportLoadingButton === 'close' ? (
+                  <>
+                    <Loader2 size={20} className="animate-spin text-white" />
+                    <span>Closing...</span>
+                  </>
+                ) : (
+                  <>
+                    <X size={20} />
+                    <span>Close</span>
+                  </>
+                )}
               </button>
             </div>
           </div>
@@ -2138,13 +2449,29 @@ const [showLabels, setShowLabels] = useState(true);
         <div className="flex justify-between items-start border-b-[3px] border-slate-950 pb-4 mb-6">
           <div className="flex items-center gap-2 p-2 bg-white rounded-lg shadow-sm border border-slate-200">
             <div className="w-12 h-12 bg-slate-950 flex items-center justify-center rounded-full shadow-lg border-2 border-slate-200 overflow-hidden">
-  <img
-    src={`https://api.dicebear.com/7.x/initials/svg?seed=${userName}`}
-    alt="Logo"
-    crossOrigin="anonymous" 
-    className="w-full h-full object-cover"
-  />
-</div>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 100 100"
+                width="100%"
+                height="100%"
+                className="w-full h-full object-cover"
+              >
+                <rect width="100" height="100" fill={getAvatarColor(userName)} />
+                <text
+                  x="50%"
+                  y="50%"
+                  fontFamily="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
+                  fontSize="44"
+                  fontWeight="500"
+                  fill="#ffffff"
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                  letterSpacing="1"
+                >
+                  {getUserInitials(userName)}
+                </text>
+              </svg>
+            </div>
 
             <div className="text-left space-y-0.5">
               <p className="text-[8px]  font-semibold uppercase tracking-[0.1em] text-slate-900">
@@ -2170,14 +2497,10 @@ const [showLabels, setShowLabels] = useState(true);
               <p className="text-[7px]  font-semibold text-slate-400 uppercase tracking-[0.2em]">Where your stories stay yours</p>
             </div>
             {/* Round Logo */}
-<div className="w-[55px] h-[55px] bg-slate-950 flex items-center justify-center rounded-full shadow-lg border-2 border-slate-200 overflow-hidden">
-  <img 
-    src="https://raw.githubusercontent.com/rajprajapati2001/SoloDiary/main/assets/icons/solodiary_icon_512x512.png" 
-    alt="Logo" 
-    crossOrigin="anonymous"
-    className="w-full h-full object-cover bg-cover bg-center" 
-  />
-</div>
+            <div 
+              className="w-[55px] h-[55px] bg-slate-950 flex items-center justify-center rounded-full shadow-lg border-2 border-slate-200 overflow-hidden [&>svg]:w-full [&>svg]:h-full [&>svg]:object-cover"
+              dangerouslySetInnerHTML={{ __html: cleanSolodiarySvg }}
+            />
           </div>
         </div>
 
@@ -2214,7 +2537,7 @@ const [showLabels, setShowLabels] = useState(true);
 
         {/* Data Matrix Module */}
         <div className="grid grid-cols-2 lg:grid-cols-2 gap-6 mb-8 items-start print-section">
-          <div className="bg-slate-800/80 rounded-2xl border border-slate-100 overflow-hidden" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+          <div className="bg-slate-800/80 rounded-2xl border border-slate-700/60 overflow-hidden" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
              <CalendarView 
                 key={`${selectedYear}-${selectedMonth}`}
                 entries={entries} 
@@ -2227,6 +2550,7 @@ const [showLabels, setShowLabels] = useState(true);
                   setSelectedDate(`${y}-${m}-01`);
               }}
                 disableActiveHighlight={true}
+                theme="dark"
              />
           </div>
           <div className="space-y-3 flex flex-col h-full">
@@ -3034,7 +3358,7 @@ return (
             level="M" 
             includeMargin={false}
             imageSettings={{
-              src: "https://raw.githubusercontent.com/rajprajapati2001/SoloDiary/refs/heads/main/assets/icons/solodiary_icon.ico",
+              src: solodiarySvgDataUrl,
               height: 15,
               width: 15,
               excavate: true,
@@ -3111,21 +3435,37 @@ return (
           tr { page-break-inside: avoid !important; break-inside: avoid !important; }
           table { width: 100% !important; border-collapse: collapse !important; }
 
-          /* Keep CalendarView dark bg when printing */
-          #printable-report .bg-slate-800\\/80,
-          #printable-report .bg-slate-800\\/80 > .bg-white {
-            background-color: rgba(30,41,59,0.8) !important;
-            color: white !important;
+          /* Keep CalendarView dark styling when printing */
+          #printable-report [class*="bg-slate-800"] {
+            background-color: #1e293b !important;
+            color: #ffffff !important;
+            border-color: #334155 !important;
           }
-          #printable-report .bg-slate-800\\/80 h3,
-          #printable-report .bg-slate-800\\/80 button,
-          #printable-report .bg-slate-800\\/80 span {
-            color: white !important;
+          #printable-report [class*="bg-slate-800"] h3 {
+            color: #ffffff !important;
           }
-          #printable-report .bg-slate-800\\/80 .text-gray-400 { color: #94a3b8 !important; }
-          #printable-report .bg-slate-800\\/80 .text-gray-700 { color: #cbd5e1 !important; }
-          #printable-report .bg-slate-800\\/80 .bg-blue-100 { background-color: rgba(30,58,138,0.4) !important; color: #93c5fd !important; }
-          #printable-report .bg-slate-800\\/80 .text-blue-600 { color: #93c5fd !important; }
+          #printable-report [class*="bg-slate-800"] button,
+          #printable-report [class*="bg-slate-800"] span {
+            color: #ffffff !important;
+          }
+          #printable-report [class*="bg-slate-800"] .text-slate-400,
+          #printable-report [class*="bg-slate-800"] .text-gray-400 {
+            color: #94a3b8 !important;
+          }
+          #printable-report [class*="bg-slate-800"] .text-slate-200,
+          #printable-report [class*="bg-slate-800"] .text-gray-700 {
+            color: #cbd5e1 !important;
+          }
+          #printable-report [class*="bg-slate-800"] [class*="bg-blue-900"],
+          #printable-report [class*="bg-slate-800"] .bg-blue-100 {
+            background-color: rgba(30, 58, 138, 0.7) !important;
+            color: #93c5fd !important;
+          }
+          #printable-report [class*="bg-slate-800"] [class*="bg-red-900"],
+          #printable-report [class*="bg-slate-800"] .bg-red-100 {
+            background-color: rgba(127, 29, 29, 0.7) !important;
+            color: #fca5a5 !important;
+          }
         }
           .matrix-card.active {
   border: 2px solid #2563eb !important;

@@ -9,9 +9,19 @@ interface CalendarViewProps {
   onSelectDate: (date: string) => void;
   onMonthChange?: (month: string, year: string) => void;
   disableActiveHighlight?: boolean;
+  theme?: 'auto' | 'dark' | 'light';
 }
 
-const CalendarView: React.FC<CalendarViewProps> = ({ entries, goals, selectedDate, onSelectDate, onMonthChange, disableActiveHighlight = false, }) => {
+const CalendarView: React.FC<CalendarViewProps> = ({ 
+  entries, 
+  goals, 
+  selectedDate, 
+  onSelectDate, 
+  onMonthChange, 
+  disableActiveHighlight = false, 
+  theme = 'auto' 
+}) => {
+  const isDarkTheme = theme === 'dark';
   const [currentMonth, setCurrentMonth] = useState(() => {
     if (selectedDate) return new Date(selectedDate);
     return new Date();
@@ -52,17 +62,21 @@ const CalendarView: React.FC<CalendarViewProps> = ({ entries, goals, selectedDat
   };
 
   return (
-    <div className="bg-white dark:bg-slate-800/80 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-6">
+    <div className={`rounded-2xl shadow-sm p-6 ${
+      isDarkTheme 
+        ? "bg-slate-800/80 border border-slate-700/80 text-white" 
+        : "bg-white dark:bg-slate-800/80 border border-gray-100 dark:border-slate-700"
+    }`}>
       <div className="flex items-center justify-between mb-6">
         <Calendar className="text-blue-500" size={30} />
-        <h3 className="text-lg font-bold text-gray-800 dark:text-white">
+        <h3 className={`text-lg font-bold ${isDarkTheme ? "text-white" : "text-gray-800 dark:text-white"}`}>
           {currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}
         </h3>
-        <div className="flex gap-2 dark:text-white text-black">
-          <button onClick={handlePrev} className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg">
+        <div className={`flex gap-2 ${isDarkTheme ? "text-white" : "dark:text-white text-black"}`}>
+          <button onClick={handlePrev} className={`p-2 rounded-lg ${isDarkTheme ? "hover:bg-slate-700" : "hover:bg-gray-100 dark:hover:bg-slate-700"}`}>
             <ChevronLeft size={20} />
           </button>
-          <button onClick={handleNext} className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg">
+          <button onClick={handleNext} className={`p-2 rounded-lg ${isDarkTheme ? "hover:bg-slate-700" : "hover:bg-gray-100 dark:hover:bg-slate-700"}`}>
             <ChevronRight size={20} />
           </button>
         </div>
@@ -70,7 +84,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ entries, goals, selectedDat
 
       <div className="grid grid-cols-7 gap-1">
         {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(d => (
-          <div key={d} className="text-center text-[10px] font-bold text-gray-400 uppercase py-2">{d}</div>
+          <div key={d} className={`text-center text-[10px] font-bold uppercase py-2 ${isDarkTheme ? "text-slate-400" : "text-gray-400"}`}>{d}</div>
         ))}
         {Array.from({ length: firstDayOfMonth }).map((_, i) => <div key={`e-${i}`} />)}
         {Array.from({ length: daysInMonth }).map((_, i) => {
@@ -85,9 +99,13 @@ const CalendarView: React.FC<CalendarViewProps> = ({ entries, goals, selectedDat
           if (isActive || hasAchievedGoal) {
             badgeClass = 'bg-white/20 text-white';
           } else if (points < 0) {
-            badgeClass = 'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-300';
+            badgeClass = isDarkTheme 
+              ? 'bg-red-900/50 text-red-300' 
+              : 'bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-300';
           } else {
-            badgeClass = 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-300';
+            badgeClass = isDarkTheme 
+              ? 'bg-blue-900/50 text-blue-300' 
+              : 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-300';
           }
 
           return (
@@ -100,7 +118,9 @@ const CalendarView: React.FC<CalendarViewProps> = ({ entries, goals, selectedDat
                   ? 'bg-blue-600 text-white shadow-lg' 
                   : hasAchievedGoal 
                     ? 'bg-emerald-500/50 text-white' 
-                    : 'hover:bg-gray-50 dark:hover:bg-slate-700 text-gray-700 dark:text-gray-300'
+                    : isDarkTheme
+                      ? 'hover:bg-slate-700/60 text-slate-200'
+                      : 'hover:bg-gray-50 dark:hover:bg-slate-700 text-gray-700 dark:text-gray-300'
               }`}
             >
               <span className="text-sm font-bold">{day}</span>

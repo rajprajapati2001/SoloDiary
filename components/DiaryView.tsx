@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { ActivityEntry, Goal } from '../types';
 import { getCurrencySymbol, getAggregateCurrencyDisplay } from '../constants';
-import { Trash2, Edit2, BookText, ClockFadingIcon, CalendarRange, Clock, Paperclip, Calendar, Star, Banknote, NotebookPen, Search, ArrowUpDown, FileText, FileX, ArrowDownRight, ArrowUpRight, Zap, Trophy, Layers, TrendingUp, Coins, Captions, CaptionsOff } from 'lucide-react';
+import { Trash2, Edit2, BookText, CalendarRange, Clock, Paperclip, Calendar, Star, Banknote, NotebookPen, Search, ArrowUpDown, FileText, FileX, ArrowDownRight, ArrowUpRight, Zap, Trophy, Layers, TrendingUp, Coins, Captions, CaptionsOff } from 'lucide-react';
 import TimeProgressBar from './TimeProgressBar'; 
 
 interface DiaryViewProps {
@@ -433,7 +433,7 @@ const DiaryView: React.FC<DiaryViewProps> = ({ entries, goals, onEdit, onDelete 
             }`}
             title={showProgressBar ? "Time Progressbar On" : "Time Progressbar Off"}
           >
-            <ClockFadingIcon size={16} className={showProgressBar ? "text-white" : "text-blue-500"} />
+            <Clock size={16} className={showProgressBar ? "text-white" : "text-blue-500"} />
             <span className="hidden md:inline">
               {showProgressBar ? 'Progressbar On' : 'Progressbar Off'}
             </span>
