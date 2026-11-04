@@ -18,7 +18,9 @@ export interface AssistantRecordInput {
 }
 
 interface AssistantActionsPlugin {
+  checkLaunchIntent(): Promise<{ openForm?: boolean }>;
   addListener(eventName: 'addRecord', listener: (record: AssistantRecordInput) => void): Promise<{ remove: () => Promise<void> }>;
+  addListener(eventName: 'openAddEntry', listener: (data: { openForm?: boolean }) => void): Promise<{ remove: () => Promise<void> }>;
 }
 
 export const AssistantActions = registerPlugin<AssistantActionsPlugin>('AssistantActions');

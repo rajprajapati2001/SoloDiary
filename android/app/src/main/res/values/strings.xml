@@ -4,4 +4,7 @@
     <string name="title_activity_main">SoloDiary</string>
     <string name="package_name">raj.solodiary.reactjs</string>
     <string name="custom_url_scheme">raj.solodiary.reactjs</string>
+    <string name="widget_add_entry_name">Add Entry</string>
+    <string name="widget_add_entry_label">Add Entry</string>
+    <string name="widget_add_entry_description">Quick 1x1 floating button to add a new diary entry</string>
 </resources>

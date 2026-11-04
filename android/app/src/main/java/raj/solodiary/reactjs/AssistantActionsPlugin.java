@@ -10,12 +10,51 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 
 @CapacitorPlugin(name = "AssistantActions")
 public class AssistantActionsPlugin extends Plugin {
+
+    @PluginMethod
+    public void checkLaunchIntent(PluginCall call) {
+        Intent intent = getActivity() != null ? getActivity().getIntent() : null;
+        JSObject ret = new JSObject();
+        boolean shouldOpen = isAddEntryIntent(intent);
+        ret.put("openForm", shouldOpen);
+
+        if (shouldOpen && intent != null) {
+            intent.removeExtra("open_form");
+            intent.removeExtra("action");
+            if ("raj.solodiary.action.OPEN_ADD_ENTRY".equals(intent.getAction())) {
+                intent.setAction(null);
+            }
+        }
+        call.resolve(ret);
+    }
+
     @Override
     protected void handleOnNewIntent(Intent intent) {
+        if (isAddEntryIntent(intent)) {
+            JSObject data = new JSObject();
+            data.put("openForm", true);
+            notifyListeners("openAddEntry", data, true);
+            return;
+        }
+
         JSObject record = recordFromIntent(intent);
         if (record == null) return;
 
         notifyListeners("addRecord", record, true);
+    }
+
+    private boolean isAddEntryIntent(Intent intent) {
+        if (intent == null) return false;
+        if ("raj.solodiary.action.OPEN_ADD_ENTRY".equals(intent.getAction())) {
+            return true;
+        }
+        if (intent.getBooleanExtra("open_form", false)) {
+            return true;
+        }
+        if ("add_entry".equals(intent.getStringExtra("action"))) {
+            return true;
+        }
+        return false;
     }
 
     private JSObject recordFromIntent(Intent intent) {

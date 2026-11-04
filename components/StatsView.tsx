@@ -2100,7 +2100,7 @@ const [showLabels, setShowLabels] = useState(true);
                  <div className="flex items-center gap-2">
                    <Eye size={14} className="opacity-60" />
                    <span className="text-[10px] font-black uppercase opacity-60 tracking-widest">
-                     Manifest Preview {isLongExportData ? `(${isFullCodeVisible ? `${exportDataLines.length} lines` : 'Preview'})` : ''}
+                     Manifest Preview 
                    </span>
                  </div>
                  <div className="flex gap-2">

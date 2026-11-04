@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { Plus, Home, List, Target, BarChart3, Sun, Moon, BookText, Loader2, User, CalendarSync, Mic } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
 const Dashboard = lazy(() => import('./components/Dashboard'));
 import EntryForm from './components/EntryForm';
 import VoiceRecognitionModal from './components/VoiceRecognitionModal';
@@ -12,11 +12,10 @@ const AutoFill = lazy(() => import('./components/AutoFill'));
 const StatsView = lazy(() => import('./components/StatsView'));
 const Footer = lazy(() => import('./components/Footer'));
 const NoInternet = lazy(() => import('./components/NoInternet'));
-import { ActivityEntry, Goal, ActivityTemplate, Page, AutoTemplate } from './types';
+import { ActivityEntry, Goal, ActivityTemplate, Page } from './types';
 import { getDB } from './db';
 import { INITIAL_ACTIVITIES } from './constants';
 import { AssistantActions, AssistantRecordInput } from './assistantActions';
-import { Capacitor } from '@capacitor/core';
 import UserIcon from './assets/icons/user.png';
 import MainLogo from "./assets/icons/solodiary_icon.ico";
 
@@ -28,7 +27,7 @@ const PageLoader = () => (
 
 const PAGE_ORDER: Page[] = ['home', 'activities', 'goals', 'diary', 'auto', 'chart'];
 
-const NAV_ITEMS: Array<{ id: Page; icon: any; label: string }>  = [
+const NAV_ITEMS: Array<{ id: Page; icon: any; label: string }> = [
   { id: 'home', icon: Home, label: 'Home' },
   { id: 'activities', icon: List, label: 'Activities' },
   { id: 'goals', icon: Target, label: 'Goals' },
@@ -82,8 +81,7 @@ const getIconGlow = (id: Page, isDarkMode: boolean) => {
   }
 };
 
-const NavItem = ({ icon: Icon, label, id, isActive, isDarkMode, onNavigate }: { icon: any, label: string, id: Page, isActive: boolean, isDarkMode: boolean, onNavigate: (id: Page) => void }) => {
-
+const NavItem: React.FC<{ icon: any; label: string; id: Page; isActive: boolean; isDarkMode: boolean; onNavigate: (id: Page) => void }> = ({ icon: Icon, label, id, isActive, isDarkMode, onNavigate }) => {
   return (
     <button
       onClick={() => onNavigate(id)}
@@ -374,7 +372,7 @@ const App: React.FC = () => {
     } else {
       newEntries = [entry, ...entries];
     }
-    
+
     // Sort safely descending
     newEntries.sort((a, b) => {
       const dateA = a.toDate || a.fromDate || '';
@@ -390,13 +388,13 @@ const App: React.FC = () => {
     setEditingEntry(null);
     await fetchData();
   };
-  
+
   const handleAddEntries = async (newEntries: ActivityEntry[]) => {
     const db = await getDB();
     const tx = db.transaction('entries', 'readwrite');
     await Promise.all(newEntries.map(e => tx.store.put(e)));
     await tx.done;
-    
+
     const updatedEntries = [...newEntries, ...entries].sort((a, b) => {
       const dateA = a.toDate || a.fromDate || '';
       const dateB = b.toDate || b.fromDate || '';
@@ -453,22 +451,53 @@ const App: React.FC = () => {
 
   useEffect(() => {
     let disposed = false;
-    let listener: { remove: () => Promise<void> } | undefined;
-    const consume = async () => {
-      if (!disposed && Capacitor.isNativePlatform()) {
-        try {
-          listener = await AssistantActions.addListener('addRecord', handleAssistantRecord);
-        } catch (e) {
-          console.warn('AssistantActions not available:', e);
+    let recordListener: { remove: () => Promise<void> } | undefined;
+    let addEntryListener: { remove: () => Promise<void> } | undefined;
+
+    const setupAssistantAndWidgetListeners = async () => {
+      // Also check URL parameter for browser / PWA fallback
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('action') === 'add_entry') {
+          openEntryForm(null);
+          setCurrentPage('home');
+          window.history.replaceState({}, '', window.location.pathname + window.location.hash);
         }
+      } catch (e) {
+        // ignore
+      }
+
+      try {
+        // 1. Check if launched cold from Android 1x1 Widget
+        const launch = await AssistantActions.checkLaunchIntent();
+        if (!disposed && launch?.openForm) {
+          openEntryForm(null);
+          setCurrentPage('home');
+        }
+
+        // 2. Listen if app is already running and brought to front from Android Widget
+        addEntryListener = await AssistantActions.addListener('openAddEntry', (data) => {
+          if (!disposed && data?.openForm) {
+            openEntryForm(null);
+            setCurrentPage('home');
+          }
+        });
+
+        // 3. Listen for Assistant addRecord
+        recordListener = await AssistantActions.addListener('addRecord', handleAssistantRecord);
+      } catch (err) {
+        console.warn('Widget / Assistant listener error:', err);
       }
     };
-    consume();
+
+    setupAssistantAndWidgetListeners();
+
     return () => {
       disposed = true;
-      listener?.remove();
+      recordListener?.remove();
+      addEntryListener?.remove();
     };
-  }, [handleAssistantRecord]);
+  }, [handleAssistantRecord, openEntryForm]);
 
   const handleDeleteEntry = async (id: string) => {
     if (!window.confirm('Are you sure you want to delete this record?')) return;
@@ -498,11 +527,11 @@ const App: React.FC = () => {
       const targetCode = goalToDelete.code;
       const allEntries = await db.getAll('entries');
       const entriesToDelete = allEntries.filter((e: any) => e.code === targetCode);
-      
+
       for (const entry of entriesToDelete) {
         await db.delete('entries', entry.id);
       }
-      
+
       const remainingEntries = entries.filter(e => e.code !== targetCode);
       setEntries(remainingEntries);
       syncGoalsWithEntries(remainingEntries);
@@ -748,8 +777,8 @@ const App: React.FC = () => {
           />
         )}
         {currentPage === 'auto' && (
-          <AutoFill 
-            onAddEntries={handleAddEntries} 
+          <AutoFill
+            onAddEntries={handleAddEntries}
             templates={templates}
             goals={goals}
             entries={entries}
@@ -771,7 +800,7 @@ const App: React.FC = () => {
       {!isStatsFullscreen && <Footer isFull={currentPage === 'home' || currentPage === 'chart'} />}
 
       {/* Floating Action Buttons Container: Mic and Plus together on Bottom-Right */}
-      <motion.div 
+      <motion.div
         layout={isMobile}
         className={`fixed bottom-4 right-4 flex items-center z-40 no-print transition-all duration-300 ${
           shouldShrinkOnScroll ? 'gap-2' : 'gap-2.5 sm:gap-3'
@@ -794,9 +823,9 @@ const App: React.FC = () => {
           title="Voice to Fill Entry"
           aria-label="Voice to Fill Entry"
         >
-          <Mic 
-            size={shouldShrinkOnScroll ? 16 : 24} 
-            className={`drop-shadow-md transition-all duration-300 ${!shouldShrinkOnScroll ? '' : ''}`} 
+          <Mic
+            size={shouldShrinkOnScroll ? 16 : 24}
+            className="drop-shadow-md transition-all duration-300"
           />
         </motion.button>
 
@@ -815,10 +844,10 @@ const App: React.FC = () => {
           title="Add Entry"
           aria-label="Add Entry"
         >
-          <Plus 
-            size={shouldShrinkOnScroll ? 18 : 30} 
-            strokeWidth={shouldShrinkOnScroll ? 2.5 : 3} 
-            className="drop-shadow-md transition-all duration-300" 
+          <Plus
+            size={shouldShrinkOnScroll ? 18 : 30}
+            strokeWidth={shouldShrinkOnScroll ? 2.5 : 3}
+            className="drop-shadow-md transition-all duration-300"
           />
         </motion.button>
       </motion.div>
