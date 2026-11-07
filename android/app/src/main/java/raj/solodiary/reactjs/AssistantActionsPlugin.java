@@ -15,13 +15,22 @@ public class AssistantActionsPlugin extends Plugin {
     public void checkLaunchIntent(PluginCall call) {
         Intent intent = getActivity() != null ? getActivity().getIntent() : null;
         JSObject ret = new JSObject();
-        boolean shouldOpen = isAddEntryIntent(intent);
-        ret.put("openForm", shouldOpen);
+        boolean shouldOpenForm = isAddEntryIntent(intent);
+        boolean shouldOpenVoice = isVoiceFillIntent(intent);
+        ret.put("openForm", shouldOpenForm);
+        ret.put("openVoice", shouldOpenVoice);
 
-        if (shouldOpen && intent != null) {
+        if (shouldOpenForm && intent != null) {
             intent.removeExtra("open_form");
             intent.removeExtra("action");
             if ("raj.solodiary.action.OPEN_ADD_ENTRY".equals(intent.getAction())) {
+                intent.setAction(null);
+            }
+        }
+        if (shouldOpenVoice && intent != null) {
+            intent.removeExtra("open_voice");
+            intent.removeExtra("action");
+            if ("raj.solodiary.action.OPEN_VOICE_FILL".equals(intent.getAction())) {
                 intent.setAction(null);
             }
         }
@@ -30,6 +39,13 @@ public class AssistantActionsPlugin extends Plugin {
 
     @Override
     protected void handleOnNewIntent(Intent intent) {
+        if (isVoiceFillIntent(intent)) {
+            JSObject data = new JSObject();
+            data.put("openVoice", true);
+            notifyListeners("openVoiceFill", data, true);
+            return;
+        }
+
         if (isAddEntryIntent(intent)) {
             JSObject data = new JSObject();
             data.put("openForm", true);
@@ -41,6 +57,20 @@ public class AssistantActionsPlugin extends Plugin {
         if (record == null) return;
 
         notifyListeners("addRecord", record, true);
+    }
+
+    private boolean isVoiceFillIntent(Intent intent) {
+        if (intent == null) return false;
+        if ("raj.solodiary.action.OPEN_VOICE_FILL".equals(intent.getAction())) {
+            return true;
+        }
+        if (intent.getBooleanExtra("open_voice", false)) {
+            return true;
+        }
+        if ("voice_fill".equals(intent.getStringExtra("action"))) {
+            return true;
+        }
+        return false;
     }
 
     private boolean isAddEntryIntent(Intent intent) {

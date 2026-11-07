@@ -453,6 +453,7 @@ const App: React.FC = () => {
     let disposed = false;
     let recordListener: { remove: () => Promise<void> } | undefined;
     let addEntryListener: { remove: () => Promise<void> } | undefined;
+    let voiceFillListener: { remove: () => Promise<void> } | undefined;
 
     const setupAssistantAndWidgetListeners = async () => {
       // Also check URL parameter for browser / PWA fallback
@@ -460,6 +461,10 @@ const App: React.FC = () => {
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('action') === 'add_entry') {
           openEntryForm(null);
+          setCurrentPage('home');
+          window.history.replaceState({}, '', window.location.pathname + window.location.hash);
+        } else if (urlParams.get('action') === 'voice_fill') {
+          setIsVoiceModalOpen(true);
           setCurrentPage('home');
           window.history.replaceState({}, '', window.location.pathname + window.location.hash);
         }
@@ -470,12 +475,22 @@ const App: React.FC = () => {
       try {
         // 1. Check if launched cold from Android 1x1 Widget
         const launch = await AssistantActions.checkLaunchIntent();
-        if (!disposed && launch?.openForm) {
+        if (!disposed && launch?.openVoice) {
+          setIsVoiceModalOpen(true);
+          setCurrentPage('home');
+        } else if (!disposed && launch?.openForm) {
           openEntryForm(null);
           setCurrentPage('home');
         }
 
         // 2. Listen if app is already running and brought to front from Android Widget
+        voiceFillListener = await AssistantActions.addListener('openVoiceFill', (data) => {
+          if (!disposed && data?.openVoice) {
+            setIsVoiceModalOpen(true);
+            setCurrentPage('home');
+          }
+        });
+
         addEntryListener = await AssistantActions.addListener('openAddEntry', (data) => {
           if (!disposed && data?.openForm) {
             openEntryForm(null);
@@ -496,6 +511,7 @@ const App: React.FC = () => {
       disposed = true;
       recordListener?.remove();
       addEntryListener?.remove();
+      voiceFillListener?.remove();
     };
   }, [handleAssistantRecord, openEntryForm]);
 

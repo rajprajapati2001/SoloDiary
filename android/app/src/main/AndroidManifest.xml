@@ -26,6 +26,10 @@
                 <action android:name="raj.solodiary.action.OPEN_ADD_ENTRY" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="raj.solodiary.action.OPEN_VOICE_FILL" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
         </activity>
 
         <!-- 1x1 Floating Add Entry Widget -->
@@ -39,6 +43,19 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/widget_add_entry_info" />
+        </receiver>
+
+        <!-- 1x1 Floating Voice Fill Widget -->
+        <receiver
+            android:name=".VoiceFillWidgetProvider"
+            android:label="@string/widget_voice_fill_name"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_voice_fill_info" />
         </receiver>
 
         <provider
