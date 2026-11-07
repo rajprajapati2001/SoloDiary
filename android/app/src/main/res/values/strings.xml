@@ -10,4 +10,10 @@
     <string name="widget_voice_fill_name">Voice Fill</string>
     <string name="widget_voice_fill_label">Voice Fill</string>
     <string name="widget_voice_fill_description">Quick 1x1 floating button to fill diary entries using voice</string>
+    <string name="widget_today_points_name">Today\'s Points</string>
+    <string name="widget_today_points_label">Today\'s Points</string>
+    <string name="widget_today_points_description">Resizable widget displaying today\'s points and daily target progress</string>
+    <string name="widget_monthly_progress_name">Monthly Progress</string>
+    <string name="widget_monthly_progress_label">Monthly Progress</string>
+    <string name="widget_monthly_progress_description">Resizable widget displaying this month\'s points and monthly goal progress</string>
 </resources>

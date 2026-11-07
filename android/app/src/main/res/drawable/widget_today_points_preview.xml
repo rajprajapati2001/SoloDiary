@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    
+    <!-- 1. Background Card -->
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="16dp" />
+            <solid android:color="#1E293B" />
+            <stroke android:width="1.2dp" android:color="#334155" />
+        </shape>
+    </item>
+
+    <!-- 2. Accent Box (Centered or neatly anchored) -->
+    <item
+        android:width="36dp"
+        android:height="36dp"
+        android:top="16dp"
+        android:left="16dp">
+        <shape android:shape="rectangle">
+            <corners android:radius="8dp" />
+            <solid android:color="#2610B981" />
+        </shape>
+    </item>
+
+    <!-- 3. Icon centered precisely inside the 36x36 box -->
+    <!-- Using gravity ensures it scales properly without manual px offset guessing -->
+    <item
+        android:drawable="@drawable/ic_widget_target"
+        android:width="22dp"
+        android:height="22dp"
+        android:top="23dp"
+        android:left="23dp" />
+
+</layer-list>

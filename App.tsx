@@ -237,6 +237,47 @@ const App: React.FC = () => {
     });
   }, []);
 
+  // Sync latest Today and Monthly progress data with Android Home Screen Widgets
+  useEffect(() => {
+    try {
+      const now = new Date();
+      const yyyy = now.getFullYear();
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const dd = String(now.getDate()).padStart(2, '0');
+      const todayStr = `${yyyy}-${mm}-${dd}`;
+      const currentMonthStr = `${yyyy}-${mm}`;
+
+      const todayEntries = entries.filter(e => (e.fromDate || e.toDate) === todayStr);
+      const todayPoints = todayEntries.reduce((sum, e) => sum + (e.points || 0), 0);
+      const todayTarget = 100;
+      const todayProgress = Math.min(Math.round((todayPoints / todayTarget) * 100), 100);
+
+      const daysInMonth = new Date(yyyy, now.getMonth() + 1, 0).getDate();
+      const monthTarget = daysInMonth * 100;
+      const monthEntries = entries.filter(e => (e.fromDate || e.toDate || '').startsWith(currentMonthStr));
+      const monthPoints = monthEntries.reduce((sum, e) => sum + (e.points || 0), 0);
+      const monthProgress = Math.min(Math.round((monthPoints / monthTarget) * 100), 100);
+
+      const formattedToday = `Today, ${now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}`;
+      const monthName = now.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+
+      AssistantActions.updateWidgetData({
+        todayPoints,
+        todayTarget,
+        todayDate: formattedToday,
+        todayProgress,
+        monthPoints,
+        monthTarget,
+        monthName,
+        monthProgress,
+      }).catch(() => {
+        // Safe fallback on web browser
+      });
+    } catch {
+      // ignore
+    }
+  }, [entries]);
+
   useEffect(() => {
     localStorage.setItem('solo_diary_theme', isDarkMode ? 'dark' : 'light');
     const root = window.document.documentElement;

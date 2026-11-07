@@ -17,8 +17,20 @@ export interface AssistantRecordInput {
   toTime?: string;
 }
 
+export interface WidgetDataInput {
+  todayPoints?: number;
+  todayTarget?: number;
+  todayDate?: string;
+  todayProgress?: number;
+  monthPoints?: number;
+  monthTarget?: number;
+  monthName?: string;
+  monthProgress?: number;
+}
+
 interface AssistantActionsPlugin {
   checkLaunchIntent(): Promise<{ openForm?: boolean; openVoice?: boolean }>;
+  updateWidgetData(data: WidgetDataInput): Promise<void>;
   addListener(eventName: 'addRecord', listener: (record: AssistantRecordInput) => void): Promise<{ remove: () => Promise<void> }>;
   addListener(eventName: 'openAddEntry', listener: (data: { openForm?: boolean }) => void): Promise<{ remove: () => Promise<void> }>;
   addListener(eventName: 'openVoiceFill', listener: (data: { openVoice?: boolean }) => void): Promise<{ remove: () => Promise<void> }>;

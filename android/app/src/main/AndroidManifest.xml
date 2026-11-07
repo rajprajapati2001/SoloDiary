@@ -58,6 +58,32 @@
                 android:resource="@xml/widget_voice_fill_info" />
         </receiver>
 
+        <!-- Resizable Today Points Widget -->
+        <receiver
+            android:name=".TodayPointsWidgetProvider"
+            android:label="@string/widget_today_points_name"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_today_points_info" />
+        </receiver>
+
+        <!-- Resizable Monthly Progress Widget -->
+        <receiver
+            android:name=".MonthlyProgressWidgetProvider"
+            android:label="@string/widget_monthly_progress_name"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_monthly_progress_info" />
+        </receiver>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
