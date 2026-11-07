@@ -49,11 +49,39 @@ public class AssistantActionsPlugin extends Plugin {
                 if (call.hasOption("monthProgress")) {
                     editor.putInt(MonthlyProgressWidgetProvider.KEY_MONTH_PROGRESS, call.getInt("monthProgress", 0));
                 }
+                if (call.hasOption("monthSpaceName")) {
+                    editor.putString(MonthlyProgressWidgetProvider.KEY_MONTH_SPACE_NAME, call.getString("monthSpaceName"));
+                }
+
+                if (call.hasOption("timelineData")) {
+                    editor.putString(ActivityArchitectureWidgetProvider.KEY_TIMELINE_DATA, call.getString("timelineData"));
+                }
+                if (call.hasOption("timelineCount")) {
+                    editor.putInt(ActivityArchitectureWidgetProvider.KEY_TIMELINE_COUNT, call.getInt("timelineCount", 0));
+                }
+
+                if (call.hasOption("todayActivitiesJson")) {
+                    editor.putString(DailyActivitiesWidgetProvider.KEY_ACTIVITIES_LIST_JSON, call.getString("todayActivitiesJson"));
+                }
+                if (call.hasOption("todayTotalDebit")) {
+                    editor.putInt(DailyActivitiesWidgetProvider.KEY_TODAY_DEBIT, call.getInt("todayTotalDebit", 0));
+                }
+                if (call.hasOption("todayTotalCredit")) {
+                    editor.putInt(DailyActivitiesWidgetProvider.KEY_TODAY_CREDIT, call.getInt("todayTotalCredit", 0));
+                }
+                if (call.hasOption("todayDateFull")) {
+                    editor.putString(DailyActivitiesWidgetProvider.KEY_TODAY_DATE_FULL, call.getString("todayDateFull"));
+                }
+                if (call.hasOption("currencySymbol")) {
+                    editor.putString(DailyActivitiesWidgetProvider.KEY_CURRENCY_SYMBOL, call.getString("currencySymbol"));
+                }
 
                 editor.apply();
 
                 TodayPointsWidgetProvider.updateAllWidgets(context);
                 MonthlyProgressWidgetProvider.updateAllWidgets(context);
+                ActivityArchitectureWidgetProvider.updateAllWidgets(context);
+                DailyActivitiesWidgetProvider.updateAllWidgets(context);
             }
             call.resolve();
         } catch (Exception e) {

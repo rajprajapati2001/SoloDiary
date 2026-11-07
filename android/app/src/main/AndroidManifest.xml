@@ -84,6 +84,37 @@
                 android:resource="@xml/widget_monthly_progress_info" />
         </receiver>
 
+        <!-- Resizable Activity Architecture Widget -->
+        <receiver
+            android:name=".ActivityArchitectureWidgetProvider"
+            android:label="@string/widget_activity_architecture_name"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_activity_architecture_info" />
+        </receiver>
+
+        <!-- Resizable Daily Activities Widget -->
+        <receiver
+            android:name=".DailyActivitiesWidgetProvider"
+            android:label="@string/widget_daily_activities_name"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_daily_activities_info" />
+        </receiver>
+
+        <service
+            android:name=".DailyActivitiesWidgetService"
+            android:permission="android.permission.BIND_REMOTEVIEWS"
+            android:exported="true" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

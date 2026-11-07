@@ -16,4 +16,10 @@
     <string name="widget_monthly_progress_name">Monthly Progress</string>
     <string name="widget_monthly_progress_label">Monthly Progress</string>
     <string name="widget_monthly_progress_description">Resizable widget displaying this month\'s points and monthly goal progress</string>
+    <string name="widget_activity_architecture_name">Activity Architecture</string>
+    <string name="widget_activity_architecture_label">Activity Architecture</string>
+    <string name="widget_activity_architecture_description">Resizable widget displaying the 24-hour activity architecture timeline</string>
+    <string name="widget_daily_activities_name">Daily Activities</string>
+    <string name="widget_daily_activities_label">Daily Activities</string>
+    <string name="widget_daily_activities_description">Resizable widget displaying today\'s activity list with debit, credit, and points</string>
 </resources>

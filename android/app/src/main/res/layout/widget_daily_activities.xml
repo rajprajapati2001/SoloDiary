@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_daily_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_card_background"
+    android:orientation="vertical"
+    android:padding="10dp">
+
+    <!-- Header: Date (dd MMM yy) on Left | Spend, Credit, Pts UI badges on Right -->
+    <LinearLayout
+        android:id="@+id/widget_daily_header"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingBottom="8dp">
+
+        <FrameLayout
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:background="@drawable/widget_icon_scroll_bg">
+
+            <ImageView
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_widget_scroll_text"
+                android:contentDescription="Daily Activities" />
+        </FrameLayout>
+
+        <!-- Left: Clean Date in dd MMM yy format (No 'Today:' or 'Todays:') -->
+        <TextView
+            android:id="@+id/widget_daily_header_date"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_marginLeft="8dp"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="07 Nov 26"
+            android:textColor="#FFFFFF"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <!-- Right: Modern UI Badges for Spend, Credit, Points (No parentheses) -->
+        <LinearLayout
+            android:id="@+id/widget_daily_header_badges"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <!-- Total Spend (Debit) Chip: Red UI -->
+            <TextView
+                android:id="@+id/widget_daily_badge_spend"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/widget_badge_spend_bg"
+                android:paddingStart="6dp"
+                android:paddingEnd="6dp"
+                android:paddingLeft="6dp"
+                android:paddingRight="6dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp"
+                android:text="-0"
+                android:textColor="#EF4444"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+
+            <!-- Credit Chip: Green UI (Always visible in title bar) -->
+            <TextView
+                android:id="@+id/widget_daily_badge_credit"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:layout_marginLeft="4dp"
+                android:background="@drawable/widget_badge_credit_bg"
+                android:paddingStart="6dp"
+                android:paddingEnd="6dp"
+                android:paddingLeft="6dp"
+                android:paddingRight="6dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp"
+                android:text="+0"
+                android:textColor="#10B981"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+
+            <!-- Points Chip: Cyan/Emerald UI (Always visible in title bar) -->
+            <TextView
+                android:id="@+id/widget_daily_badge_points"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:layout_marginLeft="4dp"
+                android:background="@drawable/widget_badge_points_bg"
+                android:paddingStart="6dp"
+                android:paddingEnd="6dp"
+                android:paddingLeft="6dp"
+                android:paddingRight="6dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp"
+                android:text="+0 pts"
+                android:textColor="#38BDF8"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Header Divider Line: Using ImageView as bare View is forbidden in RemoteViews -->
+    <ImageView
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginBottom="6dp"
+        android:background="#334155"
+        android:contentDescription="@null" />
+
+    <!-- List of Activities -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <ListView
+            android:id="@+id/widget_daily_activities_list"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:divider="@android:color/transparent"
+            android:dividerHeight="5dp" />
+
+        <TextView
+            android:id="@+id/widget_daily_empty_view"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:text="No activities recorded for today."
+            android:textColor="#64748B"
+            android:textSize="11sp"
+            android:textStyle="italic" />
+    </FrameLayout>
+
+</LinearLayout>

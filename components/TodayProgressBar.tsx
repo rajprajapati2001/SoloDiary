@@ -11,7 +11,7 @@ interface TodayProgressBarProps {
 }
 
 // Helper to convert HH:MM string to total minutes
-const parseTimeToMinutes = (timeStr: string | null): number => {
+export const parseTimeToMinutes = (timeStr: string | null): number => {
   if (!timeStr) return 0;
   
   const clean = timeStr.trim().toUpperCase();
@@ -42,7 +42,7 @@ const parseTimeToMinutes = (timeStr: string | null): number => {
 };
 
 // Map code to beautiful, vibrant, deterministic custom colors
-const getActivityColor = (code: string): string => {
+export const getActivityColor = (code: string): string => {
   const predefined: Record<string, string> = {
     // ID 1: Sleep (Calming Deep Blue - dominates night hours)
     'S': '#1e40af',    

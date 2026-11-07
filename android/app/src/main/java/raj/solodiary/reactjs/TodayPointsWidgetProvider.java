@@ -52,14 +52,19 @@ public class TodayPointsWidgetProvider extends AppWidgetProvider {
         int progress = prefs.getInt(KEY_TODAY_PROGRESS, target > 0 ? Math.min((points * 100) / target, 100) : 0);
 
         String defaultDate;
-try {
-    SimpleDateFormat sdf = new SimpleDateFormat("dd MMMM yy", Locale.getDefault());
-    String formattedDate = sdf.format(new Date());
-    defaultDate = formattedDate; 
-} catch (Exception e) {
-    defaultDate = "Today";
-}
-        String dateText = prefs.getString(KEY_TODAY_DATE, defaultDate);
+        try {
+            SimpleDateFormat sdf = new SimpleDateFormat("dd MMM yy", Locale.ENGLISH);
+            defaultDate = sdf.format(new Date());
+        } catch (Exception e) {
+            defaultDate = "07 Nov 26";
+        }
+        String storedDate = prefs.getString(KEY_TODAY_DATE, null);
+        String dateText = defaultDate;
+        if (storedDate != null && !storedDate.isEmpty()) {
+            if (storedDate.length() <= 10 && !storedDate.toLowerCase().contains("today") && !storedDate.contains("202")) {
+                dateText = storedDate;
+            }
+        }
 
         RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.widget_today_points);
 

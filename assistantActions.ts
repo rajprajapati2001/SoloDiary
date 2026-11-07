@@ -26,6 +26,14 @@ export interface WidgetDataInput {
   monthTarget?: number;
   monthName?: string;
   monthProgress?: number;
+  timelineData?: string;
+  timelineCount?: number;
+  todayActivitiesJson?: string;
+  todayTotalDebit?: number;
+  todayTotalCredit?: number;
+  todayDateFull?: string;
+  currencySymbol?: string;
+  monthSpaceName?: string;
 }
 
 interface AssistantActionsPlugin {

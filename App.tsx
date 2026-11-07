@@ -14,10 +14,11 @@ const Footer = lazy(() => import('./components/Footer'));
 const NoInternet = lazy(() => import('./components/NoInternet'));
 import { ActivityEntry, Goal, ActivityTemplate, Page } from './types';
 import { getDB } from './db';
-import { INITIAL_ACTIVITIES } from './constants';
+import { INITIAL_ACTIVITIES, getCurrencySymbol } from './constants';
 import { AssistantActions, AssistantRecordInput } from './assistantActions';
 import UserIcon from './assets/icons/user.png';
 import MainLogo from "./assets/icons/solodiary_icon.ico";
+import { parseTimeToMinutes, getActivityColor } from './components/TodayProgressBar';
 
 const PageLoader = () => (
   <div className="flex items-center justify-center py-20">
@@ -237,7 +238,7 @@ const App: React.FC = () => {
     });
   }, []);
 
-  // Sync latest Today and Monthly progress data with Android Home Screen Widgets
+  // Sync latest Today, Monthly, and Activity Architecture data with Android Home Screen Widgets
   useEffect(() => {
     try {
       const now = new Date();
@@ -258,25 +259,146 @@ const App: React.FC = () => {
       const monthPoints = monthEntries.reduce((sum, e) => sum + (e.points || 0), 0);
       const monthProgress = Math.min(Math.round((monthPoints / monthTarget) * 100), 100);
 
-      const formattedToday = `Today, ${now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}`;
-      const monthName = now.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+      // dd MMM yy format, e.g. "07 Nov 26"
+      const day = String(now.getDate()).padStart(2, '0');
+      const monthLong = now.toLocaleDateString('en-US', { month: 'long' });
+      const monthShort = now.toLocaleDateString('en-US', { month: 'short' });
+      const yearShort = String(now.getFullYear()).slice(-2);
+      const formattedToday = `${day} ${monthLong} ${yearShort}`;
+      const monthName = `${monthLong} ${yyyy}`;
+      const formattedTodayShort = `${day} ${monthShort} ${yearShort}`; // "07 Nov 26"
+
+      // Space rank based on monthly goal progress
+      const spaceRanks = [
+        'Zero-G Cadence', 'Terrestrial Tether', 'Grounded Observer', 'Gravity Bound', 'Atmos Apprentice',
+        'Launchpad Larva', 'Stratosphere Scanner', 'Sub-Orbital Spotter', 'Orbit Initiate', 'Perigee Plebeian',
+        'Horizon Chaser', 'Velocity Vestige', 'Vacuum Venture', 'Cosmic Cadet', 'Nebula Neophyte',
+        'Apogee Aspirant', 'Solar Scouter', 'Flare Finder', 'Zenith Zealot', 'Eclipse Escort',
+        'Orbit Operator', 'Interstellar Intern', 'Meteor Midshipman', 'Comet Courier', 'Nova Novice',
+        'Pulsar Pacer', 'Astral Apprentice', 'Asteroid Auditor', 'Rocket Rigging', 'Void Venture',
+        'Cluster Curator', 'Elite Chronicler', 'Cosmos Cataloger', 'Nebula Notary', 'Stellar Scribe',
+        'Orbit Overseer', 'Galaxy Archivist', 'System Surveyor', 'Vector Validator', 'Sector Supervisor',
+        'Eclipse Evaluator', 'Celestial Curator', 'Flare Forecaster', 'Constellation Registrar', 'Parallax Paladin',
+        'Zenith Warden', 'Void Visualizer', 'Cosmos Cartographer', 'Nebula Navigator', 'Quasar Quorum',
+        'Continuum Keeper', 'Astral Analyst', 'Gravity Governor', 'Solar Sentinel', 'Void Vignette',
+        'Star System Sentry', 'Deep Space Dean', 'Meridian Marshal', 'Cluster Commander', 'Orbit Officer',
+        'Horizon Herald', 'Eclipse Enforcer', 'Nova Superintendent', 'Vector Vanguard', 'Epoch Examiner',
+        'Zenith Zenithith', 'Master Navigator', 'Celestial Helmsman', 'Starpath Skipper', 'Cosmic Commodore',
+        'Void Voyager', 'Nebula Skipper', 'Solar Skipper', 'Continuum Pilot', 'Deep Space Director',
+        'Stellar Steersman', 'Galaxy Guide', 'Vector Voyager', 'Orbit Orchestrator', 'Meridian Master',
+        'Zenith Pathfinder', 'Eclipse Explorer', 'Cosmos Captain', 'Sector Skipper', 'Flare Fleetmaster',
+        'Cluster Captain', 'Void Viceroy', 'Starpath Sovereign', 'Galaxy Governor', 'Celestial Commander',
+        'Nebula Noble', 'Continuum Commander', 'Deep Space Dictator', 'Solar Sovereign', 'Cosmic Chancellor',
+        'Horizon High-Admiral', 'Legendary Voyager', 'Void Visionary', 'Starpath Sage', 'Celestial Paragon',
+        'Galaxy Guardian'
+      ];
+      let monthSpaceName = 'Zero-G Cadence';
+      if (monthProgress > 100) monthSpaceName = 'Sovereign of Space-Time';
+      else if (monthProgress === 100) monthSpaceName = 'Astral Vanguard';
+      else monthSpaceName = spaceRanks[Math.floor(Math.max(0, monthProgress))] || 'Zero-G Cadence';
+
+      // 24-hour timeline blocks for Activity Architecture widget
+      const todayTimeline = todayEntries.map(entry => {
+        const startMin = parseTimeToMinutes(entry.fromTime || entry.toTime);
+        let endMin = entry.isLongEvent && entry.toTime
+          ? parseTimeToMinutes(entry.toTime)
+          : startMin + 25;
+        if (endMin <= startMin) endMin = startMin + 25;
+        if (endMin > 1440) endMin = 1440;
+        return {
+          code: entry.code || '',
+          startMin,
+          endMin,
+          color: getActivityColor(entry.code || ''),
+        };
+      }).sort((a, b) => a.startMin - b.startMin);
+
+      // Sort today entries by time for Daily Activities widget
+      const sortedTodayEntries = [...todayEntries].sort((a, b) => {
+        const timeA = a.fromTime || a.toTime || '';
+        const timeB = b.fromTime || b.toTime || '';
+        return timeA.localeCompare(timeB);
+      });
+
+      const todayTotalDebit = todayEntries.reduce((s, e) => s + (Number(e.debit) || 0), 0);
+      const todayTotalCredit = todayEntries.reduce((s, e) => s + (Number(e.credit) || 0), 0);
+      const primaryCurr = todayEntries.find(e => e.moneyCode)?.moneyCode;
+      const currencySymbol = primaryCurr ? getCurrencySymbol(primaryCurr) : '';
+
+      // Format items: Time Meal Debit Credit Points (No code, no parentheses)
+      const todayActivitiesList = sortedTodayEntries.map(entry => {
+        const fromTime = (entry.fromTime || '').trim();
+        const toTime = (entry.toTime || '').trim();
+        let timeText = '00:00';
+        if (fromTime && toTime && fromTime !== toTime) {
+          timeText = `${fromTime} to ${toTime}`;
+        } else {
+          timeText = fromTime || toTime || '00:00';
+        }
+        const debit = Number(entry.debit) || 0;
+        const credit = Number(entry.credit) || 0;
+        const curr = entry.moneyCode ? getCurrencySymbol(entry.moneyCode) : currencySymbol;
+        
+        let debitText = '';
+        if (debit > 0) {
+          debitText = `-${curr}${debit}`;
+        }
+        let creditText = '';
+        if (credit > 0) {
+          creditText = `+${curr}${credit}`;
+        }
+
+        // Do NOT show Activity code: show Activity Name only (fallback if name is empty)
+        const activityName = (entry.name && entry.name.trim().length > 0)
+          ? entry.name.trim()
+          : (entry.code || 'Activity').trim();
+
+        // Check if this activity corresponds to an achieved Goal:
+        // A goal is only achieved on entryDate if g.code === entry.code && g.achievedAt === entryDate
+        const entryDate = entry.fromDate || entry.toDate || todayStr;
+        const isGoal = Boolean(
+          entry.code &&
+          goals.some(g => g.code === entry.code && g.achievedAt === entryDate)
+        );
+
+        return {
+          id: entry.id,
+          timeText,
+          name: activityName,
+          debit,
+          credit,
+          debitText,
+          creditText,
+          pointsText: `${entry.points >= 0 ? '+' : ''}${entry.points || 0} pts`,
+          description: (entry.description || '').trim(),
+          isGoal: Boolean(isGoal),
+        };
+      });
 
       AssistantActions.updateWidgetData({
         todayPoints,
         todayTarget,
-        todayDate: formattedToday,
+        todayDate: formattedTodayShort,
         todayProgress,
         monthPoints,
         monthTarget,
         monthName,
         monthProgress,
+        monthSpaceName,
+        timelineData: JSON.stringify(todayTimeline),
+        timelineCount: todayEntries.length,
+        todayActivitiesJson: JSON.stringify(todayActivitiesList),
+        todayTotalDebit,
+        todayTotalCredit,
+        todayDateFull: formattedTodayShort,
+        currencySymbol,
       }).catch(() => {
         // Safe fallback on web browser
       });
     } catch {
       // ignore
     }
-  }, [entries]);
+  }, [entries, goals]);
 
   useEffect(() => {
     localStorage.setItem('solo_diary_theme', isDarkMode ? 'dark' : 'light');

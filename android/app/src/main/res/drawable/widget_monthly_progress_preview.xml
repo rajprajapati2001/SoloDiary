@@ -4,34 +4,29 @@
     <!-- 1. Base Card Background -->
     <item>
         <shape android:shape="rectangle">
+            <size android:width="160dp" android:height="90dp" />
             <corners android:radius="16dp" />
             <solid android:color="#1E293B" />
             <stroke android:width="1.2dp" android:color="#334155" />
         </shape>
     </item>
 
-    <!-- 2. Accent Box (Positioned using margins) -->
+    <!-- 2. Centered Accent Box -->
     <item
-        android:width="36dp"
-        android:height="36dp"
-        android:top="16dp"
-        android:left="16dp">
+        android:width="44dp"
+        android:height="44dp"
+        android:gravity="center">
         <shape android:shape="rectangle">
-            <corners android:radius="8dp" />
+            <corners android:radius="12dp" />
             <solid android:color="#263B82F6" />
         </shape>
     </item>
 
-    <!-- 3. Icon Centered Inside the Accent Box using Gravity -->
-    <!-- We match the same top/left bounds and use gravity="center" so it never drifts -->
+    <!-- 3. Centered Calendar Icon -->
     <item
-        android:width="22dp"
-        android:height="22dp"
-        android:top="16dp"
-        android:left="16dp"
-        android:right="16dp"
-        android:bottom="16dp"
-        android:gravity="center"
-        android:drawable="@drawable/ic_widget_calendar" />
+        android:drawable="@drawable/ic_widget_calendar"
+        android:width="26dp"
+        android:height="26dp"
+        android:gravity="center" />
 
 </layer-list>
